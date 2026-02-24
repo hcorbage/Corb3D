@@ -293,9 +293,16 @@ export async function registerRoutes(
     }
   });
 
+  const requireAdmin: RequestHandler = (req, res, next) => {
+    if (!req.session || !req.session.isAdmin) {
+      return res.status(403).json({ message: "Acesso restrito ao administrador." });
+    }
+    next();
+  };
+
   const requireMasterAdmin: RequestHandler = (req, res, next) => {
     if (!req.session || !req.session.isMasterAdmin) {
-      return res.status(403).json({ message: "Acesso restrito ao administrador." });
+      return res.status(403).json({ message: "Acesso restrito ao administrador master." });
     }
     next();
   };
@@ -448,7 +455,7 @@ export async function registerRoutes(
       res.json(emp ? [emp] : []);
     }
   });
-  app.post("/api/employees", requireMasterAdmin, async (req, res) => {
+  app.post("/api/employees", requireAdmin, async (req, res) => {
     try {
       const body = stripUserId(req.body);
       const emp = await storage.createEmployee({ ...body, userId: req.session.userId! });
@@ -477,11 +484,11 @@ export async function registerRoutes(
       res.status(500).json({ message: e.message });
     }
   });
-  app.patch("/api/employees/:id", requireMasterAdmin, async (req, res) => {
+  app.patch("/api/employees/:id", requireAdmin, async (req, res) => {
     const emp = await storage.updateEmployee(req.params.id, req.session.userId!, stripUserId(req.body));
     res.json(emp);
   });
-  app.delete("/api/employees/:id", requireMasterAdmin, async (req, res) => {
+  app.delete("/api/employees/:id", requireAdmin, async (req, res) => {
     await storage.deleteEmployee(req.params.id, req.session.userId!);
     res.json({ ok: true });
   });
