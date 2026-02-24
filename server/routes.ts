@@ -317,7 +317,7 @@ export async function registerRoutes(
     try {
       const { username, password, passwordHint, cpf, birthdate } = req.body;
       if (!username || !password) {
-        return res.status(400).json({ message: "Usuário e senha são obrigatórios." });
+        return res.status(400).json({ message: "Nome e senha são obrigatórios." });
       }
       if (password.length < 6) {
         return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
@@ -325,17 +325,24 @@ export async function registerRoutes(
       if (!cpf || !birthdate) {
         return res.status(400).json({ message: "CPF e data de nascimento são obrigatórios." });
       }
-      const existing = await storage.getUserByUsername(username);
-      if (existing) {
-        return res.status(400).json({ message: "Este usuário já existe." });
+      const nameParts = username.trim().split(/\s+/).filter((p: string) => p.length > 0);
+      const firstInitial = (nameParts[0] || 'u').charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+      const birthYear = new Date(birthdate).getFullYear();
+      const baseLogin = `${firstInitial}${lastInitial}${birthYear}`;
+      let generatedLogin = baseLogin;
+      let counter = 1;
+      while (await storage.getUserByUsername(generatedLogin)) {
+        generatedLogin = `${baseLogin}_${counter}`;
+        counter++;
       }
       const hashed = await bcrypt.hash(password, 10);
-      const userData: any = { username, password: hashed, isAdmin: true, passwordHint: passwordHint || null };
+      const userData: any = { username: generatedLogin, password: hashed, isAdmin: true, passwordHint: passwordHint || null };
       userData.cpf = cpf.replace(/\D/g, '');
       userData.birthdate = birthdate;
       const user = await storage.createUser(userData);
       await seedMaterialsForUser(user.id);
-      return res.json({ id: user.id, username: user.username });
+      return res.json({ id: user.id, username: user.username, generatedLogin: generatedLogin, fullName: username.trim() });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -467,11 +474,15 @@ export async function registerRoutes(
       const body = stripUserId(req.body);
       const emp = await storage.createEmployee({ ...body, userId: req.session.userId! });
       
-      const firstName = body.name.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
-      let username = firstName;
+      const nameParts = body.name.trim().split(/\s+/).filter((p: string) => p.length > 0);
+      const firstInitial = (nameParts[0] || 'u').charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+      const birthYear = body.birthdate ? new Date(body.birthdate).getFullYear() : new Date().getFullYear();
+      const baseUsername = `${firstInitial}${lastInitial}${birthYear}`;
+      let username = baseUsername;
       let counter = 1;
       while (await storage.getUserByUsername(username)) {
-        username = `${firstName}${counter}`;
+        username = `${baseUsername}_${counter}`;
         counter++;
       }
       

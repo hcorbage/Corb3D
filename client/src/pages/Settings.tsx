@@ -45,7 +45,7 @@ export default function Settings() {
   const [newUserBirthdate, setNewUserBirthdate] = useState("");
   const [changePasswordHint, setChangePasswordHint] = useState("");
   const [empModalOpen, setEmpModalOpen] = useState(false);
-  const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
+  const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
   const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string } | null>(null);
@@ -112,6 +112,7 @@ export default function Settings() {
     }
     setUsersList([...usersList, { id: data.id, username: data.username }]);
     setUserModalOpen(false);
+    setCredentialsModal({ username: data.username, password: userForm.password, whatsapp: userForm.whatsapp || "", name: userForm.name.trim() });
     setUserForm({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
     toast({ title: "Sucesso", description: "Usuário criado com sucesso." });
   };
@@ -598,7 +599,7 @@ export default function Settings() {
             <button
               data-testid="button-open-emp-modal"
               onClick={() => {
-                setEmpForm({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
+                setEmpForm({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
                 setEmpModalOpen(true);
               }}
               className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-semibold transition-colors shadow-sm whitespace-nowrap"
@@ -762,7 +763,11 @@ export default function Settings() {
                   <input data-testid="input-emp-whatsapp" type="text" value={empForm.whatsapp} onChange={e => setEmpForm({ ...empForm, whatsapp: formatPhone(e.target.value) })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="(00) 00000-0000" maxLength={15} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Data Nasc. *</label>
+                  <input data-testid="input-emp-birthdate" type="date" value={empForm.birthdate} onChange={e => setEmpForm({ ...empForm, birthdate: e.target.value })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
                   <input data-testid="input-emp-email" type="email" value={empForm.email} onChange={e => setEmpForm({ ...empForm, email: e.target.value })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="email@exemplo.com" />
@@ -817,7 +822,7 @@ export default function Settings() {
               </div>
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-xs text-blue-700">
                 <Info className="w-4 h-4 inline mr-1" />
-                O sistema vai gerar automaticamente o usuário e senha do funcionário e abrir o WhatsApp para enviar as credenciais.
+                O login será gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento (ex: hc1990). A senha será gerada e exibida para envio via WhatsApp.
               </div>
               <button
                 data-testid="button-add-employee"
@@ -825,12 +830,14 @@ export default function Settings() {
                   if (!empForm.name.trim()) { toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" }); return; }
                   if (!empForm.document.trim()) { toast({ title: "Erro", description: "CPF/CNPJ é obrigatório.", variant: "destructive" }); return; }
                   if (!empForm.whatsapp.trim()) { toast({ title: "Erro", description: "WhatsApp é obrigatório.", variant: "destructive" }); return; }
+                  if (!empForm.birthdate) { toast({ title: "Erro", description: "Data de nascimento é obrigatória.", variant: "destructive" }); return; }
                   const result = await addEmployee({
                     name: empForm.name.trim(),
                     commissionRate: Number(empForm.commissionRate) || 0,
                     whatsapp: empForm.whatsapp,
                     document: empForm.document,
                     email: empForm.email || "",
+                    birthdate: empForm.birthdate,
                     cep: empForm.cep,
                     street: empForm.street,
                     number: empForm.number,
@@ -1165,6 +1172,10 @@ export default function Settings() {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">UF</label>
                   <input data-testid="input-new-user-uf" type="text" value={userForm.uf} onChange={e => setUserForm({ ...userForm, uf: e.target.value.toUpperCase() })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" maxLength={2} />
                 </div>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-xs text-blue-700">
+                <Info className="w-4 h-4 inline mr-1" />
+                O login será gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento (ex: hc1990). As credenciais serão exibidas após o cadastro.
               </div>
               <div className="border-t border-border/50 pt-4">
                 <h4 className="text-sm font-semibold mb-3 text-gray-700">Credenciais de Acesso</h4>
