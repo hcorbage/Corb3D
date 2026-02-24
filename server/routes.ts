@@ -545,11 +545,16 @@ export async function registerRoutes(
   app.get("/api/settings", async (req, res) => {
     const data = await storage.getSettings(req.session.userId!);
     if (!req.session.isAdmin && !data.logoUrl) {
-      const admins = await storage.getAdminUsers();
-      if (admins.length > 0) {
-        const adminSettings = await storage.getSettings(admins[0].id);
-        if (adminSettings.logoUrl) {
-          data.logoUrl = adminSettings.logoUrl;
+      const emp = await storage.getEmployeeByLinkedUserId(req.session.userId!);
+      if (emp) {
+        const adminSettings = await storage.getSettings(emp.userId);
+        if (adminSettings.logoUrl) data.logoUrl = adminSettings.logoUrl;
+        if (adminSettings.selectedPrinterId) data.selectedPrinterId = adminSettings.selectedPrinterId;
+      } else {
+        const admins = await storage.getAdminUsers();
+        if (admins.length > 0) {
+          const adminSettings = await storage.getSettings(admins[0].id);
+          if (adminSettings.logoUrl) data.logoUrl = adminSettings.logoUrl;
         }
       }
     }

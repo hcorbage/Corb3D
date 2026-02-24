@@ -586,7 +586,7 @@ export default function Settings() {
         </div>
 
         {/* Employees / Funcionários Section */}
-        {isMasterAdmin && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
+        {isAdmin && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
