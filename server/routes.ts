@@ -449,7 +449,14 @@ export async function registerRoutes(
   app.get("/api/employees", async (req, res) => {
     if (req.session.isAdmin) {
       const data = await storage.getEmployees(req.session.userId!);
-      res.json(data);
+      const enriched = await Promise.all(data.map(async (emp) => {
+        if (emp.linkedUserId) {
+          const linkedUser = await storage.getUserById(emp.linkedUserId);
+          return { ...emp, linkedUsername: linkedUser?.username || null };
+        }
+        return { ...emp, linkedUsername: null };
+      }));
+      res.json(enriched);
     } else {
       const emp = await storage.getEmployeeByLinkedUserId(req.session.userId!);
       res.json(emp ? [emp] : []);

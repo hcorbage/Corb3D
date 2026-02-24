@@ -673,6 +673,8 @@ export default function Settings() {
                       <div className="min-w-0">
                         <span className="font-semibold text-gray-800 text-sm truncate block">{emp.name}</span>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {(emp as any).linkedUsername && <span>Login: <strong>{(emp as any).linkedUsername}</strong></span>}
+                          {(emp as any).linkedUsername && <span>|</span>}
                           <span>Comissão: {emp.commissionRate}%</span>
                           {emp.whatsapp && <span>| {emp.whatsapp}</span>}
                         </div>
@@ -691,6 +693,31 @@ export default function Settings() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
+                      {(emp as any).linkedUsername && (
+                        <button
+                          data-testid={`button-reset-emp-pw-${emp.id}`}
+                          onClick={async () => {
+                            if (!window.confirm(`Resetar a senha de "${emp.name}"?`)) return;
+                            try {
+                              const r = await fetch("/api/auth/reset-password", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ username: (emp as any).linkedUsername }),
+                              });
+                              const d = await r.json();
+                              if (r.ok && d.tempPassword) {
+                                setCredentialsModal({ username: (emp as any).linkedUsername, password: d.tempPassword, whatsapp: emp.whatsapp || "", name: emp.name });
+                              } else {
+                                toast({ title: "Erro", description: d.message || "Erro ao resetar.", variant: "destructive" });
+                              }
+                            } catch { toast({ title: "Erro", description: "Erro de conexão.", variant: "destructive" }); }
+                          }}
+                          className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all"
+                          title="Resetar senha"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         data-testid={`button-delete-emp-${emp.id}`}
                         onClick={() => {
