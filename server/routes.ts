@@ -489,6 +489,10 @@ export async function registerRoutes(
     res.json(emp);
   });
   app.delete("/api/employees/:id", requireAdmin, async (req, res) => {
+    const emp = await storage.getEmployee(req.params.id, req.session.userId!);
+    if (emp?.linkedUserId) {
+      await storage.deleteUser(emp.linkedUserId);
+    }
     await storage.deleteEmployee(req.params.id, req.session.userId!);
     res.json({ ok: true });
   });
