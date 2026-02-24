@@ -309,7 +309,7 @@ export async function registerRoutes(
 
   // ---- USER MANAGEMENT (admin only) ----
   app.get("/api/users", requireAuth, requireMasterAdmin, async (_req, res) => {
-    const usersList = await storage.getAllUsers();
+    const usersList = await storage.getAdminUsers();
     res.json(usersList);
   });
 
