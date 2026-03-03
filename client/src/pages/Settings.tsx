@@ -29,6 +29,10 @@ export default function Settings() {
 
   const [localSettings, setLocalSettings] = useState(settings);
 
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
+
   const [usersList, setUsersList] = useState<{ id: string; username: string }[]>([]);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -212,12 +216,20 @@ export default function Settings() {
 
   const handleCropMouseUp = () => setIsDragging(false);
 
-  const saveSettings = () => {
-    updateSettings(localSettings);
-    toast({
-      title: "Sucesso",
-      description: "Ajustes salvos com sucesso.",
-    });
+  const saveSettings = async () => {
+    try {
+      await updateSettings(localSettings);
+      toast({
+        title: "Sucesso",
+        description: "Ajustes salvos com sucesso.",
+      });
+    } catch (e) {
+      toast({
+        title: "Erro",
+        description: "Falha ao salvar os ajustes.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportBackup = () => {
