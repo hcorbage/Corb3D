@@ -1,12 +1,13 @@
 import { 
-  clients, materials, stockItems, calculations, settings, users, employees,
+  clients, materials, stockItems, calculations, settings, users, employees, brands,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
   type Employee, type InsertEmployee,
   type Calculation, type InsertCalculation,
   type Settings, type InsertSettings,
-  type User, type InsertUser
+  type User, type InsertUser,
+  type Brand, type InsertBrand
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -43,6 +44,11 @@ export interface IStorage {
   createCalculation(calc: InsertCalculation): Promise<Calculation>;
   updateCalculation(id: string, userId: string, calc: Partial<InsertCalculation>): Promise<Calculation | undefined>;
   deleteCalculation(id: string, userId: string): Promise<void>;
+
+  getBrands(userId: string): Promise<Brand[]>;
+  createBrand(brand: InsertBrand): Promise<Brand>;
+  deleteBrand(id: string, userId: string): Promise<void>;
+  getBrandCount(userId: string): Promise<number>;
 
   getSettings(userId: string): Promise<Settings>;
   updateSettings(userId: string, s: Partial<InsertSettings>): Promise<Settings>;
@@ -167,6 +173,21 @@ export class DatabaseStorage implements IStorage {
     await db.delete(calculations).where(and(eq(calculations.id, id), eq(calculations.userId, userId)));
   }
 
+  async getBrands(userId: string): Promise<Brand[]> {
+    return db.select().from(brands).where(eq(brands.userId, userId));
+  }
+  async createBrand(brand: InsertBrand): Promise<Brand> {
+    const [b] = await db.insert(brands).values(brand).returning();
+    return b;
+  }
+  async deleteBrand(id: string, userId: string): Promise<void> {
+    await db.delete(brands).where(and(eq(brands.id, id), eq(brands.userId, userId)));
+  }
+  async getBrandCount(userId: string): Promise<number> {
+    const result = await db.select().from(brands).where(eq(brands.userId, userId));
+    return result.length;
+  }
+
   async getSettings(userId: string): Promise<Settings> {
     const [s] = await db.select().from(settings).where(eq(settings.userId, userId));
     if (!s) {
@@ -221,6 +242,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(clients).where(eq(clients.userId, id));
     await db.delete(materials).where(eq(materials.userId, id));
     await db.delete(stockItems).where(eq(stockItems.userId, id));
+    await db.delete(brands).where(eq(brands.userId, id));
     await db.delete(employees).where(eq(employees.userId, id));
     await db.delete(calculations).where(eq(calculations.userId, id));
     await db.delete(settings).where(eq(settings.userId, id));

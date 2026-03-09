@@ -4,6 +4,9 @@
 Full-stack 3D printing quote management system in Portuguese (Brazilian). Calculates printing costs based on materials, time, electricity, printer depreciation, and desired profit margin. Includes modules for client management, material inventory, stock control, quote history with status tracking, and comprehensive settings. Multi-tenant: each user has completely isolated data.
 
 ## Recent Changes
+- 2026-03-09: Brands management: brands table in database (multi-tenant), seeded with default brands including F3d, Masterprint, Triade
+- 2026-03-09: Inventory page uses database brands instead of hardcoded list; "+" button to add new brands inline
+- 2026-03-09: Inventory sorting: clickable sort buttons on Brand and Color columns (A-Z / Z-A toggle)
 - 2026-02-24: Multi-admin architecture: every registered user is independent admin with isolated data; only "hcorbage" is master admin
 - 2026-02-24: Self-registration removed from login page; only master admin creates new users via Settings
 - 2026-02-24: User creation form in Settings includes CPF/birthdate fields; /api/auth/register disabled
@@ -70,6 +73,7 @@ Full-stack 3D printing quote management system in Portuguese (Brazilian). Calcul
 - `stock_items` - Stock inventory with brand/color/quantity (userId-scoped)
 - `employees` - Employee registry with commission rate (userId-scoped)
 - `calculations` - Quote history with details JSON, employeeId/employeeName (userId-scoped)
+- `brands` - Brand names for stock items (userId-scoped, seeded with defaults)
 - `settings` - System configuration per user (userId-scoped, id=userId)
 
 ## Authentication & Authorization

@@ -97,6 +97,16 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+export const brands = pgTable("brands", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+});
+
+export const insertBrandSchema = createInsertSchema(brands).omit({ id: true });
+export type Brand = typeof brands.$inferSelect;
+export type InsertBrand = z.infer<typeof insertBrandSchema>;
+
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });
 export const insertMaterialSchema = createInsertSchema(materials).omit({ id: true });
 export const insertStockItemSchema = createInsertSchema(stockItems).omit({ id: true });

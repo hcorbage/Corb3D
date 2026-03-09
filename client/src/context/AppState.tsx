@@ -58,6 +58,12 @@ export type Printer = {
   depreciationPerHour: number;
 };
 
+export type Brand = {
+  id: string;
+  name: string;
+  userId: string;
+};
+
 export type AppSettings = {
   logoUrl: string | null;
   profitMargin: number;
@@ -75,6 +81,7 @@ type AppStateContextType = {
   inventory: Material[];
   stockItems: StockItem[];
   employees: Employee[];
+  brands: Brand[];
   history: Calculation[];
   printers: Printer[];
   settings: AppSettings;
@@ -88,6 +95,8 @@ type AppStateContextType = {
   addStockItem: (item: Omit<StockItem, 'id'>) => void;
   updateStockItem: (item: StockItem) => void;
   deleteStockItem: (id: string) => void;
+  addBrand: (name: string) => Promise<Brand>;
+  deleteBrand: (id: string) => void;
   addEmployee: (employee: Omit<Employee, 'id'>) => Promise<any>;
   updateEmployee: (employee: Employee) => void;
   deleteEmployee: (id: string) => void;
@@ -127,6 +136,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [history, setHistory] = useState<Calculation[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
 
@@ -171,12 +181,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       api('/api/employees'),
       api('/api/calculations'),
       api('/api/settings'),
-    ]).then(([c, m, s, emp, h, set]) => {
+      api('/api/brands'),
+    ]).then(([c, m, s, emp, h, set, br]) => {
       setClients(c);
       setInventory(m);
       setStockItems(s);
       setEmployees(emp);
       setHistory(h);
+      setBrands(br || []);
       if (set) {
         setSettings({
           logoUrl: set.logoUrl || null,
@@ -288,6 +300,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error(e); }
   }, []);
 
+  const addBrand = useCallback(async (name: string): Promise<Brand> => {
+    const created = await api('/api/brands', { method: 'POST', body: JSON.stringify({ name }) });
+    setBrands(prev => [...prev, created]);
+    return created;
+  }, []);
+
+  const deleteBrand = useCallback(async (id: string) => {
+    try {
+      await api(`/api/brands/${id}`, { method: 'DELETE' });
+      setBrands(prev => prev.filter(b => b.id !== id));
+    } catch (e) { console.error(e); }
+  }, []);
+
   const addEmployee = useCallback(async (employee: Omit<Employee, 'id'>) => {
     try {
       const created = await api('/api/employees', { method: 'POST', body: JSON.stringify(employee) });
@@ -360,10 +385,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppStateContext.Provider value={{
-      clients, inventory, stockItems, employees, history, printers, settings, loading,
+      clients, inventory, stockItems, employees, brands, history, printers, settings, loading,
       addClient, updateClient, deleteClient,
       addMaterial, updateMaterial, deleteMaterial,
       addStockItem, updateStockItem, deleteStockItem,
+      addBrand, deleteBrand,
       addEmployee, updateEmployee, deleteEmployee,
       addCalculation, updateCalculation, deleteCalculation, updateSettings, loadBackup
     }}>

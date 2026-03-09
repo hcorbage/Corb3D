@@ -101,6 +101,22 @@ const DEFAULT_MATERIALS = [
   { name: 'Resina Colorida (Pigmentada)', costPerKg: 170.00 },
 ];
 
+const DEFAULT_BRANDS = [
+  "3DFila", "Voolt3D", "Sethi3D", "PrintaLot", "GTMax", "Fila3D", "Cliever", "Copymaker", "Natur3D",
+  "eSun", "Sunlu", "Polymaker", "Creality", "Bambu Lab", "Anycubic", "Elegoo", "Prusament", "Hatchbox", "Overture", "MatterHackers", "Siraya Tech", "Phrozen",
+  "F3d", "Masterprint", "Triade"
+];
+
+async function seedBrandsForUser(userId: string) {
+  const count = await storage.getBrandCount(userId);
+  if (count === 0) {
+    for (const name of DEFAULT_BRANDS) {
+      await storage.createBrand({ name, userId });
+    }
+    console.log(`Seeded ${DEFAULT_BRANDS.length} default brands for user ${userId}`);
+  }
+}
+
 async function seedMaterialsForUser(userId: string) {
   const count = await storage.getMaterialCount(userId);
   if (count === 0) {
@@ -168,6 +184,7 @@ export async function registerRoutes(
         }
       }
       await seedMaterialsForUser(user.id);
+      await seedBrandsForUser(user.id);
       req.session.userId = user.id;
       req.session.username = user.username;
       req.session.isAdmin = isAdmin;
@@ -342,6 +359,7 @@ export async function registerRoutes(
       userData.birthdate = birthdate;
       const user = await storage.createUser(userData);
       await seedMaterialsForUser(user.id);
+      await seedBrandsForUser(user.id);
       return res.json({ id: user.id, username: user.username, generatedLogin: generatedLogin, fullName: username.trim() });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
@@ -396,6 +414,7 @@ export async function registerRoutes(
   app.use("/api/employees", requireAuth);
   app.use("/api/calculations", requireAuth);
   app.use("/api/settings", requireAuth);
+  app.use("/api/brands", requireAuth);
   app.use("/api/backup", requireAuth);
 
   // ---- CLIENTS ----
@@ -494,6 +513,7 @@ export async function registerRoutes(
       const hashed = await bcrypt.hash(tempPassword, 10);
       const user = await storage.createUser({ username, password: hashed, isAdmin: false, mustChangePassword: true });
       await seedMaterialsForUser(user.id);
+      await seedBrandsForUser(user.id);
       
       await storage.updateEmployee(emp.id, req.session.userId!, { linkedUserId: user.id });
       
@@ -560,6 +580,29 @@ export async function registerRoutes(
         }
       }
     }
+    res.json({ ok: true });
+  });
+
+  // ---- BRANDS ----
+  app.get("/api/brands", async (req, res) => {
+    await seedBrandsForUser(req.session.userId!);
+    const data = await storage.getBrands(req.session.userId!);
+    res.json(data);
+  });
+  app.post("/api/brands", async (req, res) => {
+    const { name } = stripUserId(req.body);
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Nome da marca é obrigatório." });
+    }
+    const existing = await storage.getBrands(req.session.userId!);
+    if (existing.some((b: any) => b.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(400).json({ message: "Esta marca já existe." });
+    }
+    const brand = await storage.createBrand({ name: name.trim(), userId: req.session.userId! });
+    res.json(brand);
+  });
+  app.delete("/api/brands/:id", async (req, res) => {
+    await storage.deleteBrand(req.params.id, req.session.userId!);
     res.json({ ok: true });
   });
 
