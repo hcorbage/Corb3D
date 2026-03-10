@@ -341,7 +341,7 @@ export default function Inventory() {
                       <input 
                         type="number" 
                         className="w-24 bg-input border border-border rounded-lg px-3 py-1.5 outline-none"
-                        value={editItem?.cost || 0}
+                        value={editItem?.cost || ''}
                         onChange={(e) => setEditItem(prev => prev ? {...prev, cost: Number(e.target.value)} : null)}
                       />
                     ) : (
@@ -353,7 +353,7 @@ export default function Inventory() {
                       <input 
                         type="number" 
                         className="w-24 bg-input border border-border rounded-lg px-3 py-1.5 outline-none font-mono"
-                        value={editItem?.quantity || 0}
+                        value={editItem?.quantity || ''}
                         onChange={(e) => setEditItem(prev => prev ? {...prev, quantity: Number(e.target.value)} : null)}
                       />
                     ) : (

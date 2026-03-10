@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { Clock, Calendar as CalendarIcon, RotateCcw, Save, FileText, Phone, ChevronDown, Plus, Trash2, X, Download } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
@@ -51,10 +51,10 @@ export default function Calculator() {
   const [projectName, setProjectName] = useState("");
   const [projectItems, setProjectItems] = useState<ProjectItem[]>([]);
   const [qty, setQty] = useState(1);
-  const [weight, setWeight] = useState(0);
+  const [weight, setWeight] = useState<number | "">("");
   const [materialId, setMaterialId] = useState("");
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+  const [hours, setHours] = useState<number | "">("");
+  const [minutes, setMinutes] = useState<number | "">("");
   const [delivery, setDelivery] = useState("");
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
@@ -231,10 +231,10 @@ export default function Calculator() {
     setProjectName("");
     setProjectItems([]);
     setQty(1);
-    setWeight(0);
+    setWeight("");
     setMaterialId("");
-    setHours(0);
-    setMinutes(0);
+    setHours("");
+    setMinutes("");
     setDelivery("");
     setSelectedEmployeeId("");
     setEditingCalculationId(null);
@@ -321,7 +321,7 @@ export default function Calculator() {
   };
 
   const addProjectItem = () => {
-    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 1, unitValue: 0, finishing: "", finishingValue: 0, finishingEnabled: false }]);
+    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 0, unitValue: 0, finishing: "", finishingValue: 0, finishingEnabled: false }]);
   };
 
   const updateProjectItem = (id: string, field: keyof ProjectItem, value: any) => {
@@ -960,7 +960,7 @@ export default function Calculator() {
                           maxLength={2}
                           className="w-8 text-center bg-transparent outline-none text-sm px-0"
                           placeholder="HH"
-                          value={item.hours !== undefined && item.hours !== 0 ? item.hours : item.hours === 0 ? '0' : ''}
+                          value={item.hours || ''}
                           onChange={(e) => updateProjectItem(item.id, 'hours', e.target.value === '' ? 0 : Number(e.target.value.replace(/\D/g, '').slice(0, 2)))}
                         />
                         <span className="text-muted-foreground font-bold text-xs">:</span>
@@ -969,7 +969,7 @@ export default function Calculator() {
                           maxLength={2}
                           className="w-8 text-center bg-transparent outline-none text-sm px-0"
                           placeholder="MM"
-                          value={item.minutes !== undefined && item.minutes !== 0 ? item.minutes : item.minutes === 0 ? '0' : ''}
+                          value={item.minutes || ''}
                           onChange={(e) => updateProjectItem(item.id, 'minutes', e.target.value === '' ? 0 : Number(e.target.value.replace(/\D/g, '').slice(0, 2)))}
                         />
                       </div>
@@ -1187,24 +1187,34 @@ export default function Calculator() {
                         const lineTotalDisplay = round2(itemExactPrice * (item.qty || 1));
                         
                         return (
-                          <tr key={item.id}>
-                            <td className="py-2 px-3 text-gray-800">
-                              <p className="font-semibold text-xs">{item.description || `Item ${index + 1}`}</p>
-                              <p className="text-[10px] text-gray-500 mt-0.5">Material: {
-                                (() => {
-                                  const s = stockItems.find(st => st.id === item.materialId);
-                                  const m = s ? inventory.find(i => i.id === s.materialId) : null;
-                                  return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'N/A';
-                                })()
-                              }</p>
-                              {item.finishingEnabled && item.finishing && (
-                                <p className="text-[10px] text-gray-500 mt-0.5">Acabamento: {item.finishing} - {formatCurrency(item.finishingValue * (item.qty || 1))}</p>
-                              )}
-                            </td>
-                            <td className="py-2 px-3 text-center font-medium">{item.qty || 1}</td>
-                            <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(unitPriceDisplay)}</td>
-                            <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(lineTotalDisplay)}</td>
-                          </tr>
+                          <Fragment key={item.id}>
+                            <tr>
+                              <td className="py-2 px-3 text-gray-800">
+                                <p className="font-semibold text-xs">{item.description || `Item ${index + 1}`}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Material: {
+                                  (() => {
+                                    const s = stockItems.find(st => st.id === item.materialId);
+                                    const m = s ? inventory.find(i => i.id === s.materialId) : null;
+                                    return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'N/A';
+                                  })()
+                                }</p>
+                              </td>
+                              <td className="py-2 px-3 text-center font-medium">{item.qty || 1}</td>
+                              <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(unitPriceDisplay)}</td>
+                              <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(lineTotalDisplay)}</td>
+                            </tr>
+                            {item.finishingEnabled && item.finishing && item.finishingValue > 0 && (
+                              <tr>
+                                <td className="py-2 px-3 text-gray-800">
+                                  <p className="font-semibold text-xs">Acabamento: {item.finishing}</p>
+                                  <p className="text-[10px] text-gray-500 mt-0.5">Ref: {item.description || `Item ${index + 1}`}</p>
+                                </td>
+                                <td className="py-2 px-3 text-center font-medium">1</td>
+                                <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(item.finishingValue)}</td>
+                                <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(item.finishingValue)}</td>
+                              </tr>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
