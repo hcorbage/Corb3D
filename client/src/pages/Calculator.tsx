@@ -17,6 +17,9 @@ type ProjectItem = {
   minutes: number;
   qty: number;
   unitValue: number;
+  finishing: string;
+  finishingValue: number;
+  finishingEnabled: boolean;
 };
 
 const capitalizeFirst = (str: string) => {
@@ -134,6 +137,7 @@ export default function Calculator() {
   let depreciationCost = 0;
   let laborCost = 0;
   let finalLotPrice = 0;
+  let totalFinishing = 0;
 
   projectItems.forEach(item => {
     const qty = item.qty || 1;
@@ -152,9 +156,12 @@ export default function Calculator() {
     
     const itemTotalCost = matCost + enCost + depCost + labCost;
     const itemExactPrice = itemTotalCost * (1 + profitMargin);
-    // Round the line total so the sum of lines perfectly matches the grand total
     const itemLineTotal = round2(itemExactPrice * qty);
     finalLotPrice += itemLineTotal;
+
+    if (item.finishingEnabled && item.finishingValue > 0) {
+      totalFinishing += round2(item.finishingValue * qty);
+    }
   });
 
   const totalCostExact = materialCost + energyCost + depreciationCost + laborCost;
@@ -163,11 +170,12 @@ export default function Calculator() {
   energyCost = round2(energyCost);
   depreciationCost = round2(depreciationCost);
   laborCost = round2(laborCost);
-  // finalLotPrice is already the sum of rounded line totals, but we round again just in case of float weirdness
   finalLotPrice = round2(finalLotPrice);
+  totalFinishing = round2(totalFinishing);
 
   const totalCost = round2(totalCostExact);
   const profitValue = round2(finalLotPrice - totalCost);
+  const grandTotal = round2(finalLotPrice + totalFinishing);
   
   const totalQty = projectItems.reduce((acc, item) => acc + (item.qty || 1), 0);
   const unitPrice = totalQty > 0 ? round2(finalLotPrice / totalQty) : 0;
@@ -272,7 +280,7 @@ export default function Calculator() {
       clientName: selectedClient?.name || clientSearch || "Cliente Não Identificado",
       projectName,
       totalCost,
-      suggestedPrice: finalLotPrice,
+      suggestedPrice: grandTotal,
       employeeId: selectedEmployee?.id || null,
       employeeName: selectedEmployee?.name || null,
       details: {
@@ -313,7 +321,7 @@ export default function Calculator() {
   };
 
   const addProjectItem = () => {
-    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 1, unitValue: 0 }]);
+    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 1, unitValue: 0, finishing: "", finishingValue: 0, finishingEnabled: false }]);
   };
 
   const updateProjectItem = (id: string, field: keyof ProjectItem, value: any) => {
@@ -370,7 +378,10 @@ export default function Calculator() {
       message += `${index + 1}. ${item.description || 'Item sem descrição'} (Qtd: ${item.qty || 1}) - ${formatCurrency(lineTotalDisplay)}\n`;
     });
 
-    message += `\n*VALOR TOTAL:* ${formatCurrency(finalLotPrice)}\n\n`;
+    if (totalFinishing > 0) {
+      message += `\n_Acabamentos:_ ${formatCurrency(totalFinishing)}\n`;
+    }
+    message += `\n*VALOR TOTAL:* ${formatCurrency(grandTotal)}\n\n`;
     message += `Estou enviando o arquivo PDF com os detalhes logo a seguir.\n\n`;
     message += `Obrigado por nos dar a chance de tornar seu Projeto uma Realidade! 🚀`;
 
@@ -696,7 +707,7 @@ export default function Calculator() {
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">PREÇO SUGERIDO (TOTAL)</h2>
-              <div className="text-4xl font-display font-bold text-[#ffc107]">{formatCurrency(finalLotPrice)}</div>
+              <div className="text-4xl font-display font-bold text-[#ffc107]">{formatCurrency(grandTotal)}</div>
             </div>
             <div className="text-right">
               <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">UNITÁRIO IMPRESSÃO</h2>
@@ -749,6 +760,18 @@ export default function Calculator() {
                     <span>Lucro Planejado ({effectiveMargin}%){editingCalculationId && overrideMargin != null && overrideMargin !== settings.profitMargin ? ' (margem original)' : ''}</span>
                     <span>{formatCurrency(profitValue)}</span>
                   </div>
+                  {totalFinishing > 0 && (
+                    <div className="flex justify-between items-center text-[#ffc107] font-semibold border-t border-border/50 pt-2 mt-2">
+                      <span>Acabamentos</span>
+                      <span>{formatCurrency(totalFinishing)}</span>
+                    </div>
+                  )}
+                  {totalFinishing > 0 && (
+                    <div className="flex justify-between items-center text-[#ffc107] font-bold text-lg border-t border-border/50 pt-2 mt-1">
+                      <span>Total Geral</span>
+                      <span>{formatCurrency(grandTotal)}</span>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
@@ -781,9 +804,15 @@ export default function Calculator() {
                     <span>Quantidade Total</span>
                     <span className="font-mono">{totalQty} {totalQty === 1 ? 'unidade' : 'unidades'}</span>
                   </div>
+                  {totalFinishing > 0 && (
+                    <div className="flex justify-between items-center text-muted-foreground text-sm">
+                      <span>Acabamentos</span>
+                      <span className="font-mono">{formatCurrency(totalFinishing)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-[#ffc107] font-semibold text-lg border-t border-border/50 pt-2">
                     <span>Valor Total</span>
-                    <span>{formatCurrency(finalLotPrice)}</span>
+                    <span>{formatCurrency(grandTotal)}</span>
                   </div>
                 </div>
               </>
@@ -913,6 +942,49 @@ export default function Calculator() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="flex-1 min-w-[120px]">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">ACABAMENTO</label>}
+                      <input 
+                        type="text" 
+                        placeholder="Ex: Pintura, Lixamento..." 
+                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 h-[38px]"
+                        value={item.finishing || ''}
+                        onChange={(e) => updateProjectItem(item.id, 'finishing', capitalizeFirst(e.target.value))}
+                        data-testid={`input-finishing-${item.id}`}
+                      />
+                    </div>
+
+                    <div className="w-28">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">VALOR ACAB.</label>}
+                      <div className="flex items-center bg-input border border-border rounded-lg overflow-hidden h-[38px]">
+                        <span className="text-xs text-muted-foreground pl-2">R$</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          min="0"
+                          placeholder="0,00"
+                          className="w-full bg-transparent px-1 py-2 text-sm text-right focus:outline-none"
+                          value={item.finishingValue || ''}
+                          onChange={(e) => updateProjectItem(item.id, 'finishingValue', Number(e.target.value))}
+                          data-testid={`input-finishing-value-${item.id}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="w-10 flex flex-col items-center">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center whitespace-nowrap">ATIVAR</label>}
+                      <div className="flex items-center justify-center h-[38px]">
+                        <input 
+                          type="checkbox"
+                          checked={item.finishingEnabled || false}
+                          onChange={(e) => updateProjectItem(item.id, 'finishingEnabled', e.target.checked)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
+                          title="Incluir acabamento no total"
+                          data-testid={`checkbox-finishing-${item.id}`}
+                        />
+                      </div>
+                    </div>
                     
                     <div className="w-16 sm:w-20">
                       {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">PESO (g)</label>}
@@ -990,8 +1062,14 @@ export default function Calculator() {
                 </div>
               ))}
               {projectItems.length > 0 && (
-                <div className="text-right text-sm font-semibold text-primary pr-12 pt-2">
-                  Total Itens: {formatCurrency(finalLotPrice)}
+                <div className="text-right text-sm font-semibold text-primary pr-12 pt-2 space-y-1">
+                  <div>Total Itens: {formatCurrency(finalLotPrice)}</div>
+                  {totalFinishing > 0 && (
+                    <div className="text-[#ffc107]">Acabamentos: {formatCurrency(totalFinishing)}</div>
+                  )}
+                  {totalFinishing > 0 && (
+                    <div className="text-lg font-bold">Total Geral: {formatCurrency(grandTotal)}</div>
+                  )}
                 </div>
               )}
             </div>
@@ -1119,6 +1197,9 @@ export default function Calculator() {
                                   return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'N/A';
                                 })()
                               }</p>
+                              {item.finishingEnabled && item.finishing && (
+                                <p className="text-[10px] text-gray-500 mt-0.5">Acabamento: {item.finishing} - {formatCurrency(item.finishingValue * (item.qty || 1))}</p>
+                              )}
                             </td>
                             <td className="py-2 px-3 text-center font-medium">{item.qty || 1}</td>
                             <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(unitPriceDisplay)}</td>
@@ -1137,9 +1218,15 @@ export default function Calculator() {
                       <span className="text-xs text-gray-600">Subtotal Itens:</span>
                       <span className="text-xs font-medium">{formatCurrency(finalLotPrice)}</span>
                     </div>
+                    {totalFinishing > 0 && (
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-gray-600">Acabamentos:</span>
+                        <span className="text-xs font-medium">{formatCurrency(totalFinishing)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center mt-2 pt-2 border-t-2 border-gray-300">
                       <span className="text-sm font-bold text-gray-800">TOTAL GERAL:</span>
-                      <span className="text-base font-black text-gray-900">{formatCurrency(finalLotPrice)}</span>
+                      <span className="text-base font-black text-gray-900">{formatCurrency(grandTotal)}</span>
                     </div>
                   </div>
                 </div>
