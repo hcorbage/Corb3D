@@ -923,66 +923,21 @@ export default function Calculator() {
                     <div className="flex flex-wrap gap-2 items-end">
                     <div className="flex-1 min-w-[120px]">
                       {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">MATERIAL</label>}
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <select 
-                            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none h-[38px]"
-                            value={item.materialId || ''}
-                            onChange={(e) => updateProjectItem(item.id, 'materialId', e.target.value)}
-                          >
-                            <option value="">Selecione...</option>
-                            {stockItems.map(s => {
-                              const matName = inventory.find(m => m.id === s.materialId)?.name || 'Desconhecido';
-                              return (
-                                <option key={s.id} value={s.id}>{matName} - {s.brand} ({s.color})</option>
-                              );
-                            })}
-                          </select>
-                          <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-[120px]">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">ACABAMENTO</label>}
-                      <input 
-                        type="text" 
-                        placeholder="Ex: Pintura, Lixamento..." 
-                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 h-[38px]"
-                        value={item.finishing || ''}
-                        onChange={(e) => updateProjectItem(item.id, 'finishing', capitalizeFirst(e.target.value))}
-                        data-testid={`input-finishing-${item.id}`}
-                      />
-                    </div>
-
-                    <div className="w-28">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">VALOR ACAB.</label>}
-                      <div className="flex items-center bg-input border border-border rounded-lg overflow-hidden h-[38px]">
-                        <span className="text-xs text-muted-foreground pl-2">R$</span>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          placeholder="0,00"
-                          className="w-full bg-transparent px-1 py-2 text-sm text-right focus:outline-none"
-                          value={item.finishingValue || ''}
-                          onChange={(e) => updateProjectItem(item.id, 'finishingValue', Number(e.target.value))}
-                          data-testid={`input-finishing-value-${item.id}`}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="w-10 flex flex-col items-center">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center whitespace-nowrap">ATIVAR</label>}
-                      <div className="flex items-center justify-center h-[38px]">
-                        <input 
-                          type="checkbox"
-                          checked={item.finishingEnabled || false}
-                          onChange={(e) => updateProjectItem(item.id, 'finishingEnabled', e.target.checked)}
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
-                          title="Incluir acabamento no total"
-                          data-testid={`checkbox-finishing-${item.id}`}
-                        />
+                      <div className="relative">
+                        <select 
+                          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none h-[38px]"
+                          value={item.materialId || ''}
+                          onChange={(e) => updateProjectItem(item.id, 'materialId', e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {stockItems.map(s => {
+                            const matName = inventory.find(m => m.id === s.materialId)?.name || 'Desconhecido';
+                            return (
+                              <option key={s.id} value={s.id}>{matName} - {s.brand} ({s.color})</option>
+                            );
+                          })}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
                       </div>
                     </div>
                     
@@ -1058,6 +1013,51 @@ export default function Calculator() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <div className="flex-1 min-w-[150px]">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">ACABAMENTO</label>}
+                      <input 
+                        type="text" 
+                        placeholder="Ex: Pintura, Lixamento..." 
+                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 h-[38px]"
+                        value={item.finishing || ''}
+                        onChange={(e) => updateProjectItem(item.id, 'finishing', capitalizeFirst(e.target.value))}
+                        data-testid={`input-finishing-${item.id}`}
+                      />
+                    </div>
+
+                    <div className="w-28">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">VALOR ACAB.</label>}
+                      <div className="flex items-center bg-input border border-border rounded-lg overflow-hidden h-[38px]">
+                        <span className="text-xs text-muted-foreground pl-2">R$</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          min="0"
+                          placeholder="0,00"
+                          className="w-full bg-transparent px-1 py-2 text-sm text-right focus:outline-none"
+                          value={item.finishingValue || ''}
+                          onChange={(e) => updateProjectItem(item.id, 'finishingValue', Number(e.target.value))}
+                          data-testid={`input-finishing-value-${item.id}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="w-10 flex flex-col items-center">
+                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center whitespace-nowrap">ATIVAR</label>}
+                      <div className="flex items-center justify-center h-[38px]">
+                        <input 
+                          type="checkbox"
+                          checked={item.finishingEnabled || false}
+                          onChange={(e) => updateProjectItem(item.id, 'finishingEnabled', e.target.checked)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
+                          title="Incluir acabamento no total"
+                          data-testid={`checkbox-finishing-${item.id}`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
