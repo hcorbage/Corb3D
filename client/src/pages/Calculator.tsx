@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Clock, Calendar as CalendarIcon, RotateCcw, Save, FileText, Phone, ChevronDown, Plus, Trash2, X, Download } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
@@ -17,9 +17,6 @@ type ProjectItem = {
   minutes: number;
   qty: number;
   unitValue: number;
-  finishing: string;
-  finishingValue: number;
-  finishingEnabled: boolean;
 };
 
 const capitalizeFirst = (str: string) => {
@@ -56,6 +53,9 @@ export default function Calculator() {
   const [hours, setHours] = useState<number | "">("");
   const [minutes, setMinutes] = useState<number | "">("");
   const [delivery, setDelivery] = useState("");
+  const [finishing, setFinishing] = useState("");
+  const [finishingValue, setFinishingValue] = useState(0);
+  const [finishingEnabled, setFinishingEnabled] = useState(false);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [editingCalculationId, setEditingCalculationId] = useState<string | null>(null);
@@ -86,6 +86,9 @@ export default function Calculator() {
         if (parsed.editingCalculationId) setEditingCalculationId(parsed.editingCalculationId);
         if (parsed.editingCalculationDate) setEditingCalculationDate(parsed.editingCalculationDate);
         if (parsed.profitMarginUsed != null) setOverrideMargin(parsed.profitMarginUsed);
+        if (parsed.finishing) setFinishing(parsed.finishing);
+        if (parsed.finishingValue) setFinishingValue(parsed.finishingValue);
+        if (parsed.finishingEnabled) setFinishingEnabled(parsed.finishingEnabled);
         if (parsed.selectedClientId) {
           const client = clients.find(c => c.id === parsed.selectedClientId);
           if (client) setSelectedClient(client);
@@ -101,6 +104,7 @@ export default function Calculator() {
     const draft = {
       clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber,
       clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery,
+      finishing, finishingValue, finishingEnabled,
       selectedClientId: selectedClient?.id,
       selectedEmployeeId,
       editingCalculationId,
@@ -108,7 +112,7 @@ export default function Calculator() {
       profitMarginUsed: overrideMargin
     };
     localStorage.setItem('calculator_draft', JSON.stringify(draft));
-  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin]);
+  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, finishing, finishingValue, finishingEnabled, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin]);
 
   useEffect(() => {
     if (!isAdmin && employees.length > 0 && !selectedEmployeeId) {
@@ -137,7 +141,6 @@ export default function Calculator() {
   let depreciationCost = 0;
   let laborCost = 0;
   let finalLotPrice = 0;
-  let totalFinishing = 0;
 
   projectItems.forEach(item => {
     const qty = item.qty || 1;
@@ -159,9 +162,6 @@ export default function Calculator() {
     const itemLineTotal = round2(itemExactPrice * qty);
     finalLotPrice += itemLineTotal;
 
-    if (item.finishingEnabled && item.finishingValue > 0) {
-      totalFinishing += round2(item.finishingValue * qty);
-    }
   });
 
   const totalCostExact = materialCost + energyCost + depreciationCost + laborCost;
@@ -171,7 +171,7 @@ export default function Calculator() {
   depreciationCost = round2(depreciationCost);
   laborCost = round2(laborCost);
   finalLotPrice = round2(finalLotPrice);
-  totalFinishing = round2(totalFinishing);
+  const totalFinishing = finishingEnabled && finishingValue > 0 ? round2(finishingValue) : 0;
 
   const totalCost = round2(totalCostExact);
   const profitValue = round2(finalLotPrice - totalCost);
@@ -236,6 +236,9 @@ export default function Calculator() {
     setHours("");
     setMinutes("");
     setDelivery("");
+    setFinishing("");
+    setFinishingValue(0);
+    setFinishingEnabled(false);
     setSelectedEmployeeId("");
     setEditingCalculationId(null);
     setEditingCalculationDate(null);
@@ -286,6 +289,7 @@ export default function Calculator() {
       details: {
         clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber,
         clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery,
+        finishing, finishingValue, finishingEnabled,
         selectedClientId: selectedClient?.id,
         selectedEmployeeId,
         profitMarginUsed: effectiveMargin
@@ -321,7 +325,7 @@ export default function Calculator() {
   };
 
   const addProjectItem = () => {
-    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 0, unitValue: 0, finishing: "", finishingValue: 0, finishingEnabled: false }]);
+    setProjectItems([...projectItems, { id: Date.now().toString(), description: "", materialId: "", weight: 0, hours: 0, minutes: 0, qty: 0, unitValue: 0 }]);
   };
 
   const updateProjectItem = (id: string, field: keyof ProjectItem, value: any) => {
@@ -379,7 +383,7 @@ export default function Calculator() {
     });
 
     if (totalFinishing > 0) {
-      message += `\n_Acabamentos:_ ${formatCurrency(totalFinishing)}\n`;
+      message += `\n_Acabamento (${finishing}):_ ${formatCurrency(totalFinishing)}\n`;
     }
     message += `\n*VALOR TOTAL:* ${formatCurrency(grandTotal)}\n\n`;
     message += `Estou enviando o arquivo PDF com os detalhes logo a seguir.\n\n`;
@@ -909,7 +913,7 @@ export default function Calculator() {
                 <div key={item.id} className="flex flex-col gap-3 bg-secondary/5 p-3 rounded-xl border border-border/50">
                   <div className="flex gap-2 items-end">
                     <div className="flex-1">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">DESCRIÇÃO</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">DESCRIÇÃO</label>
                       <input 
                         type="text" 
                         placeholder="Descrição..." 
@@ -922,7 +926,7 @@ export default function Calculator() {
                   
                     <div className="flex flex-wrap gap-2 items-end">
                     <div className="flex-1 min-w-[120px]">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">MATERIAL</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">MATERIAL</label>
                       <div className="relative">
                         <select 
                           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none h-[38px]"
@@ -942,7 +946,7 @@ export default function Calculator() {
                     </div>
                     
                     <div className="w-16 sm:w-20">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">PESO (g)</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">PESO (g)</label>
                       <input 
                         type="text" 
                         maxLength={4}
@@ -953,7 +957,7 @@ export default function Calculator() {
                     </div>
                     
                     <div className="w-24">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">TEMPO</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">TEMPO</label>
                       <div className="flex items-center justify-center bg-input border border-border rounded-lg focus-within:ring-1 focus-within:ring-primary/50 overflow-hidden h-[38px]">
                         <input 
                           type="text" 
@@ -976,7 +980,7 @@ export default function Calculator() {
                     </div>
 
                     <div className="w-14">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">QTD</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">QTD</label>
                       <input 
                         type="number" 
                         min="1"
@@ -989,7 +993,7 @@ export default function Calculator() {
                     
                     {item.materialId && (
                       <div className="w-24">
-                        {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">CUSTO MAT.</label>}
+                        <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">CUSTO MAT.</label>
                         <div className="bg-input/50 border border-border rounded-lg px-2 py-2 text-[11px] font-medium text-muted-foreground flex items-center justify-end h-[38px] whitespace-nowrap" title="Custo do Filamento Utilizado">
                           {formatCurrency((stockItems.find(s => s.id === item.materialId)?.cost || 0) * ((item.weight || 0) / 1000) * (item.qty || 1))}
                         </div>
@@ -997,7 +1001,7 @@ export default function Calculator() {
                     )}
                     
                     <div className="w-24">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">TOTAL</label>}
+                      <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">TOTAL</label>
                       <div className="bg-input/80 border border-border rounded-lg px-2 py-2 text-sm text-right text-foreground flex items-center justify-end font-mono h-[38px]" title="Valor de Venda (com lucro)">
                         {formatCurrency(
                           round2(((((item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000)) + 
@@ -1014,53 +1018,56 @@ export default function Calculator() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+              ))}
 
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <div className="flex-1 min-w-[150px]">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">ACABAMENTO</label>}
+              {projectItems.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-end bg-secondary/5 p-3 rounded-xl border border-[#ffc107]/30">
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block pl-1">ACABAMENTO</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Pintura, Lixamento..." 
+                      className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 h-[38px]"
+                      value={finishing}
+                      onChange={(e) => setFinishing(capitalizeFirst(e.target.value))}
+                      data-testid="input-finishing"
+                    />
+                  </div>
+
+                  <div className="w-28">
+                    <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">VALOR ACAB.</label>
+                    <div className="flex items-center bg-input border border-border rounded-lg overflow-hidden h-[38px]">
+                      <span className="text-xs text-muted-foreground pl-2">R$</span>
                       <input 
-                        type="text" 
-                        placeholder="Ex: Pintura, Lixamento..." 
-                        className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 h-[38px]"
-                        value={item.finishing || ''}
-                        onChange={(e) => updateProjectItem(item.id, 'finishing', capitalizeFirst(e.target.value))}
-                        data-testid={`input-finishing-${item.id}`}
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        placeholder="0,00"
+                        className="w-full bg-transparent px-1 py-2 text-sm text-right focus:outline-none"
+                        value={finishingValue || ''}
+                        onChange={(e) => setFinishingValue(Number(e.target.value))}
+                        data-testid="input-finishing-value"
                       />
                     </div>
+                  </div>
 
-                    <div className="w-28">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center">VALOR ACAB.</label>}
-                      <div className="flex items-center bg-input border border-border rounded-lg overflow-hidden h-[38px]">
-                        <span className="text-xs text-muted-foreground pl-2">R$</span>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          placeholder="0,00"
-                          className="w-full bg-transparent px-1 py-2 text-sm text-right focus:outline-none"
-                          value={item.finishingValue || ''}
-                          onChange={(e) => updateProjectItem(item.id, 'finishingValue', Number(e.target.value))}
-                          data-testid={`input-finishing-value-${item.id}`}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="w-10 flex flex-col items-center">
-                      {index === 0 && <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center whitespace-nowrap">ATIVAR</label>}
-                      <div className="flex items-center justify-center h-[38px]">
-                        <input 
-                          type="checkbox"
-                          checked={item.finishingEnabled || false}
-                          onChange={(e) => updateProjectItem(item.id, 'finishingEnabled', e.target.checked)}
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
-                          title="Incluir acabamento no total"
-                          data-testid={`checkbox-finishing-${item.id}`}
-                        />
-                      </div>
+                  <div className="w-10 flex flex-col items-center">
+                    <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-center whitespace-nowrap">ATIVAR</label>
+                    <div className="flex items-center justify-center h-[38px]">
+                      <input 
+                        type="checkbox"
+                        checked={finishingEnabled}
+                        onChange={(e) => setFinishingEnabled(e.target.checked)}
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
+                        title="Incluir acabamento no total"
+                        data-testid="checkbox-finishing"
+                      />
                     </div>
                   </div>
                 </div>
-              ))}
+              )}
+
               {projectItems.length > 0 && (
                 <div className="text-right text-sm font-semibold text-primary pr-12 pt-2 space-y-1">
                   <div>Total Itens: {formatCurrency(finalLotPrice)}</div>
@@ -1187,36 +1194,33 @@ export default function Calculator() {
                         const lineTotalDisplay = round2(itemExactPrice * (item.qty || 1));
                         
                         return (
-                          <Fragment key={item.id}>
-                            <tr>
-                              <td className="py-2 px-3 text-gray-800">
-                                <p className="font-semibold text-xs">{item.description || `Item ${index + 1}`}</p>
-                                <p className="text-[10px] text-gray-500 mt-0.5">Material: {
-                                  (() => {
-                                    const s = stockItems.find(st => st.id === item.materialId);
-                                    const m = s ? inventory.find(i => i.id === s.materialId) : null;
-                                    return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'N/A';
-                                  })()
-                                }</p>
-                              </td>
-                              <td className="py-2 px-3 text-center font-medium">{item.qty || 1}</td>
-                              <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(unitPriceDisplay)}</td>
-                              <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(lineTotalDisplay)}</td>
-                            </tr>
-                            {item.finishingEnabled && item.finishing && item.finishingValue > 0 && (
-                              <tr>
-                                <td className="py-2 px-3 text-gray-800">
-                                  <p className="font-semibold text-xs">Acabamento: {item.finishing}</p>
-                                  <p className="text-[10px] text-gray-500 mt-0.5">Ref: {item.description || `Item ${index + 1}`}</p>
-                                </td>
-                                <td className="py-2 px-3 text-center font-medium">1</td>
-                                <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(item.finishingValue)}</td>
-                                <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(item.finishingValue)}</td>
-                              </tr>
-                            )}
-                          </Fragment>
+                          <tr key={item.id}>
+                            <td className="py-2 px-3 text-gray-800">
+                              <p className="font-semibold text-xs">{item.description || `Item ${index + 1}`}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">Material: {
+                                (() => {
+                                  const s = stockItems.find(st => st.id === item.materialId);
+                                  const m = s ? inventory.find(i => i.id === s.materialId) : null;
+                                  return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'N/A';
+                                })()
+                              }</p>
+                            </td>
+                            <td className="py-2 px-3 text-center font-medium">{item.qty || 1}</td>
+                            <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(unitPriceDisplay)}</td>
+                            <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(lineTotalDisplay)}</td>
+                          </tr>
                         );
                       })}
+                      {finishingEnabled && finishing && finishingValue > 0 && (
+                        <tr>
+                          <td className="py-2 px-3 text-gray-800">
+                            <p className="font-semibold text-xs">Acabamento: {finishing}</p>
+                          </td>
+                          <td className="py-2 px-3 text-center font-medium">1</td>
+                          <td className="py-2 px-3 text-right text-gray-600">{formatCurrency(finishingValue)}</td>
+                          <td className="py-2 px-3 text-right font-semibold text-gray-800">{formatCurrency(finishingValue)}</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
