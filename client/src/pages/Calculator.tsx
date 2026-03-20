@@ -13,8 +13,8 @@ type ProjectItem = {
   description: string;
   materialId: string;
   weight: number;
-  hours: number;
-  minutes: number;
+  hours: number | string;
+  minutes: number | string;
   qty: number;
   unitValue: number;
 };
@@ -147,7 +147,7 @@ export default function Calculator() {
     const costPerKg = item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0;
     
     const matCost = costPerKg * ((item.weight || 0) / 1000);
-    const itemHours = (item.hours || 0) + ((item.minutes || 0) / 60);
+    const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
     const enCost = itemHours * energyCostPerHour;
     const depCost = itemHours * depreciationPerHour;
     const labCost = itemHours * settings.laborCostPerHour;
@@ -370,7 +370,7 @@ export default function Calculator() {
     
     projectItems.forEach((item, index) => {
       const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000);
-      const itemHours = (item.hours || 0) + ((item.minutes || 0) / 60);
+      const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
       const itemEnergyCost = itemHours * energyCostPerHour;
       const itemDeprCost = itemHours * depreciationPerHour;
       const itemLaborCost = itemHours * settings.laborCostPerHour;
@@ -786,7 +786,7 @@ export default function Calculator() {
                   {projectItems.map((item, index) => {
                     const itemMat = item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0;
                     const itemWeight = (item.weight || 0) / 1000;
-                    const itemHours = (item.hours || 0) + ((item.minutes || 0) / 60);
+                    const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
                     const itemCostCalc = (itemMat * itemWeight) + (itemHours * (energyCostPerHour + depreciationPerHour + settings.laborCostPerHour));
                     const itemSellPrice = round2(itemCostCalc * (1 + profitMargin));
                     const itemQty = item.qty || 1;
@@ -964,8 +964,8 @@ export default function Calculator() {
                           maxLength={2}
                           className="w-8 text-center bg-transparent outline-none text-sm px-0"
                           placeholder="HH"
-                          value={item.hours || ''}
-                          onChange={(e) => updateProjectItem(item.id, 'hours', e.target.value === '' ? 0 : Number(e.target.value.replace(/\D/g, '').slice(0, 2)))}
+                          value={item.hours}
+                          onChange={(e) => updateProjectItem(item.id, 'hours', e.target.value.replace(/\D/g, '').slice(0, 2))}
                         />
                         <span className="text-muted-foreground font-bold text-xs">:</span>
                         <input 
@@ -973,8 +973,8 @@ export default function Calculator() {
                           maxLength={2}
                           className="w-8 text-center bg-transparent outline-none text-sm px-0"
                           placeholder="MM"
-                          value={item.minutes || ''}
-                          onChange={(e) => updateProjectItem(item.id, 'minutes', e.target.value === '' ? 0 : Number(e.target.value.replace(/\D/g, '').slice(0, 2)))}
+                          value={item.minutes}
+                          onChange={(e) => updateProjectItem(item.id, 'minutes', e.target.value.replace(/\D/g, '').slice(0, 2))}
                         />
                       </div>
                     </div>
@@ -1005,7 +1005,7 @@ export default function Calculator() {
                       <div className="bg-input/80 border border-border rounded-lg px-2 py-2 text-sm text-right text-foreground flex items-center justify-end font-mono h-[38px]" title="Valor de Venda (com lucro)">
                         {formatCurrency(
                           round2(((((item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000)) + 
-                          (((item.hours || 0) + ((item.minutes || 0) / 60)) * (energyCostPerHour + depreciationPerHour + settings.laborCostPerHour))) * (1 + profitMargin)) * (item.qty || 1))
+                          (((Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60)) * (energyCostPerHour + depreciationPerHour + settings.laborCostPerHour))) * (1 + profitMargin)) * (item.qty || 1))
                         )}
                       </div>
                     </div>
@@ -1183,7 +1183,7 @@ export default function Calculator() {
                     <tbody className="divide-y divide-gray-200">
                       {projectItems.map((item, index) => {
                         const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000);
-                        const itemHours = (item.hours || 0) + ((item.minutes || 0) / 60);
+                        const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
                         const itemEnergyCost = itemHours * energyCostPerHour;
                         const itemDeprCost = itemHours * depreciationPerHour;
                         const itemLaborCost = itemHours * settings.laborCostPerHour;

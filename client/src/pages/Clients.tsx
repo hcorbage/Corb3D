@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useAppState, Client } from "../context/AppState";
-import { UserPlus, Trash2, Edit2, Search, X, Check, Save } from "lucide-react";
+import { UserPlus, Trash2, Edit2, Search, X, Check, Save, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -32,6 +33,7 @@ type ClientFormValues = z.infer<typeof clientSchema>;
 export default function Clients() {
   const { clients, addClient, updateClient, deleteClient } = useAppState();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +47,29 @@ export default function Clients() {
       name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: ""
     }
   });
+
+  const loadClientToCalculator = (client: Client) => {
+    const existing = localStorage.getItem('calculator_draft');
+    const draft = existing ? JSON.parse(existing) : {};
+    const updated = {
+      ...draft,
+      clientSearch: client.name,
+      clientPhone: client.whatsapp || '',
+      clientDoc: client.document || '',
+      clientEmail: client.email || '',
+      clientCep: client.cep || '',
+      clientStreet: client.street || '',
+      clientNumber: client.number || '',
+      clientComplement: client.complement || '',
+      clientNeighborhood: client.neighborhood || '',
+      clientCity: client.city || '',
+      clientUf: client.uf || '',
+      selectedClientId: client.id,
+    };
+    localStorage.setItem('calculator_draft', JSON.stringify(updated));
+    toast({ title: "Cliente carregado!", description: `${client.name} foi carregado na calculadora.` });
+    setLocation('/');
+  };
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -178,6 +203,9 @@ export default function Clients() {
               <div className="flex justify-between items-start mb-3">
                 <h3 className="font-bold text-lg leading-tight">{client.name}</h3>
                 <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => loadClientToCalculator(client)} className="p-1.5 text-muted-foreground hover:text-green-600 rounded-md hover:bg-green-600/10" title="Usar na Calculadora">
+                    <Calculator className="w-4 h-4" />
+                  </button>
                   <button onClick={() => openEditClientModal(client)} className="p-1.5 text-muted-foreground hover:text-primary rounded-md hover:bg-primary/10" title="Editar">
                     <Edit2 className="w-4 h-4" />
                   </button>
