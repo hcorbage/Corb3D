@@ -738,13 +738,25 @@ export default function Calculator() {
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">COMPOSIÇÃO DE CUSTOS CORB3D</h3>
                 
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                  <div className={`flex justify-between items-center pb-2 ${lossMargin > 0 ? '' : 'border-b border-border/50'}`}>
                     <div className="flex items-center">
                       <div className="w-1.5 h-4 bg-blue-500 rounded-full mr-2"></div>
                       <span className="text-muted-foreground">MATERIAL FILAMENTO</span>
                     </div>
                     <span className="font-mono">{formatCurrency(materialCost)} ({(materialCost/totalCost * 100 || 0).toFixed(0)}%)</span>
                   </div>
+                  {lossMargin > 0 && (() => {
+                    const lossExtra = round2(materialCost - materialCost / (1 + lossMargin / 100));
+                    return (
+                      <div className="flex justify-between items-center border-b border-border/50 pb-2 pl-4">
+                        <div className="flex items-center">
+                          <div className="w-1 h-3 bg-blue-300 rounded-full mr-2"></div>
+                          <span className="text-muted-foreground/70 text-xs italic">Margem de perda ({lossMargin}%)</span>
+                        </div>
+                        <span className="font-mono text-xs text-blue-400">+{formatCurrency(lossExtra)}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex justify-between items-center border-b border-border/50 pb-2">
                     <div className="flex items-center">
                       <div className="w-1.5 h-4 bg-yellow-500 rounded-full mr-2"></div>
