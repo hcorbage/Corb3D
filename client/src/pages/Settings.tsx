@@ -251,7 +251,7 @@ export default function Settings() {
       const wsHistory = XLSX.utils.json_to_sheet(history);
       XLSX.utils.book_append_sheet(wb, wsHistory, "Historico");
 
-      XLSX.writeFile(wb, `Corb3D_Backup_${format(new Date(), 'dd-MM-yyyy_HHmm')}.xlsx`);
+      XLSX.writeFile(wb, `C3D_Backup_${format(new Date(), 'dd-MM-yyyy_HHmm')}.xlsx`);
       
       toast({ title: "Backup Exportado", description: "O arquivo Excel foi baixado com sucesso." });
     } catch (error) {
@@ -924,7 +924,7 @@ export default function Settings() {
                     const phone = credentialsModal.whatsapp.replace(/\D/g, '');
                     const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
                     const msg = encodeURIComponent(
-                      `Olá ${credentialsModal.name}! 👋\n\nSuas credenciais de acesso ao Corb3D Manager:\n\n🔑 Usuário: ${credentialsModal.username}\n🔒 Senha temporária: ${credentialsModal.password}\n\n⚠️ No primeiro acesso, o sistema vai pedir para você criar uma nova senha.\n\nAcesse o sistema pelo link que o administrador vai compartilhar.`
+                      `Olá ${credentialsModal.name}! 👋\n\nSuas credenciais de acesso ao C3D Manager®:\n\n🔑 Usuário: ${credentialsModal.username}\n🔒 Senha temporária: ${credentialsModal.password}\n\n⚠️ No primeiro acesso, o sistema vai pedir para você criar uma nova senha.\n\nAcesse o sistema pelo link que o administrador vai compartilhar.`
                     );
                     window.open(`https://wa.me/${fullPhone}?text=${msg}`, '_blank');
                   }}

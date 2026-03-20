@@ -125,7 +125,7 @@ export default function Login({ onLogin }: LoginProps) {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
             <Lock className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-black tracking-tighter text-gray-900">Corb3D</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-gray-900">C3D®</h1>
           <p className="text-sm text-gray-500 mt-1">Sistema de Orçamentos para Impressão 3D</p>
           <p className="text-xs text-gray-400 mt-0.5">{new Date().getFullYear()}</p>
         </div>

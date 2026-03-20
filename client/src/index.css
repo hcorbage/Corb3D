@@ -39,7 +39,7 @@
 
 /* Base Theme - Light Theme (matches Settings tab) */
 :root, .dark {
-  /* Corb3D Light Theme */
+  /* C3D Manager Light Theme */
   --background: 210 40% 98%; /* gray-50 */
   --foreground: 222.2 47.4% 11.2%; /* gray-900 */
 

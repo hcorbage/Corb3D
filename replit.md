@@ -1,4 +1,4 @@
-# Corb3D Manager 1.0 - Sistema de Orçamentos para Impressão 3D
+# C3D Manager 1.0® - Sistema de Orçamentos para Impressão 3D
 
 ## Overview
 Full-stack 3D printing quote management system in Portuguese (Brazilian). Calculates printing costs based on materials, time, electricity, printer depreciation, and desired profit margin. Includes modules for client management, material inventory, stock control, quote history with status tracking, and comprehensive settings. Multi-tenant: each user has completely isolated data.

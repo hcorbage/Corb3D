@@ -418,7 +418,7 @@ export default function Calculator() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Orcamento_${projectName || 'Corb3D'}.pdf`);
+        pdf.save(`Orcamento_${projectName || 'C3D'}.pdf`);
       } catch (e) {
         console.error("Erro ao gerar PDF", e);
         toast({ title: "Aviso", description: "O WhatsApp foi aberto, mas houve um erro ao baixar o PDF.", variant: "destructive" });
@@ -1223,7 +1223,7 @@ export default function Calculator() {
                       <img src={settings.logoUrl} alt="Logo" className="h-[88px] w-auto object-contain" />
                     ) : (
                       <>
-                        <h1 className="text-4xl font-black tracking-tighter text-gray-900">Corb3D</h1>
+                        <h1 className="text-4xl font-black tracking-tighter text-gray-900">C3D®</h1>
                         <p className="text-sm text-gray-500 uppercase tracking-widest mt-1">Manager 1.0 - Serviços de Impressão 3D</p>
                       </>
                     )}
@@ -1345,7 +1345,7 @@ export default function Calculator() {
                 </div>
                 
                 <div className="mt-16 text-center text-xs text-gray-400 border-t border-gray-200 pt-8">
-                  <p>Orçamento gerado pelo sistema Corb3D Manager 1.0.</p>
+                  <p>Orçamento gerado pelo sistema C3D Manager 1.0®.</p>
                   <p>Dúvidas? Entre em contato pelo nosso WhatsApp.</p>
                 </div>
 
