@@ -449,6 +449,27 @@ export default function Settings() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Desconto Máximo Permitido (%)
+                </label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={localSettings.maxDiscount ?? 10}
+                    onChange={(e) => setLocalSettings({ ...localSettings, maxDiscount: Number(e.target.value) })}
+                  />
+                  <span className="absolute right-4 top-2.5 text-gray-400">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                  <Info className="w-3 h-3" /> Limite máximo de desconto que pode ser aplicado na calculadora. Use 0 para desativar.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                   Valor da Mão de Obra (R$/hora)
                 </label>
                 <div className="relative">

@@ -80,6 +80,7 @@ export const settings = pgTable("settings", {
   printerPowerWatts: doublePrecision("printer_power_watts").notNull().default(150),
   selectedPrinterId: text("selected_printer_id"),
   adminWhatsapp: text("admin_whatsapp"),
+  maxDiscount: doublePrecision("max_discount").notNull().default(10),
 });
 
 export const users = pgTable("users", {

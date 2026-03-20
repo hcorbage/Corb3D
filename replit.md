@@ -4,6 +4,8 @@
 Full-stack 3D printing quote management system in Portuguese (Brazilian). Calculates printing costs based on materials, time, electricity, printer depreciation, and desired profit margin. Includes modules for client management, material inventory, stock control, quote history with status tracking, and comprehensive settings. Multi-tenant: each user has completely isolated data.
 
 ## Recent Changes
+- 2026-03-20: Calculator: loss margin slider (0-30%) increases material cost to cover print failures; discount slider (0 to maxDiscount%) reduces final price; both excluded from saving to history; discount only appears in PDF/WhatsApp when applied
+- 2026-03-20: Settings: maxDiscount field (admin only) sets maximum authorized discount % for calculator; 0 = disabled
 - 2026-03-10: Calculator: finishing (acabamento) fields per item - text description, currency value, and activation checkbox; value added to grand total but excluded from profit margin calculation
 - 2026-03-09: Brands management: brands table in database (multi-tenant), seeded with default brands including F3d, Masterprint, Triade
 - 2026-03-09: Inventory page uses database brands instead of hardcoded list; "+" button to add new brands inline

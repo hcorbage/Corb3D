@@ -74,6 +74,7 @@ export type AppSettings = {
   printerPowerWatts: number;
   selectedPrinterId: string | null;
   adminWhatsapp: string | null;
+  maxDiscount: number;
 };
 
 type AppStateContextType = {
@@ -118,7 +119,8 @@ const defaultSettings: AppSettings = {
   printerLifespanHours: 6000,
   printerPowerWatts: 150,
   selectedPrinterId: 'c2',
-  adminWhatsapp: null
+  adminWhatsapp: null,
+  maxDiscount: 10
 };
 
 async function api(path: string, options?: RequestInit) {
@@ -200,6 +202,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerPowerWatts: set.printerPowerWatts ?? 150,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
+          maxDiscount: set.maxDiscount ?? 10,
         });
       }
       setLoading(false);
@@ -349,6 +352,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         printerPowerWatts: updated.printerPowerWatts ?? 150,
         selectedPrinterId: updated.selectedPrinterId || 'c2',
         adminWhatsapp: updated.adminWhatsapp || null,
+        maxDiscount: updated.maxDiscount ?? 10,
       });
     } catch (e) { console.error(e); }
   }, []);
@@ -378,6 +382,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerPowerWatts: set.printerPowerWatts ?? 150,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
+          maxDiscount: set.maxDiscount ?? 10,
         });
       }
     } catch (e) { console.error(e); }

@@ -56,6 +56,8 @@ export default function Calculator() {
   const [finishing, setFinishing] = useState("");
   const [finishingValue, setFinishingValue] = useState(0);
   const [finishingEnabled, setFinishingEnabled] = useState(false);
+  const [lossMargin, setLossMargin] = useState(0);
+  const [discount, setDiscount] = useState(0);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [editingCalculationId, setEditingCalculationId] = useState<string | null>(null);
@@ -89,6 +91,8 @@ export default function Calculator() {
         if (parsed.finishing) setFinishing(parsed.finishing);
         if (parsed.finishingValue) setFinishingValue(parsed.finishingValue);
         if (parsed.finishingEnabled) setFinishingEnabled(parsed.finishingEnabled);
+        if (parsed.lossMargin != null) setLossMargin(parsed.lossMargin);
+        if (parsed.discount != null) setDiscount(parsed.discount);
         if (parsed.selectedClientId) {
           const client = clients.find(c => c.id === parsed.selectedClientId);
           if (client) setSelectedClient(client);
@@ -105,6 +109,7 @@ export default function Calculator() {
       clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber,
       clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery,
       finishing, finishingValue, finishingEnabled,
+      lossMargin, discount,
       selectedClientId: selectedClient?.id,
       selectedEmployeeId,
       editingCalculationId,
@@ -112,7 +117,7 @@ export default function Calculator() {
       profitMarginUsed: overrideMargin
     };
     localStorage.setItem('calculator_draft', JSON.stringify(draft));
-  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, finishing, finishingValue, finishingEnabled, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin]);
+  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, finishing, finishingValue, finishingEnabled, lossMargin, discount, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin]);
 
   useEffect(() => {
     if (!isAdmin && employees.length > 0 && !selectedEmployeeId) {
@@ -146,7 +151,7 @@ export default function Calculator() {
     const qty = item.qty || 1;
     const costPerKg = item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0;
     
-    const matCost = costPerKg * ((item.weight || 0) / 1000);
+    const matCost = costPerKg * ((item.weight || 0) / 1000) * (1 + lossMargin / 100);
     const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
     const enCost = itemHours * energyCostPerHour;
     const depCost = itemHours * depreciationPerHour;
@@ -175,10 +180,12 @@ export default function Calculator() {
 
   const totalCost = round2(totalCostExact);
   const profitValue = round2(finalLotPrice - totalCost);
-  const grandTotal = round2(finalLotPrice + totalFinishing);
+  const discountAmount = discount > 0 ? round2(finalLotPrice * (discount / 100)) : 0;
+  const discountedLotPrice = round2(finalLotPrice - discountAmount);
+  const grandTotal = round2(discountedLotPrice + totalFinishing);
   
   const totalQty = projectItems.reduce((acc, item) => acc + (item.qty || 1), 0);
-  const unitPrice = totalQty > 0 ? round2(finalLotPrice / totalQty) : 0;
+  const unitPrice = totalQty > 0 ? round2(discountedLotPrice / totalQty) : 0;
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -239,6 +246,8 @@ export default function Calculator() {
     setFinishing("");
     setFinishingValue(0);
     setFinishingEnabled(false);
+    setLossMargin(0);
+    setDiscount(0);
     setSelectedEmployeeId("");
     setEditingCalculationId(null);
     setEditingCalculationDate(null);
@@ -290,6 +299,7 @@ export default function Calculator() {
         clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber,
         clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery,
         finishing, finishingValue, finishingEnabled,
+        lossMargin, discount, discountAmount,
         selectedClientId: selectedClient?.id,
         selectedEmployeeId,
         profitMarginUsed: effectiveMargin
@@ -369,7 +379,7 @@ export default function Calculator() {
     message += `\n*ITENS*\n`;
     
     projectItems.forEach((item, index) => {
-      const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000);
+      const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000) * (1 + lossMargin / 100);
       const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
       const itemEnergyCost = itemHours * energyCostPerHour;
       const itemDeprCost = itemHours * depreciationPerHour;
@@ -384,6 +394,9 @@ export default function Calculator() {
 
     if (totalFinishing > 0) {
       message += `\n_Acabamento (${finishing}):_ ${formatCurrency(totalFinishing)}\n`;
+    }
+    if (discountAmount > 0) {
+      message += `\n_Desconto aplicado (${discount}%):_ -${formatCurrency(discountAmount)}\n`;
     }
     message += `\n*VALOR TOTAL:* ${formatCurrency(grandTotal)}\n\n`;
     message += `Estou enviando o arquivo PDF com os detalhes logo a seguir.\n\n`;
@@ -770,7 +783,13 @@ export default function Calculator() {
                       <span>{formatCurrency(totalFinishing)}</span>
                     </div>
                   )}
-                  {totalFinishing > 0 && (
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-red-500 font-semibold border-t border-border/50 pt-2 mt-2">
+                      <span>Desconto ({discount}%)</span>
+                      <span>-{formatCurrency(discountAmount)}</span>
+                    </div>
+                  )}
+                  {(totalFinishing > 0 || discountAmount > 0) && (
                     <div className="flex justify-between items-center text-[#ffc107] font-bold text-lg border-t border-border/50 pt-2 mt-1">
                       <span>Total Geral</span>
                       <span>{formatCurrency(grandTotal)}</span>
@@ -812,6 +831,12 @@ export default function Calculator() {
                     <div className="flex justify-between items-center text-muted-foreground text-sm">
                       <span>Acabamentos</span>
                       <span className="font-mono">{formatCurrency(totalFinishing)}</span>
+                    </div>
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-red-500 text-sm">
+                      <span>Desconto ({discount}%)</span>
+                      <span className="font-mono">-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center text-[#ffc107] font-semibold text-lg border-t border-border/50 pt-2">
@@ -1069,12 +1094,68 @@ export default function Calculator() {
               )}
 
               {projectItems.length > 0 && (
+                <div className="flex flex-wrap gap-4 mt-2 p-3 bg-muted/40 rounded-xl border border-border/50">
+                  {/* Margem de Perda */}
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-[11px] font-semibold text-muted-foreground mb-1 block uppercase tracking-wide">
+                      Margem de Perda — {lossMargin}%
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0}
+                        max={30}
+                        step={1}
+                        value={lossMargin}
+                        onChange={(e) => setLossMargin(Number(e.target.value))}
+                        className="flex-1 h-2 accent-primary cursor-pointer"
+                        data-testid="slider-loss-margin"
+                      />
+                      <span className="text-xs font-mono w-8 text-right">{lossMargin}%</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Compensa falhas de impressão (máx. 30%)</p>
+                  </div>
+
+                  {/* Desconto */}
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-[11px] font-semibold text-muted-foreground mb-1 block uppercase tracking-wide">
+                      Desconto — {discount}% {settings.maxDiscount > 0 && <span className="text-[10px] normal-case">(máx. {settings.maxDiscount}%)</span>}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0}
+                        max={settings.maxDiscount || 0}
+                        step={0.5}
+                        value={Math.min(discount, settings.maxDiscount || 0)}
+                        onChange={(e) => setDiscount(Number(e.target.value))}
+                        className="flex-1 h-2 accent-red-500 cursor-pointer"
+                        disabled={!settings.maxDiscount}
+                        data-testid="slider-discount"
+                      />
+                      <span className="text-xs font-mono w-8 text-right text-red-500">{discount}%</span>
+                    </div>
+                    {!settings.maxDiscount ? (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Desconto desativado nas configurações</p>
+                    ) : discountAmount > 0 ? (
+                      <p className="text-[10px] text-red-500 mt-0.5">Desconto de {formatCurrency(discountAmount)} aplicado</p>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Limite autorizado: {settings.maxDiscount}%</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {projectItems.length > 0 && (
                 <div className="text-right text-sm font-semibold text-primary pr-12 pt-2 space-y-1">
                   <div>Total Itens: {formatCurrency(finalLotPrice)}</div>
                   {totalFinishing > 0 && (
                     <div className="text-[#ffc107]">Acabamentos: {formatCurrency(totalFinishing)}</div>
                   )}
-                  {totalFinishing > 0 && (
+                  {discountAmount > 0 && (
+                    <div className="text-red-500">Desconto ({discount}%): -{formatCurrency(discountAmount)}</div>
+                  )}
+                  {(totalFinishing > 0 || discountAmount > 0) && (
                     <div className="text-lg font-bold">Total Geral: {formatCurrency(grandTotal)}</div>
                   )}
                 </div>
@@ -1182,7 +1263,7 @@ export default function Calculator() {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {projectItems.map((item, index) => {
-                        const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000);
+                        const itemMaterialCost = (item.materialId ? (stockItems.find(s => s.id === item.materialId)?.cost || 0) : 0) * ((item.weight || 0) / 1000) * (1 + lossMargin / 100);
                         const itemHours = (Number(item.hours) || 0) + ((Number(item.minutes) || 0) / 60);
                         const itemEnergyCost = itemHours * energyCostPerHour;
                         const itemDeprCost = itemHours * depreciationPerHour;
@@ -1236,6 +1317,12 @@ export default function Calculator() {
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs text-gray-600">Acabamentos:</span>
                         <span className="text-xs font-medium">{formatCurrency(totalFinishing)}</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-red-600">Desconto ({discount}%):</span>
+                        <span className="text-xs font-medium text-red-600">-{formatCurrency(discountAmount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center mt-2 pt-2 border-t-2 border-gray-300">
