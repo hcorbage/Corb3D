@@ -619,6 +619,42 @@ export default function Settings() {
           
         </div>
 
+        {/* Caixa Diário Settings */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-xl">💰</span> Caixa Diário — Abertura Automática
+            </h2>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Abertura automática</label>
+                  <p className="text-xs text-gray-500 mt-0.5">O caixa será aberto automaticamente no horário configurado</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLocalSettings({ ...localSettings, caixaAutoOpenEnabled: !localSettings.caixaAutoOpenEnabled })}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${localSettings.caixaAutoOpenEnabled ? "bg-green-500" : "bg-gray-200"}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${localSettings.caixaAutoOpenEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+              {localSettings.caixaAutoOpenEnabled && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Horário de abertura automática</label>
+                  <input
+                    type="time"
+                    className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all max-w-xs"
+                    value={localSettings.caixaAutoOpenTime || "08:00"}
+                    onChange={(e) => setLocalSettings({ ...localSettings, caixaAutoOpenTime: e.target.value })}
+                  />
+                  <p className="text-xs text-gray-500 mt-1.5">O caixa abre automaticamente quando você acessa o sistema após este horário</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Employees / Funcionários Section */}
         {isAdmin && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">

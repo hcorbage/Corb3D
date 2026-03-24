@@ -835,14 +835,40 @@ export async function registerRoutes(
     res.json(data);
   });
 
+  // Lightweight status endpoint — accessible to all authenticated users (e.g. Calculator indicator)
+  app.get("/api/daily-cash/status", requireAuth, async (req, res) => {
+    const openCash = await storage.getAnyOpenDailyCash();
+    res.json({ isOpen: !!openCash, openedByName: openCash?.openedByName || null });
+  });
+
   app.get("/api/daily-cash/today", requireAuth, async (req, res) => {
     const userId = req.session.userId!;
     const today = new Date().toISOString().slice(0, 10);
-    const data = await storage.getTodayDailyCash(userId, today);
+    let data = await storage.getTodayDailyCash(userId, today);
+    // Auto-open logic: only for admin users
+    if (!data && req.session.isAdmin) {
+      const userSettings = await storage.getSettings(userId);
+      if (userSettings.caixaAutoOpenEnabled && userSettings.caixaAutoOpenTime) {
+        const [autoHour, autoMin] = (userSettings.caixaAutoOpenTime || "08:00").split(":").map(Number);
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const autoMinutes = (autoHour || 8) * 60 + (autoMin || 0);
+        if (currentMinutes >= autoMinutes) {
+          data = await storage.createDailyCash({
+            userId, date: today, status: "aberto",
+            openingBalance: 0, totalIn: 0, totalOut: 0, closingBalance: 0,
+            openedAt: new Date().toISOString(),
+            openedByName: req.session.username || "",
+            notes: "Abertura automática",
+          });
+        }
+      }
+    }
     res.json(data || null);
   });
 
   app.post("/api/daily-cash/open", requireAuth, async (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ message: "Apenas administradores podem abrir o caixa." });
     const userId = req.session.userId!;
     const today = new Date().toISOString().slice(0, 10);
     const existing = await storage.getTodayDailyCash(userId, today);
@@ -852,24 +878,27 @@ export async function registerRoutes(
       openingBalance: Number(req.body.openingBalance) || 0,
       totalIn: 0, totalOut: 0, closingBalance: 0,
       openedAt: new Date().toISOString(),
+      openedByName: req.session.username || "",
       notes: req.body.notes || "",
     });
     res.json(dc);
   });
 
   app.patch("/api/daily-cash/:id/close", requireAuth, async (req, res) => {
+    if (!req.session.isAdmin) return res.status(403).json({ message: "Apenas administradores podem fechar o caixa." });
     const userId = req.session.userId!;
+    const closedByUserId = req.session.userId!;
+    const closedByName = req.session.username || "";
     const { reportedBalance, notes } = req.body;
     const dc = await storage.getDailyCashList(userId).then(list => list.find(d => d.id === req.params.id));
     if (!dc) return res.status(404).json({ message: "Caixa não encontrado" });
-    // Compute totals from today's entries
-    const today = dc.date;
-    const entries = await storage.getCashEntries(userId);
-    const todayEntries = entries.filter(e => e.date === today && e.status !== "cancelado");
-    const totalIn = todayEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
-    const totalOut = todayEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
+    // Compute totals from the cash period entries (under the cash owner's userId)
+    const entries = await storage.getCashEntries(dc.userId);
+    const periodEntries = entries.filter(e => e.date === dc.date && e.status !== "cancelado");
+    const totalIn = periodEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
+    const totalOut = periodEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
     const byPayment: Record<string, number> = {};
-    todayEntries.forEach(e => {
+    periodEntries.forEach(e => {
       const key = `${e.type}:${e.paymentMethod}`;
       byPayment[key] = (byPayment[key] || 0) + e.amount;
     });
@@ -880,6 +909,7 @@ export async function registerRoutes(
       reportedBalance: reportedBalance != null ? Number(reportedBalance) : undefined,
       difference: diff,
       closedAt: new Date().toISOString(),
+      closedByUserId, closedByName,
       paymentSummary: byPayment,
       notes: notes || dc.notes || "",
     });

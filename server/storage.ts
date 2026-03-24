@@ -93,7 +93,7 @@ export interface IStorage {
   // Daily Cash
   getDailyCashList(userId: string): Promise<DailyCash[]>;
   getTodayDailyCash(userId: string, date: string): Promise<DailyCash | undefined>;
-  getAnyOpenDailyCash(): Promise<{ id: string; userId: string; openingBalance: number } | undefined>;
+  getAnyOpenDailyCash(): Promise<{ id: string; userId: string; openingBalance: number; openedByName?: string | null } | undefined>;
   createDailyCash(dc: InsertDailyCash): Promise<DailyCash>;
   updateDailyCash(id: string, userId: string, data: Partial<InsertDailyCash>): Promise<DailyCash | undefined>;
 }
@@ -330,9 +330,9 @@ export class DatabaseStorage implements IStorage {
     return r;
   }
 
-  async getAnyOpenDailyCash(): Promise<{ id: string; userId: string; openingBalance: number } | undefined> {
+  async getAnyOpenDailyCash(): Promise<{ id: string; userId: string; openingBalance: number; openedByName?: string | null } | undefined> {
     const today = new Date().toISOString().slice(0, 10);
-    const [r] = await db.select({ id: dailyCash.id, userId: dailyCash.userId, openingBalance: dailyCash.openingBalance })
+    const [r] = await db.select({ id: dailyCash.id, userId: dailyCash.userId, openingBalance: dailyCash.openingBalance, openedByName: dailyCash.openedByName })
       .from(dailyCash)
       .where(and(eq(dailyCash.status, "aberto"), eq(dailyCash.date, today)));
     return r;

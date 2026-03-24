@@ -4,6 +4,7 @@
 Full-stack 3D printing quote management system in Portuguese (Brazilian). Calculates printing costs based on materials, time, electricity, printer depreciation, and desired profit margin. Includes modules for client management, material inventory, stock control, quote history with status tracking, and comprehensive settings. Multi-tenant: each user has completely isolated data.
 
 ## Recent Changes
+- 2026-03-24: Caixa Diário rules complete: auto-open at configurable time (settings toggle+time picker); only admin can open/close; openedByName+closedByUserId+closedByName+closedAt recorded on dailyCash; Calculator shows CAIXA badge (green dot=open, red=closed); employees blocked from cash screen; all entries show sellerName column in CaixaDiario table
 - 2026-03-24: Cash register rules: when daily cash is open, all sales/receipts (from any user/employee) are linked to the cash owner's userId automatically; sellerUserId+sellerName stored to track who made the sale; displayed in CaixaDiario + PedidosFinanceiro tables
 - 2026-03-24: Comprehensive Financial Module: FinanceiroDashboard, PedidosFinanceiro, CaixaDiario, Relatorios pages; orderFinancials, orderPayments, dailyCash DB tables; API routes for all new features; 4 new nav items (admin only)
 - 2026-03-24: CashBook: added type (entrada/saída) and category fields to entry form and table; summary cards now show entradas/saídas/saldo separately; History confirmation now creates orderFinancial + orderPayment records (which auto-create cash entries)

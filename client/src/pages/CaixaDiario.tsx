@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X } from "lucide-react";
+import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X, User, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "../context/AuthContext";
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -20,6 +21,9 @@ type DailyCash = {
   closingBalance: number; reportedBalance?: number; difference?: number;
   openedAt: string; closedAt?: string; notes: string;
   paymentSummary?: Record<string, number>;
+  openedByName?: string | null;
+  closedByUserId?: string | null;
+  closedByName?: string | null;
 };
 
 type CashEntry = {
@@ -31,6 +35,7 @@ type CashEntry = {
 
 export default function CaixaDiario() {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const [todayDc, setTodayDc] = useState<DailyCash | null>(null);
   const [allDc, setAllDc] = useState<DailyCash[]>([]);
   const [todayEntries, setTodayEntries] = useState<CashEntry[]>([]);
@@ -96,9 +101,10 @@ export default function CaixaDiario() {
     totalOut: todayEntries.filter(e => e.paymentMethod === pm.value && e.type === "saida").reduce((s, e) => s + e.amount, 0),
   })).filter(pm => pm.totalIn > 0 || pm.totalOut > 0);
 
-  const printClose = (dc: DailyCash) => {
+  const printClose = (dc: DailyCash, entries?: CashEntry[]) => {
     const win = window.open("", "_blank");
     if (!win) return;
+    const periodEntries = entries || todayEntries;
     win.document.write(`<html><head><title>Fechamento de Caixa — ${dc.date}</title>
     <style>
       @page{size:A4;margin:20mm 15mm}body{font-family:Arial,sans-serif;font-size:12px;color:#111}
@@ -114,8 +120,10 @@ export default function CaixaDiario() {
     <h1>Fechamento de Caixa — C3D Manager 1.0®</h1>
     <div class="meta">
       <div><strong>Data:</strong> ${dc.date}</div>
+      <div><strong>Responsável:</strong> ${dc.openedByName || "—"}</div>
       <div><strong>Abertura:</strong> ${dc.openedAt ? format(parseISO(dc.openedAt), "dd/MM/yyyy 'às' HH:mm") : "—"}</div>
       <div><strong>Fechamento:</strong> ${dc.closedAt ? format(parseISO(dc.closedAt), "dd/MM/yyyy 'às' HH:mm") : "—"}</div>
+      ${dc.closedByName ? `<div><strong>Fechado por:</strong> ${dc.closedByName}</div>` : ""}
     </div>
     <table>
       <tr><th colspan="2">Resumo do Caixa</th></tr>
@@ -129,6 +137,17 @@ export default function CaixaDiario() {
       ` : ""}
       ${dc.notes ? `<tr><td colspan="2"><em>Obs: ${dc.notes}</em></td></tr>` : ""}
     </table>
+    ${periodEntries.length > 0 ? `
+    <table style="margin-top:16px">
+      <tr><th>Cliente / Descrição</th><th>Vendedor</th><th>Forma</th><th style="text-align:right">Valor</th></tr>
+      ${periodEntries.map(e => `
+        <tr>
+          <td>${e.clientName || e.description || "—"}${e.projectName ? ` — ${e.projectName}` : ""}</td>
+          <td>${e.sellerName || "—"}</td>
+          <td>${PAYMENT_METHODS.find(p => p.value === e.paymentMethod)?.label || e.paymentMethod}</td>
+          <td style="text-align:right;color:${e.type === "entrada" ? "green" : "red"}">${e.type === "entrada" ? "+" : "-"}${fmtCurrency(e.amount)}</td>
+        </tr>`).join("")}
+    </table>` : ""}
     </body></html>`);
     win.document.close();
   };
@@ -147,7 +166,7 @@ export default function CaixaDiario() {
             <p className="text-sm text-muted-foreground">{format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
           </div>
         </div>
-        {todayDc?.status === "aberto" && (
+        {todayDc?.status === "aberto" && isAdmin && (
           <button onClick={() => { setReportedBalance(projectedClosing.toFixed(2)); setCloseNotes(""); setShowCloseModal(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors shadow-sm">
             <Lock className="w-4 h-4" /> Fechar Caixa
@@ -161,22 +180,24 @@ export default function CaixaDiario() {
           <Unlock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-bold text-gray-900 mb-2">Caixa não aberto hoje</h2>
           <p className="text-sm text-muted-foreground mb-6">Informe o saldo inicial e abra o caixa para começar a registrar movimentações</p>
-          <div className="max-w-xs mx-auto space-y-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-600 mb-1 block text-left">Saldo Inicial (R$)</label>
-              <input type="number" step="0.01" min="0" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          {isAdmin && (
+            <div className="max-w-xs mx-auto space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block text-left">Saldo Inicial (R$)</label>
+                <input type="number" step="0.01" min="0" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block text-left">Observações (opcional)</label>
+                <input value={openNotes} onChange={e => setOpenNotes(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <button onClick={handleOpen}
+                className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                <Unlock className="w-4 h-4" /> Abrir Caixa
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600 mb-1 block text-left">Observações (opcional)</label>
-              <input value={openNotes} onChange={e => setOpenNotes(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-            </div>
-            <button onClick={handleOpen}
-              className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-              <Unlock className="w-4 h-4" /> Abrir Caixa
-            </button>
-          </div>
+          )}
         </div>
       ) : (
         <>
@@ -185,11 +206,17 @@ export default function CaixaDiario() {
             {todayDc.status === "aberto"
               ? <Unlock className="w-5 h-5 text-green-600 flex-shrink-0" />
               : <Lock className="w-5 h-5 text-gray-600 flex-shrink-0" />}
-            <div className="text-sm">
+            <div className="text-sm flex-1">
               <strong>{todayDc.status === "aberto" ? "Caixa Aberto" : "Caixa Fechado"}</strong>
               {" — "}Saldo inicial: {fmtCurrency(todayDc.openingBalance)}
-              {todayDc.status === "aberto" && todayDc.openedAt && ` | Aberto às ${format(parseISO(todayDc.openedAt), "HH:mm")}`}
+              {todayDc.openedAt && ` | ${todayDc.status === "aberto" ? "Aberto às" : "Aberto em"} ${format(parseISO(todayDc.openedAt), "HH:mm")}`}
             </div>
+            {todayDc.openedByName && (
+              <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 flex-shrink-0">
+                <User className="w-3.5 h-3.5 text-blue-500" />
+                Responsável: <span className="text-blue-600 ml-1">{todayDc.openedByName}</span>
+              </div>
+            )}
           </div>
 
           {/* Summary Cards */}
@@ -224,13 +251,20 @@ export default function CaixaDiario() {
                   ? <Check className="w-5 h-5 text-green-600" />
                   : <AlertTriangle className="w-5 h-5 text-orange-500" />}
                 <span className="font-bold text-gray-800">Conciliação do Fechamento</span>
+                {todayDc.closedByName && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 ml-1">
+                    <UserCheck className="w-3.5 h-3.5 text-purple-500" />
+                    Fechado por <span className="text-purple-600">{todayDc.closedByName}</span>
+                    {todayDc.closedAt && ` às ${format(parseISO(todayDc.closedAt), "HH:mm")}`}
+                  </span>
+                )}
                 <button onClick={() => printClose(todayDc)} className="ml-auto p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg">
                   <Printer className="w-4 h-4" />
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="bg-white rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-muted-foreground mb-1">Saldo do Sistema</div>
+                  <div className="text-xs text-muted-foreground mb-1">Saldo Calculado</div>
                   <div className="font-bold">{fmtCurrency(todayDc.closingBalance)}</div>
                 </div>
                 <div className="bg-white rounded-xl p-3 text-center border border-gray-100">
@@ -279,6 +313,7 @@ export default function CaixaDiario() {
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
                         <th className="text-left px-4 py-2 text-xs font-bold text-gray-500">Cliente / Descrição</th>
+                        <th className="text-left px-4 py-2 text-xs font-bold text-gray-500">Vendedor</th>
                         <th className="text-left px-4 py-2 text-xs font-bold text-gray-500">Pagamento</th>
                         <th className="text-right px-4 py-2 text-xs font-bold text-gray-500">Valor</th>
                       </tr>
@@ -289,7 +324,11 @@ export default function CaixaDiario() {
                           <td className="px-4 py-2">
                             <div className="font-semibold text-gray-800">{e.clientName || e.description || "—"}</div>
                             {e.projectName && <div className="text-xs text-muted-foreground">{e.projectName}</div>}
-                            {e.sellerName && <div className="text-xs text-blue-500 font-semibold">Vendedor: {e.sellerName}</div>}
+                          </td>
+                          <td className="px-4 py-2">
+                            {e.sellerName
+                              ? <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">{e.sellerName}</span>
+                              : <span className="text-xs text-gray-400">—</span>}
                           </td>
                           <td className="px-4 py-2 text-gray-500">{PAYMENT_METHODS.find(p => p.value === e.paymentMethod)?.label || e.paymentMethod}</td>
                           <td className={`px-4 py-2 text-right font-bold ${e.type === "entrada" ? "text-green-600" : "text-red-600"}`}>
@@ -307,28 +346,35 @@ export default function CaixaDiario() {
       )}
 
       {/* History */}
-      {allDc.filter(d => d.date !== today || d.status === "fechado").length > 0 && (
+      {allDc.filter(d => d.status === "fechado").length > 0 && (
         <div>
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Histórico de Fechamentos</h2>
           <div className="space-y-2">
             {allDc.filter(d => d.status === "fechado").map(dc => (
-              <div key={dc.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-800">{dc.date}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Entradas: <span className="text-green-600 font-semibold">{fmtCurrency(dc.totalIn)}</span>
-                    {" | "}Saídas: <span className="text-red-600 font-semibold">{fmtCurrency(dc.totalOut)}</span>
-                    {" | "}Saldo: <span className="font-semibold">{fmtCurrency(dc.closingBalance)}</span>
-                  </div>
-                  {dc.reportedBalance != null && (
-                    <div className="text-xs mt-0.5">
-                      Diferença: <span className={`font-bold ${(dc.difference || 0) === 0 ? "text-green-600" : "text-orange-600"}`}>{fmtCurrency(dc.difference || 0)}</span>
+              <div key={dc.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-800">{dc.date}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Entradas: <span className="text-green-600 font-semibold">{fmtCurrency(dc.totalIn)}</span>
+                      {" | "}Saídas: <span className="text-red-600 font-semibold">{fmtCurrency(dc.totalOut)}</span>
+                      {" | "}Saldo: <span className="font-semibold">{fmtCurrency(dc.closingBalance)}</span>
                     </div>
-                  )}
+                    {dc.reportedBalance != null && (
+                      <div className="text-xs mt-0.5">
+                        Diferença: <span className={`font-bold ${(dc.difference || 0) === 0 ? "text-green-600" : "text-orange-600"}`}>{fmtCurrency(dc.difference || 0)}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
+                      {dc.openedByName && <span className="flex items-center gap-1"><User className="w-3 h-3" /> {dc.openedByName}</span>}
+                      {dc.closedByName && <span className="flex items-center gap-1"><UserCheck className="w-3 h-3 text-purple-400" /> Fechado: {dc.closedByName}</span>}
+                      {dc.closedAt && <span>{format(parseISO(dc.closedAt), "HH:mm")}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => printClose(dc)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors ml-3 flex-shrink-0">
+                    <Printer className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={() => printClose(dc)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
-                  <Printer className="w-4 h-4" />
-                </button>
               </div>
             ))}
           </div>
@@ -346,6 +392,12 @@ export default function CaixaDiario() {
               </button>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-1.5 text-sm">
+              {todayDc.openedByName && (
+                <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                  <span>Responsável:</span>
+                  <span className="font-semibold text-blue-600">{todayDc.openedByName}</span>
+                </div>
+              )}
               <div className="flex justify-between"><span className="text-muted-foreground">Saldo Inicial:</span><span className="font-semibold">{fmtCurrency(todayDc.openingBalance)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Entradas:</span><span className="font-semibold text-green-600">{fmtCurrency(totalIn)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Saídas:</span><span className="font-semibold text-red-600">{fmtCurrency(totalOut)}</span></div>

@@ -75,6 +75,8 @@ export type AppSettings = {
   selectedPrinterId: string | null;
   adminWhatsapp: string | null;
   maxDiscount: number;
+  caixaAutoOpenEnabled: boolean;
+  caixaAutoOpenTime: string;
 };
 
 type AppStateContextType = {
@@ -120,7 +122,9 @@ const defaultSettings: AppSettings = {
   printerPowerWatts: 150,
   selectedPrinterId: 'c2',
   adminWhatsapp: null,
-  maxDiscount: 10
+  maxDiscount: 10,
+  caixaAutoOpenEnabled: false,
+  caixaAutoOpenTime: "08:00",
 };
 
 async function api(path: string, options?: RequestInit) {
@@ -203,6 +207,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
+          caixaAutoOpenEnabled: set.caixaAutoOpenEnabled ?? false,
+          caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
         });
       }
       setLoading(false);
@@ -353,6 +359,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         selectedPrinterId: updated.selectedPrinterId || 'c2',
         adminWhatsapp: updated.adminWhatsapp || null,
         maxDiscount: updated.maxDiscount ?? 10,
+        caixaAutoOpenEnabled: updated.caixaAutoOpenEnabled ?? false,
+        caixaAutoOpenTime: updated.caixaAutoOpenTime || "08:00",
       });
     } catch (e) { console.error(e); }
   }, []);
@@ -383,6 +391,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
+          caixaAutoOpenEnabled: set.caixaAutoOpenEnabled ?? false,
+          caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
         });
       }
     } catch (e) { console.error(e); }

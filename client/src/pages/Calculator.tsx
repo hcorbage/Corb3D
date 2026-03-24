@@ -29,6 +29,7 @@ export default function Calculator() {
   const { isAdmin, id: currentUserId } = useAuth();
   const { toast } = useToast();
   const [time, setTime] = useState(new Date());
+  const [cashIsOpen, setCashIsOpen] = useState<boolean | null>(null);
 
   // Form State
   const [clientSearch, setClientSearch] = useState("");
@@ -190,6 +191,14 @@ export default function Calculator() {
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const fetchCashStatus = () =>
+      fetch("/api/daily-cash/status").then(r => r.json()).then(d => setCashIsOpen(d.isOpen)).catch(() => {});
+    fetchCashStatus();
+    const interval = setInterval(fetchCashStatus, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSaveClient = () => {
@@ -446,6 +455,14 @@ export default function Calculator() {
           </div>
         </div>
         
+        {/* Cash Status Indicator */}
+        {cashIsOpen !== null && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${cashIsOpen ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+            <div className={`w-2.5 h-2.5 rounded-full ${cashIsOpen ? "bg-green-500 animate-pulse" : "bg-red-400"}`} />
+            CAIXA
+          </div>
+        )}
+
         <div className="flex flex-col items-end text-right">
           <div className="text-xs text-muted-foreground uppercase tracking-wider">{format(time, 'EEEE', { locale: ptBR })}</div>
           <div className="text-sm font-semibold">{format(time, 'dd/MM/yyyy')}</div>
