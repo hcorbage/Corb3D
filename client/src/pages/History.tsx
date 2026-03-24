@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useAppState, Calculation } from "../context/AppState";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Edit2, Trash2, Clock, XCircle, Check, Search, Eye, MoreHorizontal, Activity } from "lucide-react";
+import { FileText, Edit2, Trash2, Clock, XCircle, Check, Search, Eye, MoreHorizontal, Activity, BookOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -12,6 +12,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+
+const PAYMENT_METHODS = [
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "credito", label: "Cartão de Crédito" },
+  { value: "debito", label: "Cartão de Débito" },
+  { value: "boleto", label: "Boleto" },
+  { value: "transferencia", label: "Transferência" },
+];
 
 export default function History() {
   const { history, updateCalculation, deleteCalculation, clients } = useAppState();
@@ -29,18 +38,52 @@ export default function History() {
   
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
 
+  const [paymentModal, setPaymentModal] = useState<{ calc: Calculation } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState("pix");
+  const [paymentAmount, setPaymentAmount] = useState("");
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const handleStatusChange = (calc: Calculation, newStatus: 'pending' | 'confirmed' | 'denied') => {
+    if (newStatus === 'confirmed' && isAdmin) {
+      setPaymentModal({ calc });
+      setPaymentMethod("pix");
+      const price = calc.suggestedPrice || calc.totalCost || 0;
+      setPaymentAmount(price.toFixed(2));
+      return;
+    }
     updateCalculation({ ...calc, status: newStatus });
-    
     let statusText = "Aguardando";
-    if (newStatus === 'confirmed') statusText = "Autorizado";
     if (newStatus === 'denied') statusText = "Não Autorizado";
-    
     toast({ title: "Status Atualizado", description: `Orçamento marcado como ${statusText}.` });
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!paymentModal) return;
+    const { calc } = paymentModal;
+    updateCalculation({ ...calc, status: 'confirmed' });
+    try {
+      await fetch("/api/cash-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: calc.clientName || "",
+          projectName: calc.projectName || "",
+          description: `Orçamento aprovado`,
+          amount: Number(paymentAmount) || calc.suggestedPrice || calc.totalCost || 0,
+          paymentMethod,
+          date: format(new Date(), "yyyy-MM-dd"),
+          calculationId: calc.id,
+          notes: "",
+        }),
+      });
+      toast({ title: "Orçamento Autorizado", description: "Lançamento registrado no Livro Caixa." });
+    } catch {
+      toast({ title: "Orçamento Autorizado", description: "Não foi possível registrar no Livro Caixa.", variant: "destructive" });
+    }
+    setPaymentModal(null);
   };
 
   const handleDelete = (id: string) => {
@@ -420,6 +463,70 @@ export default function History() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingCalc(null)}>Cancelar</Button>
             <Button onClick={handleSaveEdit}>Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pagamento ao Autorizar */}
+      <Dialog open={!!paymentModal} onOpenChange={(open) => !open && setPaymentModal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <BookOpen className="w-5 h-5" />
+              Autorizar Orçamento
+            </DialogTitle>
+          </DialogHeader>
+          {paymentModal && (
+            <div className="space-y-4 py-2">
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliente:</span>
+                  <span className="font-semibold">{paymentModal.calc.clientName || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Projeto:</span>
+                  <span className="font-semibold">{paymentModal.calc.projectName || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Valor original:</span>
+                  <span className="font-bold text-green-700">{formatCurrency(paymentModal.calc.suggestedPrice || paymentModal.calc.totalCost || 0)}</span>
+                </div>
+              </div>
+              <div>
+                <Label>Valor Pago (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="mt-1 font-bold"
+                />
+              </div>
+              <div>
+                <Label>Forma de Pagamento</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((pm) => (
+                      <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
+                O lançamento será registrado automaticamente no Livro Caixa.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentModal(null)}>Cancelar</Button>
+            <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+              <Check className="w-4 h-4 mr-1" />
+              Autorizar e Lançar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

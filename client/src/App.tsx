@@ -15,6 +15,7 @@ import Clients from "./pages/Clients";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Commissions from "./pages/Commissions";
+import CashBook from "./pages/CashBook";
 import Login from "./pages/Login";
 import { Lock, Eye, EyeOff, KeyRound } from "lucide-react";
 
@@ -33,6 +34,7 @@ function Router() {
         <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
         <Route path="/history" component={History}/>
         <Route path="/commissions" component={Commissions}/>
+        <Route path="/cashbook">{() => <AdminRoute component={CashBook} />}</Route>
         <Route path="/settings" component={Settings}/>
         <Route component={NotFound} />
       </Switch>

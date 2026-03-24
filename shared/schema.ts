@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, doublePrecision, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, doublePrecision, jsonb, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -108,6 +108,32 @@ export const insertBrandSchema = createInsertSchema(brands).omit({ id: true });
 export type Brand = typeof brands.$inferSelect;
 export type InsertBrand = z.infer<typeof insertBrandSchema>;
 
+export const cashEntries = pgTable("cash_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  calculationId: text("calculation_id"),
+  clientName: text("client_name").notNull().default(""),
+  projectName: text("project_name").notNull().default(""),
+  description: text("description").notNull().default(""),
+  amount: doublePrecision("amount").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  date: text("date").notNull(),
+  closingId: text("closing_id"),
+  notes: text("notes").default(""),
+});
+
+export const cashClosings = pgTable("cash_closings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  periodLabel: text("period_label").notNull(),
+  periodStart: text("period_start").notNull(),
+  periodEnd: text("period_end").notNull(),
+  totalAmount: doublePrecision("total_amount").notNull(),
+  entryCount: integer("entry_count").notNull().default(0),
+  closedAt: text("closed_at").notNull(),
+  notes: text("notes").default(""),
+});
+
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });
 export const insertMaterialSchema = createInsertSchema(materials).omit({ id: true });
 export const insertStockItemSchema = createInsertSchema(stockItems).omit({ id: true });
@@ -127,3 +153,10 @@ export type Calculation = typeof calculations.$inferSelect;
 export type InsertCalculation = z.infer<typeof insertCalculationSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
+
+export const insertCashEntrySchema = createInsertSchema(cashEntries).omit({ id: true });
+export const insertCashClosingSchema = createInsertSchema(cashClosings).omit({ id: true });
+export type CashEntry = typeof cashEntries.$inferSelect;
+export type InsertCashEntry = z.infer<typeof insertCashEntrySchema>;
+export type CashClosing = typeof cashClosings.$inferSelect;
+export type InsertCashClosing = z.infer<typeof insertCashClosingSchema>;

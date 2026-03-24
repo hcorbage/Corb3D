@@ -701,5 +701,55 @@ export async function registerRoutes(
     }
   });
 
+  // Cash Entries
+  app.get("/api/cash-entries", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const entries = await storage.getCashEntries(userId);
+    res.json(entries);
+  });
+
+  app.post("/api/cash-entries", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const body = stripUserId(req.body);
+    const entry = await storage.createCashEntry({ ...body, userId });
+    res.json(entry);
+  });
+
+  app.patch("/api/cash-entries/:id", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const body = stripUserId(req.body);
+    const updated = await storage.updateCashEntry(req.params.id, userId, body);
+    if (!updated) return res.status(404).json({ message: "Lançamento não encontrado" });
+    res.json(updated);
+  });
+
+  app.delete("/api/cash-entries/:id", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    await storage.deleteCashEntry(req.params.id, userId);
+    res.json({ success: true });
+  });
+
+  // Cash Closings
+  app.get("/api/cash-closings", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const closings = await storage.getCashClosings(userId);
+    res.json(closings);
+  });
+
+  app.post("/api/cash-closings", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const { periodLabel, periodStart, periodEnd, totalAmount, entryCount, notes, entryIds } = req.body;
+    const closing = await storage.createCashClosing({
+      userId, periodLabel, periodStart, periodEnd,
+      totalAmount, entryCount: entryCount || 0,
+      closedAt: new Date().toISOString(),
+      notes: notes || ""
+    });
+    if (entryIds && entryIds.length > 0) {
+      await storage.closeEntries(userId, closing.id, entryIds);
+    }
+    res.json(closing);
+  });
+
   return httpServer;
 }

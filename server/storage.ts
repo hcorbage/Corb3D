@@ -1,5 +1,5 @@
 import { 
-  clients, materials, stockItems, calculations, settings, users, employees, brands,
+  clients, materials, stockItems, calculations, settings, users, employees, brands, cashEntries, cashClosings,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -7,7 +7,9 @@ import {
   type Calculation, type InsertCalculation,
   type Settings, type InsertSettings,
   type User, type InsertUser,
-  type Brand, type InsertBrand
+  type Brand, type InsertBrand,
+  type CashEntry, type InsertCashEntry,
+  type CashClosing, type InsertCashClosing
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -63,6 +65,15 @@ export interface IStorage {
   deleteUser(id: string): Promise<void>;
   promoteToAdmin(id: string): Promise<void>;
   getAdminUsers(): Promise<{ id: string; username: string }[]>;
+
+  getCashEntries(userId: string): Promise<CashEntry[]>;
+  createCashEntry(entry: InsertCashEntry): Promise<CashEntry>;
+  updateCashEntry(id: string, userId: string, entry: Partial<InsertCashEntry>): Promise<CashEntry | undefined>;
+  deleteCashEntry(id: string, userId: string): Promise<void>;
+
+  getCashClosings(userId: string): Promise<CashClosing[]>;
+  createCashClosing(closing: InsertCashClosing): Promise<CashClosing>;
+  closeEntries(userId: string, closingId: string, entryIds: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,6 +267,35 @@ export class DatabaseStorage implements IStorage {
   }
   async getAdminUsers(): Promise<{ id: string; username: string }[]> {
     return db.select({ id: users.id, username: users.username }).from(users).where(eq(users.isAdmin, true));
+  }
+
+  async getCashEntries(userId: string): Promise<CashEntry[]> {
+    return db.select().from(cashEntries).where(eq(cashEntries.userId, userId));
+  }
+  async createCashEntry(entry: InsertCashEntry): Promise<CashEntry> {
+    const [e] = await db.insert(cashEntries).values(entry).returning();
+    return e;
+  }
+  async updateCashEntry(id: string, userId: string, entry: Partial<InsertCashEntry>): Promise<CashEntry | undefined> {
+    const [e] = await db.update(cashEntries).set(entry).where(and(eq(cashEntries.id, id), eq(cashEntries.userId, userId))).returning();
+    return e;
+  }
+  async deleteCashEntry(id: string, userId: string): Promise<void> {
+    await db.delete(cashEntries).where(and(eq(cashEntries.id, id), eq(cashEntries.userId, userId)));
+  }
+
+  async getCashClosings(userId: string): Promise<CashClosing[]> {
+    return db.select().from(cashClosings).where(eq(cashClosings.userId, userId));
+  }
+  async createCashClosing(closing: InsertCashClosing): Promise<CashClosing> {
+    const [c] = await db.insert(cashClosings).values(closing).returning();
+    return c;
+  }
+  async closeEntries(userId: string, closingId: string, entryIds: string[]): Promise<void> {
+    if (entryIds.length === 0) return;
+    await db.update(cashEntries)
+      .set({ closingId })
+      .where(and(eq(cashEntries.userId, userId), inArray(cashEntries.id, entryIds)));
   }
 }
 

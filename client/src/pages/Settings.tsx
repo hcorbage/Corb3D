@@ -52,7 +52,7 @@ export default function Settings() {
   const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
-  const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string } | null>(null);
+  const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string; type?: 'employee' | 'user' } | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [cropZoom, setCropZoom] = useState(1);
@@ -116,7 +116,7 @@ export default function Settings() {
     }
     setUsersList([...usersList, { id: data.id, username: data.username }]);
     setUserModalOpen(false);
-    setCredentialsModal({ username: data.username, password: userForm.password, whatsapp: userForm.whatsapp || "", name: userForm.name.trim() });
+    setCredentialsModal({ username: data.username, password: userForm.password, whatsapp: userForm.whatsapp || "", name: userForm.name.trim(), type: 'user' });
     setUserForm({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
     toast({ title: "Sucesso", description: "Usuário criado com sucesso." });
   };
@@ -886,6 +886,7 @@ export default function Settings() {
                       password: result.generatedPassword,
                       whatsapp: empForm.whatsapp,
                       name: empForm.name.trim(),
+                      type: 'employee',
                     });
                     toast({ title: "Sucesso", description: "Funcionário cadastrado com sucesso!" });
                   }
@@ -902,7 +903,9 @@ export default function Settings() {
         <Dialog open={!!credentialsModal} onOpenChange={() => setCredentialsModal(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-green-700">Funcionário Cadastrado!</DialogTitle>
+              <DialogTitle className="text-green-700">
+                {credentialsModal?.type === 'user' ? 'Usuário Cadastrado!' : 'Funcionário Cadastrado!'}
+              </DialogTitle>
             </DialogHeader>
             {credentialsModal && (
               <div className="space-y-4 mt-2">
