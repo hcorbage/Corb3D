@@ -837,8 +837,18 @@ export async function registerRoutes(
 
   // Lightweight status endpoint — accessible to all authenticated users (e.g. Calculator indicator)
   app.get("/api/daily-cash/status", requireAuth, async (req, res) => {
-    const openCash = await storage.getAnyOpenDailyCash();
-    res.json({ isOpen: !!openCash, openedByName: openCash?.openedByName || null });
+    const userId = req.session.userId!;
+    const BRAZIL_OFFSET_MS = -3 * 60 * 60 * 1000;
+    const brazilNow = new Date(Date.now() + BRAZIL_OFFSET_MS);
+    const today = brazilNow.toISOString().slice(0, 10);
+    const todayCash = await storage.getTodayDailyCash(userId, today);
+    const userSettings = await storage.getSettings(userId);
+    res.json({
+      isOpen: todayCash?.status === "aberto",
+      todayCash: todayCash || null,
+      autoCloseEnabled: userSettings.caixaAutoCloseEnabled || false,
+      autoCloseTime: userSettings.caixaAutoCloseTime || null,
+    });
   });
 
   app.get("/api/daily-cash/today", requireAuth, async (req, res) => {

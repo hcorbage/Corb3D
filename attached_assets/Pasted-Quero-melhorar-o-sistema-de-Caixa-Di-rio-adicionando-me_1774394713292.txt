@@ -1,0 +1,124 @@
+Quero melhorar o sistema de Caixa Diário adicionando mensagens inteligentes e dinâmicas para o usuário, cobrindo todos os cenários de funcionamento do caixa (abertura, fechamento automático, fechamento manual e estado do dia).
+
+OBJETIVO:
+Melhorar a comunicação visual do sistema, evitando confusão operacional e deixando o fluxo mais claro e profissional.
+
+---------------------------------------
+1) ALERTA DE FECHAMENTO IMINENTE
+---------------------------------------
+
+Exibir um alerta quando o caixa estiver próximo de fechar automaticamente.
+
+Regras:
+- Quando faltar 5 minutos para o horário de fechamento automático (ex: 19:00), exibir alerta visível.
+- Exemplo:
+  "⚠️ Caixa será encerrado automaticamente em 5 minutos"
+
+- Mostrar contagem regressiva (mm:ss) atualizando em tempo real
+- Mostrar apenas se:
+  - existir caixa aberto
+  - e estiver dentro da janela de 5 minutos antes do fechamento
+
+- Ocultar automaticamente após o fechamento
+- Não exibir se o caixa já estiver fechado
+
+Sugestão visual:
+- Banner ou toast fixo
+- Cor amarela/laranja
+- Opcional: botão para fechar manualmente antes do automático
+
+---------------------------------------
+2) AVISO DE CAIXA ENCERRADO (AUTOMÁTICO OU MANUAL)
+---------------------------------------
+
+Quando o caixa for fechado (automaticamente pelo sistema OU manualmente por um usuário), exibir uma mensagem clara informando o tipo de encerramento.
+
+Regras:
+- Detectar o tipo de fechamento:
+  - automático → closeType = "automatico"
+  - manual → closeType = "manual"
+
+Mensagens:
+
+Se automático:
+"🔒 Caixa encerrado automaticamente às 19:00"
+
+Se manual:
+"🔒 Caixa encerrado por [nome do usuário] às 18:45"
+
+- Mostrar essa mensagem:
+  - na tela principal
+  - e/ou na tela de Caixa Diário
+
+- Deve aparecer imediatamente após o fechamento
+- Pode desaparecer após alguns segundos ou permanecer como status
+
+---------------------------------------
+3) AVISO DE CAIXA JÁ FECHADO NO DIA
+---------------------------------------
+
+Quando o usuário acessar o sistema e já existir um caixa fechado no dia atual:
+
+Regras:
+- Mostrar somente se:
+  - NÃO existe caixa aberto
+  - E já existe um caixa fechado hoje
+
+Mensagem:
+"ℹ️ O caixa de hoje já foi encerrado. Clique em 'Reabrir' para continuar operando."
+
+- Se houver botão ou ação, permitir:
+  - navegar direto para a tela de Caixa Diário
+  - ou acionar reabertura
+
+---------------------------------------
+4) INTEGRAÇÃO COM STATUS DO CAIXA
+---------------------------------------
+
+Todas as mensagens devem se basear no estado real do sistema:
+
+Estados possíveis:
+- aberto
+- fechado
+- fechado automaticamente
+- fechado manualmente
+- reaberto
+
+- Nunca usar valores fixos
+- Sempre consultar o banco (dailyCash)
+
+---------------------------------------
+5) REGRAS DE EXIBIÇÃO
+---------------------------------------
+
+- Não mostrar mensagens conflitantes ao mesmo tempo
+- Prioridade de exibição:
+  1. Alerta de fechamento iminente
+  2. Caixa encerrado (evento recente)
+  3. Caixa já fechado no dia
+
+- Atualizar automaticamente sem reload
+- Respeitar fuso horário de Brasília (UTC-3)
+
+---------------------------------------
+6) OPCIONAL (SE FÁCIL IMPLEMENTAR)
+---------------------------------------
+
+- Permitir fechar manualmente direto pelo alerta de 5 minutos
+- Permitir clicar nas mensagens para ir à tela de Caixa Diário
+- Permitir fechar (X) os alertas manualmente
+- Pequena animação ou destaque visual ao mudar estado do caixa
+
+---------------------------------------
+IMPORTANTE
+---------------------------------------
+
+- Não quebrar layout atual
+- Manter visual limpo e profissional
+- Integrar com lógica já existente de:
+  - abertura automática
+  - fechamento automático
+  - reabertura
+  - relatórios
+
+- Código deve ser organizado, reutilizável e desacoplado

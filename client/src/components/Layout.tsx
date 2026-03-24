@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Calculator, Package, Users, History, Settings, LogOut, Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen, BarChart2, DollarSign, Wallet, FileText } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
+import { CashStatusAlert } from "./CashStatusAlert";
 
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -182,6 +183,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 relative">
           <div className="max-w-[1400px] mx-auto w-full h-full flex flex-col">
+            <CashStatusAlert />
             {children}
           </div>
         </main>
