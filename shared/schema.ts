@@ -124,6 +124,8 @@ export const cashEntries = pgTable("cash_entries", {
   category: text("category").notNull().default(""),
   status: text("status").notNull().default("realizado"),
   effectiveDate: text("effective_date").default(""),
+  sellerUserId: text("seller_user_id"),
+  sellerName: text("seller_name"),
 });
 
 export const cashClosings = pgTable("cash_closings", {
@@ -172,6 +174,8 @@ export const orderFinancials = pgTable("order_financials", {
   firstPaymentDate: text("first_payment_date").default(""),
   notes: text("notes").default(""),
   createdAt: text("created_at").notNull().default(""),
+  sellerUserId: text("seller_user_id"),
+  sellerName: text("seller_name"),
 });
 
 export const orderPayments = pgTable("order_payments", {
@@ -184,6 +188,8 @@ export const orderPayments = pgTable("order_payments", {
   date: text("date").notNull(),
   notes: text("notes").default(""),
   createdAt: text("created_at").notNull().default(""),
+  sellerUserId: text("seller_user_id"),
+  sellerName: text("seller_name"),
 });
 
 export const dailyCash = pgTable("daily_cash", {

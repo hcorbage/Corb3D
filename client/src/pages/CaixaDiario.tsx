@@ -26,6 +26,7 @@ type CashEntry = {
   id: string; date: string; clientName: string; projectName: string;
   description: string; amount: number; paymentMethod: string;
   type: string; category: string; status: string;
+  sellerName?: string | null;
 };
 
 export default function CaixaDiario() {
@@ -288,6 +289,7 @@ export default function CaixaDiario() {
                           <td className="px-4 py-2">
                             <div className="font-semibold text-gray-800">{e.clientName || e.description || "—"}</div>
                             {e.projectName && <div className="text-xs text-muted-foreground">{e.projectName}</div>}
+                            {e.sellerName && <div className="text-xs text-blue-500 font-semibold">Vendedor: {e.sellerName}</div>}
                           </td>
                           <td className="px-4 py-2 text-gray-500">{PAYMENT_METHODS.find(p => p.value === e.paymentMethod)?.label || e.paymentMethod}</td>
                           <td className={`px-4 py-2 text-right font-bold ${e.type === "entrada" ? "text-green-600" : "text-red-600"}`}>

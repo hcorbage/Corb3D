@@ -20,6 +20,8 @@ type CashEntry = {
   category: string;
   status: string;
   effectiveDate?: string | null;
+  sellerUserId?: string | null;
+  sellerName?: string | null;
 };
 
 type CashClosing = {

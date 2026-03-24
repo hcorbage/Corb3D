@@ -27,6 +27,7 @@ type OrderFinancial = {
   totalAmount: number; amountPaid: number; amountPending: number;
   status: string; paymentMethod: string;
   firstPaymentDate: string; notes: string; createdAt: string;
+  sellerUserId?: string | null; sellerName?: string | null;
 };
 
 type OrderPayment = {
@@ -223,6 +224,9 @@ export default function PedidosFinanceiro() {
                     </div>
                     <div className="font-bold text-gray-900">{order.clientName || "Cliente"}</div>
                     <div className="text-sm text-muted-foreground">{order.projectName || "—"}</div>
+                    {order.sellerName && (
+                      <div className="text-xs text-blue-500 font-semibold mt-0.5">Vendedor: {order.sellerName}</div>
+                    )}
                     <div className="mt-2">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
                         <span>{fmtCurrency(order.amountPaid)} recebido</span>

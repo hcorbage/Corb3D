@@ -748,13 +748,21 @@ export async function registerRoutes(
   });
 
   app.post("/api/order-financials", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const sellerUserId = req.session.userId!;
+    const sellerName = req.session.username || "";
     const body = stripUserId(req.body);
-    // Idempotent: don't create duplicate for same calculationId
-    const existing = await storage.getOrderFinancialByCalculationId(body.calculationId, userId);
+    // Idempotent: don't create duplicate for same calculationId (global search)
+    const existing = await storage.getOrderFinancialByCalculationId(body.calculationId, sellerUserId);
     if (existing) return res.json(existing);
     const now = new Date().toISOString();
-    const of = await storage.createOrderFinancial({ ...body, userId, createdAt: now, amountPaid: 0, amountPending: body.totalAmount });
+    // Use cash owner's userId if a daily cash is open; otherwise use seller's
+    const openCash = await storage.getAnyOpenDailyCash();
+    const userId = openCash ? openCash.userId : sellerUserId;
+    const of = await storage.createOrderFinancial({
+      ...body, userId, createdAt: now, amountPaid: 0, amountPending: body.totalAmount,
+      sellerUserId: openCash ? sellerUserId : null,
+      sellerName: openCash ? sellerName : null,
+    });
     res.json(of);
   });
 
@@ -774,23 +782,32 @@ export async function registerRoutes(
   });
 
   app.post("/api/order-payments", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const sellerUserId = req.session.userId!;
+    const sellerName = req.session.username || "";
     const body = stripUserId(req.body);
     const now = new Date().toISOString();
+    // Determine the target userId: use open daily cash owner if exists
+    const openCash = await storage.getAnyOpenDailyCash();
+    const userId = openCash ? openCash.userId : sellerUserId;
+    const isSeller = openCash && openCash.userId !== sellerUserId;
     // Create payment record
-    const op = await storage.createOrderPayment({ ...body, userId, createdAt: now });
-    // Update order financial totals
-    const of = await storage.getOrderFinancialByCalculationId(body.calculationId, userId);
+    const op = await storage.createOrderPayment({
+      ...body, userId, createdAt: now,
+      sellerUserId: isSeller ? sellerUserId : null,
+      sellerName: isSeller ? sellerName : null,
+    });
+    // Update order financial totals (global search by calculationId)
+    const of = await storage.getOrderFinancialByCalculationId(body.calculationId, sellerUserId);
     if (of) {
       const newPaid = of.amountPaid + op.amount;
       const newPending = Math.max(0, of.totalAmount - newPaid);
       const newStatus = newPending <= 0 ? "pago" : newPaid > 0 ? "parcial" : "pendente";
       const firstDate = of.firstPaymentDate || body.date;
-      await storage.updateOrderFinancial(of.id, userId, {
+      await storage.updateOrderFinancial(of.id, of.userId, {
         amountPaid: newPaid, amountPending: newPending, status: newStatus,
         firstPaymentDate: firstDate, paymentMethod: body.paymentMethod,
       });
-      // Also create cash entry
+      // Create cash entry under the cash owner's userId
       await storage.createCashEntry({
         userId, calculationId: body.calculationId,
         clientName: of.clientName, projectName: of.projectName,
@@ -798,6 +815,8 @@ export async function registerRoutes(
         amount: op.amount, paymentMethod: body.paymentMethod,
         date: body.date, type: "entrada", category: "venda de pedido",
         status: "realizado", effectiveDate: body.date, notes: body.notes || "",
+        sellerUserId: isSeller ? sellerUserId : null,
+        sellerName: isSeller ? sellerName : null,
       });
     }
     res.json(op);
@@ -875,9 +894,18 @@ export async function registerRoutes(
   });
 
   app.post("/api/cash-entries", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const sellerUserId = req.session.userId!;
+    const sellerName = req.session.username || "";
     const body = stripUserId(req.body);
-    const entry = await storage.createCashEntry({ ...body, userId });
+    // If there's an open daily cash, register under its owner
+    const openCash = await storage.getAnyOpenDailyCash();
+    const userId = openCash ? openCash.userId : sellerUserId;
+    const isSeller = openCash && openCash.userId !== sellerUserId;
+    const entry = await storage.createCashEntry({
+      ...body, userId,
+      sellerUserId: isSeller ? sellerUserId : null,
+      sellerName: isSeller ? sellerName : null,
+    });
     res.json(entry);
   });
 
