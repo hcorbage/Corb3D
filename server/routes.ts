@@ -989,46 +989,77 @@ export async function registerRoutes(
     res.json(closing);
   });
 
-  // ─── Auto-close scheduler (runs every 60s) ─────────────────────────────────
-  async function runAutoClose() {
+  // ─── Auto-open / Auto-close scheduler (runs every 60s) ────────────────────
+  async function runCashScheduler() {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+
     try {
-      const openCash = await storage.getAnyOpenDailyCash();
-      if (!openCash) return;
-      const settings = await storage.getSettings(openCash.userId);
-      if (!settings.caixaAutoCloseEnabled) return;
-      const [closeH, closeM] = (settings.caixaAutoCloseTime || "19:00").split(":").map(Number);
-      const now = new Date();
-      const currentMin = now.getHours() * 60 + now.getMinutes();
-      const targetMin = (closeH || 19) * 60 + (closeM || 0);
-      if (currentMin < targetMin) return;
-      const list = await storage.getDailyCashList(openCash.userId);
-      const dc = list.find(d => d.id === openCash.id && d.status === "aberto");
-      if (!dc) return;
-      const entries = await storage.getCashEntries(dc.userId);
-      const periodEntries = entries.filter((e: any) => e.date === dc.date && e.status !== "cancelado");
-      const totalIn = periodEntries.filter((e: any) => e.type === "entrada").reduce((s: number, e: any) => s + e.amount, 0);
-      const totalOut = periodEntries.filter((e: any) => e.type === "saida").reduce((s: number, e: any) => s + e.amount, 0);
-      const byPayment: Record<string, number> = {};
-      periodEntries.forEach((e: any) => {
-        const key = `${e.type}:${e.paymentMethod}`;
-        byPayment[key] = (byPayment[key] || 0) + e.amount;
-      });
-      const closingBalance = dc.openingBalance + totalIn - totalOut;
-      await storage.updateDailyCash(dc.id, dc.userId, {
-        status: "fechado", totalIn, totalOut, closingBalance,
-        closedAt: now.toISOString(),
-        closeType: "automatico",
-        closedByName: null,
-        closedByUserId: null,
-        paymentSummary: byPayment,
-        notes: (dc.notes ? dc.notes + "\n" : "") + "Fechado automaticamente pelo sistema.",
-      });
-      console.log(`[AutoClose] Caixa ${dc.id} fechado automaticamente às ${now.toISOString()}`);
+      const adminUsers = await storage.getAdminUsers();
+      for (const user of adminUsers) {
+        try {
+          const userSettings = await storage.getSettings(user.id);
+
+          // ── Auto-open ──────────────────────────────────────────────────────
+          if (userSettings.caixaAutoOpenEnabled && userSettings.caixaAutoOpenTime) {
+            const [openH, openM] = (userSettings.caixaAutoOpenTime || "08:00").split(":").map(Number);
+            const openMin = (openH || 8) * 60 + (openM || 0);
+            if (currentMin >= openMin) {
+              const existing = await storage.getTodayDailyCash(user.id, today);
+              if (!existing) {
+                await storage.createDailyCash({
+                  userId: user.id, date: today, status: "aberto",
+                  openingBalance: 0, totalIn: 0, totalOut: 0, closingBalance: 0,
+                  openedAt: now.toISOString(),
+                  openedByName: "",
+                  openType: "automatico",
+                  notes: "Abertura automática do sistema",
+                });
+                console.log(`[AutoOpen] Caixa aberto automaticamente para ${user.username} às ${now.toISOString()}`);
+              }
+            }
+          }
+
+          // ── Auto-close ─────────────────────────────────────────────────────
+          if (userSettings.caixaAutoCloseEnabled && userSettings.caixaAutoCloseTime) {
+            const [closeH, closeM] = (userSettings.caixaAutoCloseTime || "19:00").split(":").map(Number);
+            const closeMin = (closeH || 19) * 60 + (closeM || 0);
+            if (currentMin >= closeMin) {
+              const todayCash = await storage.getTodayDailyCash(user.id, today);
+              if (todayCash && todayCash.status === "aberto") {
+                const entries = await storage.getCashEntries(user.id);
+                const periodEntries = entries.filter((e: any) => e.date === today && e.status !== "cancelado");
+                const totalIn = periodEntries.filter((e: any) => e.type === "entrada").reduce((s: number, e: any) => s + e.amount, 0);
+                const totalOut = periodEntries.filter((e: any) => e.type === "saida").reduce((s: number, e: any) => s + e.amount, 0);
+                const byPayment: Record<string, number> = {};
+                periodEntries.forEach((e: any) => {
+                  const key = `${e.type}:${e.paymentMethod}`;
+                  byPayment[key] = (byPayment[key] || 0) + e.amount;
+                });
+                const closingBalance = todayCash.openingBalance + totalIn - totalOut;
+                await storage.updateDailyCash(todayCash.id, user.id, {
+                  status: "fechado", totalIn, totalOut, closingBalance,
+                  closedAt: now.toISOString(),
+                  closeType: "automatico",
+                  closedByName: null,
+                  closedByUserId: null,
+                  paymentSummary: byPayment,
+                  notes: (todayCash.notes ? todayCash.notes + "\n" : "") + "Fechado automaticamente pelo sistema.",
+                });
+                console.log(`[AutoClose] Caixa de ${user.username} fechado automaticamente às ${now.toISOString()}`);
+              }
+            }
+          }
+        } catch (userErr) {
+          console.error(`[Scheduler] Erro ao processar usuário ${user.username}:`, userErr);
+        }
+      }
     } catch (err) {
-      console.error("[AutoClose] Erro no fechamento automático:", err);
+      console.error("[Scheduler] Erro geral:", err);
     }
   }
-  setInterval(runAutoClose, 60000);
+  setInterval(runCashScheduler, 60000);
 
   return httpServer;
 }
