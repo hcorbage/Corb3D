@@ -992,8 +992,12 @@ export async function registerRoutes(
   // ─── Auto-open / Auto-close scheduler (runs every 60s) ────────────────────
   async function runCashScheduler() {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
-    const currentMin = now.getHours() * 60 + now.getMinutes();
+    // Use Brazil time (UTC-3) for date and hour comparisons
+    const BRAZIL_OFFSET_MS = -3 * 60 * 60 * 1000;
+    const brazilNow = new Date(now.getTime() + BRAZIL_OFFSET_MS);
+    const today = brazilNow.toISOString().slice(0, 10);
+    const currentMin = brazilNow.getUTCHours() * 60 + brazilNow.getUTCMinutes();
+    console.log(`[Scheduler] ${brazilNow.toISOString().slice(0, 16).replace("T", " ")} (BRT) — data: ${today} — min: ${currentMin}`);
 
     try {
       const adminUsers = await storage.getAdminUsers();
@@ -1005,8 +1009,10 @@ export async function registerRoutes(
           if (userSettings.caixaAutoOpenEnabled && userSettings.caixaAutoOpenTime) {
             const [openH, openM] = (userSettings.caixaAutoOpenTime || "08:00").split(":").map(Number);
             const openMin = (openH || 8) * 60 + (openM || 0);
+            console.log(`[AutoOpen] ${user.username}: openTime=${userSettings.caixaAutoOpenTime}(${openMin}min) currentMin=${currentMin} horaPassou=${currentMin >= openMin}`);
             if (currentMin >= openMin) {
               const existing = await storage.getTodayDailyCash(user.id, today);
+              console.log(`[AutoOpen] ${user.username}: caixa hoje=${existing ? `${existing.status}` : "nenhum"}`);
               if (!existing) {
                 await storage.createDailyCash({
                   userId: user.id, date: today, status: "aberto",
@@ -1016,7 +1022,9 @@ export async function registerRoutes(
                   openType: "automatico",
                   notes: "Abertura automática do sistema",
                 });
-                console.log(`[AutoOpen] Caixa aberto automaticamente para ${user.username} às ${now.toISOString()}`);
+                console.log(`[AutoOpen] ✅ Caixa aberto automaticamente para ${user.username}`);
+              } else {
+                console.log(`[AutoOpen] ⏭ Caixa já existe (${existing.status}) — não criando novo`);
               }
             }
           }
@@ -1059,6 +1067,8 @@ export async function registerRoutes(
       console.error("[Scheduler] Erro geral:", err);
     }
   }
+  // Run immediately on startup, then every 60s
+  runCashScheduler().catch(err => console.error("[Scheduler] Erro na inicialização:", err));
   setInterval(runCashScheduler, 60000);
 
   return httpServer;
