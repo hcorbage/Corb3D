@@ -187,6 +187,128 @@ export default function CashBook() {
     }
   };
 
+  const printFilteredEntries = () => {
+    if (filteredEntries.length === 0) {
+      toast({ title: "Nenhum lançamento para exportar", variant: "destructive" });
+      return;
+    }
+    const sorted = [...filteredEntries].sort((a, b) => b.date.localeCompare(a.date));
+    const byPm = PAYMENT_METHODS.map((pm) => ({
+      ...pm,
+      total: sorted.filter((e) => e.paymentMethod === pm.value).reduce((s, e) => s + e.amount, 0),
+    })).filter((pm) => pm.total > 0);
+    const statusLabel = filterStatus === "open" ? "Em Aberto" : filterStatus === "closed" ? "Fechados" : "Todos";
+    const paymentLabel = filterPayment === "all" ? "Todas as formas" : getPaymentLabel(filterPayment);
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>Extrato Livro Caixa</title>
+      <style>
+        @page { size: A4; margin: 20mm 15mm; }
+        *{box-sizing:border-box}
+        body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;padding:0}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2px solid #111;margin-bottom:16px}
+        .title{font-size:20px;font-weight:bold}
+        .subtitle{font-size:11px;color:#555;margin-top:2px}
+        .meta{text-align:right;font-size:11px;color:#555}
+        .filters{background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:8px 12px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;font-size:11px}
+        .filter-tag{background:#fff;border:1px solid #ccc;border-radius:3px;padding:2px 8px}
+        .section-title{font-size:13px;font-weight:bold;color:#333;margin:14px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}
+        table{width:100%;border-collapse:collapse}
+        th{background:#111;color:#fff;padding:6px 8px;text-align:left;font-size:11px;font-weight:bold}
+        td{padding:5px 8px;border-bottom:1px solid #eee;font-size:11px;vertical-align:top}
+        tr:nth-child(even) td{background:#f9f9f9}
+        .amount{text-align:right;font-weight:bold}
+        .badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:bold}
+        .badge-pix{background:#dcfce7;color:#166534}
+        .badge-dinheiro{background:#fef9c3;color:#854d0e}
+        .badge-credito{background:#dbeafe;color:#1e40af}
+        .badge-debito{background:#e0e7ff;color:#3730a3}
+        .badge-boleto{background:#ffedd5;color:#9a3412}
+        .badge-transferencia{background:#f3e8ff;color:#6b21a8}
+        .badge-open{background:#dcfce7;color:#166534}
+        .badge-closed{background:#f3f4f6;color:#374151}
+        .summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+        .summary-card{border:1px solid #ddd;border-radius:4px;padding:8px 12px;min-width:140px;flex:1}
+        .summary-card .label{font-size:10px;color:#666;font-weight:bold;text-transform:uppercase}
+        .summary-card .value{font-size:16px;font-weight:bold;color:#111;margin-top:2px}
+        .total-row td{background:#f0f9ff;font-weight:bold;font-size:12px;border-top:2px solid #111}
+        .footer{margin-top:24px;padding-top:8px;border-top:1px solid #ddd;font-size:10px;color:#999;display:flex;justify-content:space-between}
+        button.print-btn{position:fixed;top:16px;right:16px;padding:8px 20px;background:#111;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;z-index:999}
+        @media print{button.print-btn{display:none}}
+      </style></head><body>
+      <button class="print-btn" onclick="window.print()">🖨️ Salvar PDF</button>
+      <div class="header">
+        <div>
+          <div class="title">Livro Caixa — Extrato</div>
+          <div class="subtitle">C3D Manager 1.0®</div>
+        </div>
+        <div class="meta">
+          <div>Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</div>
+          <div>Período: ${filterDateFrom || "—"} → ${filterDateTo || "—"}</div>
+          <div>Status: ${statusLabel} | Pagamento: ${paymentLabel}</div>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <div class="label">Total do Extrato</div>
+          <div class="value">${formatCurrency(totalFiltered)}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Quantidade</div>
+          <div class="value">${filteredEntries.length} lançamentos</div>
+        </div>
+        ${byPm.map((pm) => `
+          <div class="summary-card">
+            <div class="label">${pm.label}</div>
+            <div class="value">${formatCurrency(pm.total)}</div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="section-title">Lançamentos</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Projeto / Descrição</th>
+            <th>Forma de Pgto</th>
+            <th>Status</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map((e) => `
+            <tr>
+              <td>${e.date}</td>
+              <td>${e.clientName || "—"}</td>
+              <td>${e.projectName || e.description || "—"}${e.description && e.projectName ? `<br><span style="color:#666;font-size:10px">${e.description}</span>` : ""}</td>
+              <td><span class="badge badge-${e.paymentMethod}">${getPaymentLabel(e.paymentMethod)}</span></td>
+              <td><span class="badge ${e.closingId ? "badge-closed" : "badge-open"}">${e.closingId ? "Fechado" : "Aberto"}</span></td>
+              <td class="amount">${formatCurrency(e.amount)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="5">TOTAL (${sorted.length} lançamentos)</td>
+            <td class="amount">${formatCurrency(totalFiltered)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="footer">
+        <span>C3D Manager 1.0® — Livro Caixa</span>
+        <span>Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</span>
+      </div>
+      </body></html>
+    `);
+    win.document.close();
+  };
+
   const printBalance = (closing: CashClosing) => {
     const closingEntries = entries.filter((e) => e.closingId === closing.id);
     const byPm = PAYMENT_METHODS.map((pm) => ({
@@ -248,7 +370,16 @@ export default function CashBook() {
             <p className="text-sm text-muted-foreground">Gestão financeira e fechamento de caixa</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {activeTab === "entries" && (
+            <button
+              onClick={printFilteredEntries}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <Printer className="w-4 h-4" />
+              Exportar PDF
+            </button>
+          )}
           <button
             onClick={() => setShowCloseModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors shadow-sm"
