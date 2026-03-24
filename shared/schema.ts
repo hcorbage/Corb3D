@@ -83,6 +83,8 @@ export const settings = pgTable("settings", {
   maxDiscount: doublePrecision("max_discount").notNull().default(10),
   caixaAutoOpenEnabled: boolean("caixa_auto_open_enabled").notNull().default(false),
   caixaAutoOpenTime: text("caixa_auto_open_time").default("08:00"),
+  caixaAutoCloseEnabled: boolean("caixa_auto_close_enabled").notNull().default(false),
+  caixaAutoCloseTime: text("caixa_auto_close_time").default("19:00"),
 });
 
 export const users = pgTable("users", {
@@ -212,6 +214,10 @@ export const dailyCash = pgTable("daily_cash", {
   openedByName: text("opened_by_name").default(""),
   closedByUserId: text("closed_by_user_id"),
   closedByName: text("closed_by_name"),
+  openType: text("open_type").default("manual"),
+  closeType: text("close_type"),
+  reopenedByName: text("reopened_by_name"),
+  reopenedAt: text("reopened_at"),
 });
 
 export const insertCashEntrySchema = createInsertSchema(cashEntries).omit({ id: true });

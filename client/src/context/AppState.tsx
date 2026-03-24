@@ -77,6 +77,8 @@ export type AppSettings = {
   maxDiscount: number;
   caixaAutoOpenEnabled: boolean;
   caixaAutoOpenTime: string;
+  caixaAutoCloseEnabled: boolean;
+  caixaAutoCloseTime: string;
 };
 
 type AppStateContextType = {
@@ -125,6 +127,8 @@ const defaultSettings: AppSettings = {
   maxDiscount: 10,
   caixaAutoOpenEnabled: false,
   caixaAutoOpenTime: "08:00",
+  caixaAutoCloseEnabled: false,
+  caixaAutoCloseTime: "19:00",
 };
 
 async function api(path: string, options?: RequestInit) {
@@ -209,6 +213,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           maxDiscount: set.maxDiscount ?? 10,
           caixaAutoOpenEnabled: set.caixaAutoOpenEnabled ?? false,
           caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
+          caixaAutoCloseEnabled: set.caixaAutoCloseEnabled ?? false,
+          caixaAutoCloseTime: set.caixaAutoCloseTime || "19:00",
         });
       }
       setLoading(false);
@@ -361,6 +367,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         maxDiscount: updated.maxDiscount ?? 10,
         caixaAutoOpenEnabled: updated.caixaAutoOpenEnabled ?? false,
         caixaAutoOpenTime: updated.caixaAutoOpenTime || "08:00",
+        caixaAutoCloseEnabled: updated.caixaAutoCloseEnabled ?? false,
+        caixaAutoCloseTime: updated.caixaAutoCloseTime || "19:00",
       });
     } catch (e) { console.error(e); }
   }, []);
@@ -393,6 +401,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           maxDiscount: set.maxDiscount ?? 10,
           caixaAutoOpenEnabled: set.caixaAutoOpenEnabled ?? false,
           caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
+          caixaAutoCloseEnabled: set.caixaAutoCloseEnabled ?? false,
+          caixaAutoCloseTime: set.caixaAutoCloseTime || "19:00",
         });
       }
     } catch (e) { console.error(e); }

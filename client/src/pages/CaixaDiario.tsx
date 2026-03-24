@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X, User, UserCheck } from "lucide-react";
+import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X, User, UserCheck, Bot, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../context/AuthContext";
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
+
+const fmtDt = (iso?: string | null) => {
+  if (!iso) return "—";
+  try { return format(parseISO(iso), "dd/MM/yyyy 'às' HH:mm"); } catch { return "—"; }
+};
+const fmtTime = (iso?: string | null) => {
+  if (!iso) return "—";
+  try { return format(parseISO(iso), "HH:mm"); } catch { return "—"; }
+};
 
 const PAYMENT_METHODS = [
   { value: "pix", label: "Pix" }, { value: "dinheiro", label: "Dinheiro" },
@@ -24,6 +33,10 @@ type DailyCash = {
   openedByName?: string | null;
   closedByUserId?: string | null;
   closedByName?: string | null;
+  openType?: string | null;
+  closeType?: string | null;
+  reopenedByName?: string | null;
+  reopenedAt?: string | null;
 };
 
 type CashEntry = {
@@ -32,6 +45,45 @@ type CashEntry = {
   type: string; category: string; status: string;
   sellerName?: string | null;
 };
+
+function OpenTypeBadge({ dc }: { dc: DailyCash }) {
+  const ot = dc.openType || "manual";
+  if (ot === "automatico") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+        <Bot className="w-3 h-3" /> Abertura Automática — {fmtTime(dc.openedAt)}
+      </span>
+    );
+  }
+  if (ot === "reabertura") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+        <RefreshCw className="w-3 h-3" /> Reabertura por {dc.reopenedByName || dc.openedByName} — {fmtTime(dc.reopenedAt || dc.openedAt)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+      <User className="w-3 h-3" /> Aberto por {dc.openedByName} — {fmtTime(dc.openedAt)}
+    </span>
+  );
+}
+
+function CloseTypeBadge({ dc }: { dc: DailyCash }) {
+  if (!dc.closedAt) return null;
+  if (dc.closeType === "automatico") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+        <Bot className="w-3 h-3" /> Fechamento Automático — {fmtTime(dc.closedAt)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+      <UserCheck className="w-3 h-3" /> Fechado por {dc.closedByName || "—"} — {fmtTime(dc.closedAt)}
+    </span>
+  );
+}
 
 export default function CaixaDiario() {
   const { toast } = useToast();
@@ -91,6 +143,15 @@ export default function CaixaDiario() {
     } catch { toast({ title: "Erro ao fechar caixa", variant: "destructive" }); }
   };
 
+  const handleReopen = async (dc: DailyCash) => {
+    try {
+      const res = await fetch(`/api/daily-cash/${dc.id}/reopen`, { method: "POST" });
+      if (!res.ok) { const e = await res.json(); toast({ title: e.message || "Erro ao reabrir caixa", variant: "destructive" }); return; }
+      await fetchAll();
+      toast({ title: "Caixa reaberto!" });
+    } catch { toast({ title: "Erro ao reabrir caixa", variant: "destructive" }); }
+  };
+
   const totalIn = todayEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
   const totalOut = todayEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
   const projectedClosing = (todayDc?.openingBalance || 0) + totalIn - totalOut;
@@ -105,6 +166,14 @@ export default function CaixaDiario() {
     const win = window.open("", "_blank");
     if (!win) return;
     const periodEntries = entries || todayEntries;
+    const openLabel = dc.openType === "automatico"
+      ? `Abertura Automática — ${fmtDt(dc.openedAt)}`
+      : dc.openType === "reabertura"
+        ? `Reabertura por ${dc.reopenedByName || dc.openedByName} — ${fmtDt(dc.reopenedAt || dc.openedAt)}`
+        : `Aberto por ${dc.openedByName || "—"} — ${fmtDt(dc.openedAt)}`;
+    const closeLabel = dc.closeType === "automatico"
+      ? `Fechamento Automático — ${fmtDt(dc.closedAt)}`
+      : `Fechado por ${dc.closedByName || "—"} — ${fmtDt(dc.closedAt)}`;
     win.document.write(`<html><head><title>Fechamento de Caixa — ${dc.date}</title>
     <style>
       @page{size:A4;margin:20mm 15mm}body{font-family:Arial,sans-serif;font-size:12px;color:#111}
@@ -120,10 +189,8 @@ export default function CaixaDiario() {
     <h1>Fechamento de Caixa — C3D Manager 1.0®</h1>
     <div class="meta">
       <div><strong>Data:</strong> ${dc.date}</div>
-      <div><strong>Responsável:</strong> ${dc.openedByName || "—"}</div>
-      <div><strong>Abertura:</strong> ${dc.openedAt ? format(parseISO(dc.openedAt), "dd/MM/yyyy 'às' HH:mm") : "—"}</div>
-      <div><strong>Fechamento:</strong> ${dc.closedAt ? format(parseISO(dc.closedAt), "dd/MM/yyyy 'às' HH:mm") : "—"}</div>
-      ${dc.closedByName ? `<div><strong>Fechado por:</strong> ${dc.closedByName}</div>` : ""}
+      <div><strong>Abertura:</strong> ${openLabel}</div>
+      <div><strong>Fechamento:</strong> ${closeLabel}</div>
     </div>
     <table>
       <tr><th colspan="2">Resumo do Caixa</th></tr>
@@ -202,21 +269,32 @@ export default function CaixaDiario() {
       ) : (
         <>
           {/* Status Banner */}
-          <div className={`rounded-2xl p-4 flex items-center gap-3 ${todayDc.status === "aberto" ? "bg-green-50 border border-green-200" : "bg-gray-50 border border-gray-200"}`}>
-            {todayDc.status === "aberto"
-              ? <Unlock className="w-5 h-5 text-green-600 flex-shrink-0" />
-              : <Lock className="w-5 h-5 text-gray-600 flex-shrink-0" />}
-            <div className="text-sm flex-1">
-              <strong>{todayDc.status === "aberto" ? "Caixa Aberto" : "Caixa Fechado"}</strong>
-              {" — "}Saldo inicial: {fmtCurrency(todayDc.openingBalance)}
-              {todayDc.openedAt && ` | ${todayDc.status === "aberto" ? "Aberto às" : "Aberto em"} ${format(parseISO(todayDc.openedAt), "HH:mm")}`}
-            </div>
-            {todayDc.openedByName && (
-              <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 flex-shrink-0">
-                <User className="w-3.5 h-3.5 text-blue-500" />
-                Responsável: <span className="text-blue-600 ml-1">{todayDc.openedByName}</span>
+          <div className={`rounded-2xl p-4 border ${todayDc.status === "aberto" ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}>
+            <div className="flex items-start gap-3 flex-wrap">
+              {todayDc.status === "aberto"
+                ? <Unlock className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                : <Lock className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />}
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-gray-900 text-sm mb-1">
+                  {todayDc.status === "aberto" ? "Caixa Aberto" : "Caixa Fechado"} — Saldo inicial: {fmtCurrency(todayDc.openingBalance)}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <OpenTypeBadge dc={todayDc} />
+                  {todayDc.status === "fechado" && <CloseTypeBadge dc={todayDc} />}
+                  {todayDc.reopenedByName && todayDc.openType !== "reabertura" && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                      <RefreshCw className="w-3 h-3" /> Reaberto por {todayDc.reopenedByName} — {fmtTime(todayDc.reopenedAt)}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
+              {todayDc.status === "fechado" && isAdmin && (
+                <button onClick={() => handleReopen(todayDc)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition-colors flex-shrink-0">
+                  <RefreshCw className="w-3.5 h-3.5" /> Reabrir
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Summary Cards */}
@@ -244,39 +322,36 @@ export default function CaixaDiario() {
           </div>
 
           {/* Fechamento Info */}
-          {todayDc.status === "fechado" && todayDc.reportedBalance != null && (
-            <div className={`rounded-2xl p-5 border ${(todayDc.difference || 0) === 0 ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>
+          {todayDc.status === "fechado" && (
+            <div className={`rounded-2xl p-5 border ${(todayDc.reportedBalance == null || (todayDc.difference || 0) === 0) ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>
               <div className="flex items-center gap-2 mb-3">
-                {(todayDc.difference || 0) === 0
+                {(todayDc.reportedBalance == null || (todayDc.difference || 0) === 0)
                   ? <Check className="w-5 h-5 text-green-600" />
                   : <AlertTriangle className="w-5 h-5 text-orange-500" />}
-                <span className="font-bold text-gray-800">Conciliação do Fechamento</span>
-                {todayDc.closedByName && (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 ml-1">
-                    <UserCheck className="w-3.5 h-3.5 text-purple-500" />
-                    Fechado por <span className="text-purple-600">{todayDc.closedByName}</span>
-                    {todayDc.closedAt && ` às ${format(parseISO(todayDc.closedAt), "HH:mm")}`}
-                  </span>
-                )}
+                <span className="font-bold text-gray-800">Resumo do Fechamento</span>
                 <button onClick={() => printClose(todayDc)} className="ml-auto p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg">
                   <Printer className="w-4 h-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 <div className="bg-white rounded-xl p-3 text-center border border-gray-100">
                   <div className="text-xs text-muted-foreground mb-1">Saldo Calculado</div>
                   <div className="font-bold">{fmtCurrency(todayDc.closingBalance)}</div>
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border border-gray-100">
-                  <div className="text-xs text-muted-foreground mb-1">Saldo Informado</div>
-                  <div className="font-bold">{fmtCurrency(todayDc.reportedBalance)}</div>
-                </div>
-                <div className={`rounded-xl p-3 text-center border ${(todayDc.difference || 0) === 0 ? "bg-green-100 border-green-200" : "bg-orange-100 border-orange-200"}`}>
-                  <div className="text-xs text-muted-foreground mb-1">Diferença</div>
-                  <div className={`font-black ${(todayDc.difference || 0) === 0 ? "text-green-700" : "text-orange-700"}`}>
-                    {fmtCurrency(todayDc.difference || 0)}
-                  </div>
-                </div>
+                {todayDc.reportedBalance != null && (
+                  <>
+                    <div className="bg-white rounded-xl p-3 text-center border border-gray-100">
+                      <div className="text-xs text-muted-foreground mb-1">Saldo Informado</div>
+                      <div className="font-bold">{fmtCurrency(todayDc.reportedBalance)}</div>
+                    </div>
+                    <div className={`rounded-xl p-3 text-center border ${(todayDc.difference || 0) === 0 ? "bg-green-100 border-green-200" : "bg-orange-100 border-orange-200"}`}>
+                      <div className="text-xs text-muted-foreground mb-1">Diferença</div>
+                      <div className={`font-black ${(todayDc.difference || 0) === 0 ? "text-green-700" : "text-orange-700"}`}>
+                        {fmtCurrency(todayDc.difference || 0)}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -352,26 +427,49 @@ export default function CaixaDiario() {
           <div className="space-y-2">
             {allDc.filter(d => d.status === "fechado").map(dc => (
               <div key={dc.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-800">{dc.date}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="font-semibold text-gray-800 mb-0.5">{dc.date}</div>
+                    <div className="text-xs text-muted-foreground mb-1.5">
                       Entradas: <span className="text-green-600 font-semibold">{fmtCurrency(dc.totalIn)}</span>
                       {" | "}Saídas: <span className="text-red-600 font-semibold">{fmtCurrency(dc.totalOut)}</span>
                       {" | "}Saldo: <span className="font-semibold">{fmtCurrency(dc.closingBalance)}</span>
+                      {dc.reportedBalance != null && (
+                        <> | Diferença: <span className={`font-bold ${(dc.difference || 0) === 0 ? "text-green-600" : "text-orange-600"}`}>{fmtCurrency(dc.difference || 0)}</span></>
+                      )}
                     </div>
-                    {dc.reportedBalance != null && (
-                      <div className="text-xs mt-0.5">
-                        Diferença: <span className={`font-bold ${(dc.difference || 0) === 0 ? "text-green-600" : "text-orange-600"}`}>{fmtCurrency(dc.difference || 0)}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
-                      {dc.openedByName && <span className="flex items-center gap-1"><User className="w-3 h-3" /> {dc.openedByName}</span>}
-                      {dc.closedByName && <span className="flex items-center gap-1"><UserCheck className="w-3 h-3 text-purple-400" /> Fechado: {dc.closedByName}</span>}
-                      {dc.closedAt && <span>{format(parseISO(dc.closedAt), "HH:mm")}</span>}
+                    <div className="flex flex-wrap gap-1.5">
+                      {/* Open type badge */}
+                      {(dc.openType === "automatico") ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full">
+                          <Bot className="w-3 h-3" /> Abertura Automática {fmtTime(dc.openedAt)}
+                        </span>
+                      ) : (dc.openType === "reabertura") ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">
+                          <RefreshCw className="w-3 h-3" /> Reabertura por {dc.reopenedByName || dc.openedByName} {fmtTime(dc.reopenedAt || dc.openedAt)}
+                        </span>
+                      ) : dc.openedByName ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full">
+                          <User className="w-3 h-3" /> Aberto por {dc.openedByName} {fmtTime(dc.openedAt)}
+                        </span>
+                      ) : null}
+                      {/* Close type badge */}
+                      {dc.closeType === "automatico" ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded-full">
+                          <Bot className="w-3 h-3" /> Fechamento Automático {fmtTime(dc.closedAt)}
+                        </span>
+                      ) : dc.closedByName ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full">
+                          <UserCheck className="w-3 h-3" /> Fechado por {dc.closedByName} {fmtTime(dc.closedAt)}
+                        </span>
+                      ) : dc.closedAt ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 px-1.5 py-0.5 rounded-full">
+                          Fechado {fmtTime(dc.closedAt)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
-                  <button onClick={() => printClose(dc)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors ml-3 flex-shrink-0">
+                  <button onClick={() => printClose(dc)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0" title="Imprimir/PDF">
                     <Printer className="w-4 h-4" />
                   </button>
                 </div>
@@ -392,12 +490,6 @@ export default function CaixaDiario() {
               </button>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-1.5 text-sm">
-              {todayDc.openedByName && (
-                <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                  <span>Responsável:</span>
-                  <span className="font-semibold text-blue-600">{todayDc.openedByName}</span>
-                </div>
-              )}
               <div className="flex justify-between"><span className="text-muted-foreground">Saldo Inicial:</span><span className="font-semibold">{fmtCurrency(todayDc.openingBalance)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Entradas:</span><span className="font-semibold text-green-600">{fmtCurrency(totalIn)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Saídas:</span><span className="font-semibold text-red-600">{fmtCurrency(totalOut)}</span></div>
