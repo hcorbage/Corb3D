@@ -120,6 +120,10 @@ export const cashEntries = pgTable("cash_entries", {
   date: text("date").notNull(),
   closingId: text("closing_id"),
   notes: text("notes").default(""),
+  type: text("type").notNull().default("entrada"),
+  category: text("category").notNull().default(""),
+  status: text("status").notNull().default("realizado"),
+  effectiveDate: text("effective_date").default(""),
 });
 
 export const cashClosings = pgTable("cash_closings", {
@@ -154,9 +158,64 @@ export type InsertCalculation = z.infer<typeof insertCalculationSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 
+export const orderFinancials = pgTable("order_financials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  calculationId: text("calculation_id").notNull(),
+  clientName: text("client_name").notNull().default(""),
+  projectName: text("project_name").notNull().default(""),
+  totalAmount: doublePrecision("total_amount").notNull(),
+  amountPaid: doublePrecision("amount_paid").notNull().default(0),
+  amountPending: doublePrecision("amount_pending").notNull().default(0),
+  status: text("status").notNull().default("pendente"),
+  paymentMethod: text("payment_method").notNull().default("pix"),
+  firstPaymentDate: text("first_payment_date").default(""),
+  notes: text("notes").default(""),
+  createdAt: text("created_at").notNull().default(""),
+});
+
+export const orderPayments = pgTable("order_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  orderFinancialId: text("order_financial_id").notNull(),
+  calculationId: text("calculation_id").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  date: text("date").notNull(),
+  notes: text("notes").default(""),
+  createdAt: text("created_at").notNull().default(""),
+});
+
+export const dailyCash = pgTable("daily_cash", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  date: text("date").notNull(),
+  status: text("status").notNull().default("aberto"),
+  openingBalance: doublePrecision("opening_balance").notNull().default(0),
+  totalIn: doublePrecision("total_in").notNull().default(0),
+  totalOut: doublePrecision("total_out").notNull().default(0),
+  closingBalance: doublePrecision("closing_balance").notNull().default(0),
+  reportedBalance: doublePrecision("reported_balance"),
+  difference: doublePrecision("difference"),
+  openedAt: text("opened_at").notNull().default(""),
+  closedAt: text("closed_at").default(""),
+  notes: text("notes").default(""),
+  paymentSummary: jsonb("payment_summary"),
+});
+
 export const insertCashEntrySchema = createInsertSchema(cashEntries).omit({ id: true });
 export const insertCashClosingSchema = createInsertSchema(cashClosings).omit({ id: true });
+export const insertOrderFinancialSchema = createInsertSchema(orderFinancials).omit({ id: true });
+export const insertOrderPaymentSchema = createInsertSchema(orderPayments).omit({ id: true });
+export const insertDailyCashSchema = createInsertSchema(dailyCash).omit({ id: true });
+
 export type CashEntry = typeof cashEntries.$inferSelect;
 export type InsertCashEntry = z.infer<typeof insertCashEntrySchema>;
 export type CashClosing = typeof cashClosings.$inferSelect;
 export type InsertCashClosing = z.infer<typeof insertCashClosingSchema>;
+export type OrderFinancial = typeof orderFinancials.$inferSelect;
+export type InsertOrderFinancial = z.infer<typeof insertOrderFinancialSchema>;
+export type OrderPayment = typeof orderPayments.$inferSelect;
+export type InsertOrderPayment = z.infer<typeof insertOrderPaymentSchema>;
+export type DailyCash = typeof dailyCash.$inferSelect;
+export type InsertDailyCash = z.infer<typeof insertDailyCashSchema>;

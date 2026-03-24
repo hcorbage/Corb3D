@@ -1,5 +1,6 @@
 import { 
   clients, materials, stockItems, calculations, settings, users, employees, brands, cashEntries, cashClosings,
+  orderFinancials, orderPayments, dailyCash,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -9,7 +10,10 @@ import {
   type User, type InsertUser,
   type Brand, type InsertBrand,
   type CashEntry, type InsertCashEntry,
-  type CashClosing, type InsertCashClosing
+  type CashClosing, type InsertCashClosing,
+  type OrderFinancial, type InsertOrderFinancial,
+  type OrderPayment, type InsertOrderPayment,
+  type DailyCash, type InsertDailyCash,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -74,6 +78,23 @@ export interface IStorage {
   getCashClosings(userId: string): Promise<CashClosing[]>;
   createCashClosing(closing: InsertCashClosing): Promise<CashClosing>;
   closeEntries(userId: string, closingId: string, entryIds: string[]): Promise<void>;
+
+  // Order Financials
+  getOrderFinancials(userId: string): Promise<OrderFinancial[]>;
+  getOrderFinancialByCalculationId(calculationId: string, userId: string): Promise<OrderFinancial | undefined>;
+  createOrderFinancial(of: InsertOrderFinancial): Promise<OrderFinancial>;
+  updateOrderFinancial(id: string, userId: string, data: Partial<InsertOrderFinancial>): Promise<OrderFinancial | undefined>;
+
+  // Order Payments
+  getOrderPayments(userId: string, orderFinancialId: string): Promise<OrderPayment[]>;
+  createOrderPayment(op: InsertOrderPayment): Promise<OrderPayment>;
+  deleteOrderPayment(id: string, userId: string): Promise<void>;
+
+  // Daily Cash
+  getDailyCashList(userId: string): Promise<DailyCash[]>;
+  getTodayDailyCash(userId: string, date: string): Promise<DailyCash | undefined>;
+  createDailyCash(dc: InsertDailyCash): Promise<DailyCash>;
+  updateDailyCash(id: string, userId: string, data: Partial<InsertDailyCash>): Promise<DailyCash | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -296,6 +317,52 @@ export class DatabaseStorage implements IStorage {
     await db.update(cashEntries)
       .set({ closingId })
       .where(and(eq(cashEntries.userId, userId), inArray(cashEntries.id, entryIds)));
+  }
+
+  // Order Financials
+  async getOrderFinancials(userId: string): Promise<OrderFinancial[]> {
+    return db.select().from(orderFinancials).where(eq(orderFinancials.userId, userId));
+  }
+  async getOrderFinancialByCalculationId(calculationId: string, userId: string): Promise<OrderFinancial | undefined> {
+    const [r] = await db.select().from(orderFinancials).where(and(eq(orderFinancials.calculationId, calculationId), eq(orderFinancials.userId, userId)));
+    return r;
+  }
+  async createOrderFinancial(of: InsertOrderFinancial): Promise<OrderFinancial> {
+    const [r] = await db.insert(orderFinancials).values(of).returning();
+    return r;
+  }
+  async updateOrderFinancial(id: string, userId: string, data: Partial<InsertOrderFinancial>): Promise<OrderFinancial | undefined> {
+    const [r] = await db.update(orderFinancials).set(data).where(and(eq(orderFinancials.id, id), eq(orderFinancials.userId, userId))).returning();
+    return r;
+  }
+
+  // Order Payments
+  async getOrderPayments(userId: string, orderFinancialId: string): Promise<OrderPayment[]> {
+    return db.select().from(orderPayments).where(and(eq(orderPayments.userId, userId), eq(orderPayments.orderFinancialId, orderFinancialId)));
+  }
+  async createOrderPayment(op: InsertOrderPayment): Promise<OrderPayment> {
+    const [r] = await db.insert(orderPayments).values(op).returning();
+    return r;
+  }
+  async deleteOrderPayment(id: string, userId: string): Promise<void> {
+    await db.delete(orderPayments).where(and(eq(orderPayments.id, id), eq(orderPayments.userId, userId)));
+  }
+
+  // Daily Cash
+  async getDailyCashList(userId: string): Promise<DailyCash[]> {
+    return db.select().from(dailyCash).where(eq(dailyCash.userId, userId));
+  }
+  async getTodayDailyCash(userId: string, date: string): Promise<DailyCash | undefined> {
+    const [r] = await db.select().from(dailyCash).where(and(eq(dailyCash.userId, userId), eq(dailyCash.date, date)));
+    return r;
+  }
+  async createDailyCash(dc: InsertDailyCash): Promise<DailyCash> {
+    const [r] = await db.insert(dailyCash).values(dc).returning();
+    return r;
+  }
+  async updateDailyCash(id: string, userId: string, data: Partial<InsertDailyCash>): Promise<DailyCash | undefined> {
+    const [r] = await db.update(dailyCash).set(data).where(and(eq(dailyCash.id, id), eq(dailyCash.userId, userId))).returning();
+    return r;
   }
 }
 

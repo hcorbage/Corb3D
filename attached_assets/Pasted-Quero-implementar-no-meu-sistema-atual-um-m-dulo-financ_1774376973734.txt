@@ -1,0 +1,332 @@
+Quero implementar no meu sistema atual um módulo financeiro completo, seguro e de fácil manutenção, sem quebrar nada do que já existe.
+
+STACK ATUAL
+- Frontend: React + Vite + TailwindCSS + shadcn/ui
+- Backend: Node.js + Express
+- Banco de dados: PostgreSQL
+- ORM: Drizzle ORM
+- Autenticação/sessão já existente
+- Projeto versionado no GitHub e depois publicado no meu VPS
+
+OBJETIVO GERAL
+Quero criar uma nova área chamada “Financeiro” no sistema, contendo:
+1. Controle financeiro por pedido
+2. Livro Caixa
+3. Caixa diário com abertura e fechamento
+4. Relatórios e balanços com geração de PDF
+
+IMPORTANTE
+- A implementação deve ser feita em etapas pequenas e seguras
+- Não quebrar funcionalidades já existentes
+- Não alterar o sistema atual sem necessidade
+- Reaproveitar o máximo possível da estrutura já existente
+- Entregar tudo pronto para commit no GitHub
+- Informar exatamente quais arquivos foram criados ou alterados
+- Informar migrations necessárias
+- Informar qualquer ajuste necessário para deploy no VPS
+
+CONTROLE DE ACESSO
+Quero regras rígidas de permissão:
+
+Perfis com acesso:
+- admin_master
+- admin
+
+Perfis sem acesso:
+- usuários comuns e qualquer outro perfil fora desses dois
+
+Regra de visualização:
+- admin_master só pode ver e gerenciar os próprios dados financeiros
+- admin só pode ver e gerenciar os próprios dados financeiros
+- um admin não pode ver caixa, lançamentos, relatórios ou pedidos financeiros de outro admin
+- o filtro deve sempre respeitar ownerId / userId do usuário logado
+- proteger tanto no frontend quanto no backend
+- não confiar apenas em ocultar menu na interface
+
+NOVA ÁREA NO SISTEMA
+Criar uma aba/menu chamado:
+- Financeiro
+
+Dentro dela, criar subáreas:
+1. Resumo financeiro / dashboard
+2. Financeiro por pedido
+3. Livro Caixa
+4. Caixa diário
+5. Relatórios / balanço
+
+REGRAS DE NEGÓCIO – FINANCEIRO POR PEDIDO
+Quero que o controle financeiro comece quando o pedido/orçamento for aceito e o status mudar para “aprovado”.
+
+Ao mudar para status “aprovado”:
+- criar automaticamente um registro financeiro vinculado ao pedido
+- esse registro deve nascer como “receita prevista” ou “pendente de recebimento”
+- vincular ao ownerId do usuário responsável pelo pedido
+
+Cada pedido deve ter controle financeiro próprio contendo:
+- id do pedido
+- ownerId
+- valor total do pedido
+- valor já recebido
+- valor restante / saldo pendente
+- status financeiro
+- forma de pagamento
+- data do primeiro recebimento
+- observações
+- histórico de recebimentos
+
+Status financeiros desejados:
+- pendente
+- parcial
+- pago
+- cancelado
+
+Permitir:
+- recebimento total
+- recebimento parcial
+- múltiplos recebimentos para o mesmo pedido
+- registrar mais de uma forma de pagamento se necessário
+- registrar observações por recebimento
+
+Exemplos:
+- pedido de R$ 300
+- cliente paga R$ 100 em PIX e R$ 200 em dinheiro depois
+- sistema deve registrar os dois recebimentos
+- atualizar saldo pendente
+- atualizar status para parcial e depois pago
+- alimentar automaticamente o livro caixa
+
+FORMAS DE PAGAMENTO
+Quero suporte para:
+- pix
+- dinheiro
+- cartão de crédito
+- cartão de débito
+- transferência
+- boleto
+- outro
+
+Se possível, permitir:
+- uma forma principal de pagamento no pedido
+- e histórico detalhado de cada parcela/recebimento com sua forma específica
+
+LIVRO CAIXA
+Criar um Livro Caixa completo, com histórico cronológico de todas as movimentações financeiras do usuário logado.
+
+Deve registrar:
+- entradas
+- saídas
+- data
+- descrição
+- categoria
+- valor
+- tipo de movimentação
+- status
+- forma de pagamento
+- vínculo com pedido, quando existir
+- usuário responsável
+- observações
+- data de criação
+- data de efetivação
+
+Tipos:
+- entrada
+- saída
+
+Status:
+- previsto
+- realizado
+- cancelado
+
+Categorias de exemplo:
+Entradas:
+- venda de pedido
+- ajuste positivo
+- outros recebimentos
+
+Saídas:
+- filamento
+- frete
+- embalagem
+- energia
+- manutenção
+- ferramentas
+- taxas
+- ajuste negativo
+- outras despesas
+
+Regras:
+- recebimentos de pedidos devem alimentar automaticamente o livro caixa
+- despesas manuais também devem poder ser lançadas
+- permitir editar e cancelar lançamentos, desde que com segurança
+- toda listagem deve mostrar saldo acumulado por período, se possível
+
+CAIXA DIÁRIO
+Quero um módulo separado de “Caixa Diário”, para operação do dia a dia.
+
+Funções:
+- abrir caixa
+- registrar saldo inicial
+- acompanhar entradas do dia
+- acompanhar saídas do dia
+- acompanhar total por forma de pagamento
+- fechar caixa
+- informar saldo contado manualmente
+- comparar saldo do sistema com saldo informado
+- apontar diferença
+
+Campos desejados no fechamento:
+- ownerId
+- data do caixa
+- saldo inicial
+- total de entradas
+- total de saídas
+- total por forma de pagamento
+- saldo final calculado
+- saldo informado manualmente
+- diferença
+- status do caixa (aberto ou fechado)
+- data/hora de abertura
+- data/hora de fechamento
+- observações
+
+Regra:
+- cada usuário admin ou admin_master só manipula o próprio caixa
+- não pode fechar caixa de outro usuário
+- se já existir caixa aberto no dia, impedir abrir outro para o mesmo usuário, ou seguir a lógica mais segura
+
+DASHBOARD / RESUMO FINANCEIRO
+Criar uma tela inicial do financeiro com cards e resumos, como:
+- total recebido no período
+- total de saídas no período
+- saldo líquido
+- pedidos pendentes de pagamento
+- pedidos parcialmente pagos
+- pedidos pagos
+- recebimentos por forma de pagamento
+- resumo do dia
+- resumo do mês
+
+Se possível, incluir gráficos simples:
+- entradas x saídas
+- recebimentos por forma de pagamento
+- evolução por período
+
+RELATÓRIOS E BALANÇO
+Criar relatórios com filtros por:
+- período
+- status financeiro
+- forma de pagamento
+- tipo de movimentação
+- categoria
+- pedido
+- usuário logado
+
+Quero relatórios como:
+1. Livro Caixa por período
+2. Recebimentos por pedido
+3. Fechamento de caixa diário
+4. Balanço mensal
+5. Resumo por forma de pagamento
+6. Entradas x saídas por período
+
+BALANÇO
+Quero um balanço/resumo financeiro com:
+- total de receitas
+- total de despesas
+- saldo líquido
+- total por forma de pagamento
+- total por categoria
+- quantidade de pedidos pagos, parciais e pendentes
+
+GERAÇÃO DE PDF
+Quero exportação em PDF para:
+- livro caixa
+- fechamento de caixa
+- balanço por período
+- recebimentos por pedido
+- resumo financeiro do período
+
+O PDF deve sair organizado, legível e profissional, com:
+- título do relatório
+- período filtrado
+- nome do usuário logado
+- data/hora de geração
+- tabela dos dados
+- totais no final
+
+IMPLEMENTAÇÃO TÉCNICA
+Quero que você:
+- analise a estrutura atual do projeto antes de criar
+- identifique os arquivos existentes que precisam ser integrados
+- crie novas tabelas no PostgreSQL via Drizzle ORM
+- crie migrations
+- crie schemas/validators
+- crie rotas Express seguras
+- crie controllers/services organizados
+- crie as telas React
+- use componentes compatíveis com meu padrão atual
+- use proteção por sessão/perfil/ownerId
+- mantenha organização limpa do código
+- evite duplicação
+- não faça solução improvisada
+
+MODELAGEM SUGERIDA
+Se fizer sentido, criar tabelas separadas como:
+- financial_accounts ou cash_registers
+- financial_entries
+- order_financials
+- order_payments
+- cash_closings
+
+Ou outra modelagem melhor, desde que:
+- fique clara
+- escalável
+- segura
+- fácil de manter
+
+INTEGRAÇÃO COM PEDIDOS
+Quero integração com os pedidos existentes.
+
+Regras:
+- ao mudar pedido para “aprovado”, criar controle financeiro
+- ao registrar recebimento no pedido, atualizar financeiro do pedido
+- ao registrar recebimento, criar entrada no livro caixa
+- ao cancelar pedido, ajustar o status financeiro conforme a regra adequada
+- não duplicar lançamentos se o status for salvo duas vezes
+- implementar de forma idempotente e segura
+
+INTERFACE
+Quero interface simples, clara e prática.
+
+Nas telas:
+- filtros no topo
+- tabelas organizadas
+- botões para cadastrar entrada/saída/recebimento
+- opção de exportar PDF
+- indicadores visuais de status
+- responsivo dentro do possível
+- manter o padrão visual do sistema atual
+
+ENTREGA
+Quero que você implemente em etapas e me entregue:
+1. resumo do que entendeu
+2. plano de implementação por etapas
+3. modelagem das tabelas
+4. código das migrations
+5. backend
+6. frontend
+7. integração com pedidos
+8. geração de PDF
+9. lista final de arquivos alterados/criados
+10. instruções exatas para rodar localmente
+11. instruções exatas para subir no GitHub
+12. instruções exatas para publicar no VPS sem quebrar o sistema
+
+MUITO IMPORTANTE
+- Antes de sair criando, leia o projeto atual e adapte a solução ao que já existe
+- Não invente nomes desconectados da base atual
+- Não remova funcionalidades antigas
+- Não altere autenticação existente sem necessidade
+- Não exponha dados financeiros de um admin para outro
+- Se houver qualquer conflito estrutural, proponha a solução mais segura e simples
+- Faça tudo pensando em produção

@@ -4,8 +4,10 @@
 Full-stack 3D printing quote management system in Portuguese (Brazilian). Calculates printing costs based on materials, time, electricity, printer depreciation, and desired profit margin. Includes modules for client management, material inventory, stock control, quote history with status tracking, and comprehensive settings. Multi-tenant: each user has completely isolated data.
 
 ## Recent Changes
+- 2026-03-24: Comprehensive Financial Module: FinanceiroDashboard, PedidosFinanceiro, CaixaDiario, Relatorios pages; orderFinancials, orderPayments, dailyCash DB tables; API routes for all new features; 4 new nav items (admin only)
+- 2026-03-24: CashBook: added type (entrada/saída) and category fields to entry form and table; summary cards now show entradas/saídas/saldo separately; History confirmation now creates orderFinancial + orderPayment records (which auto-create cash entries)
 - 2026-03-24: Livro Caixa module: cashEntries + cashClosings tables; full CRUD backend; CashBook.tsx page with entries list, filters, payment method summary, period closing (Fechar Caixa), print balance; nav item in Layout (admin only)
-- 2026-03-24: History page: confirming a quote now opens payment modal (amount + payment method selector); creates cash entry in Livro Caixa automatically on confirmation
+- 2026-03-24: History page: confirming a quote now opens payment modal (amount + payment method selector); creates order financial record + payment automatically on confirmation
 - 2026-03-24: Settings: credentials modal differentiates "Usuário Cadastrado!" vs "Funcionário Cadastrado!" based on creation type
 - 2026-03-20: Calculator: loss margin slider (0-30%) increases material cost to cover print failures; discount slider (0 to maxDiscount%) reduces final price; both excluded from saving to history; discount only appears in PDF/WhatsApp when applied
 - 2026-03-20: Settings: maxDiscount field (admin only) sets maximum authorized discount % for calculator; 0 = disabled
@@ -71,6 +73,10 @@ Full-stack 3D printing quote management system in Portuguese (Brazilian). Calcul
 - `client/src/pages/Inventory.tsx` - Stock control
 - `client/src/pages/Settings.tsx` - System settings + backup + user management
 - `client/src/pages/Commissions.tsx` - Employee commissions report page
+- `client/src/pages/FinanceiroDashboard.tsx` - Financial dashboard with charts and summary cards
+- `client/src/pages/PedidosFinanceiro.tsx` - Per-order payment tracking (orderFinancials/orderPayments)
+- `client/src/pages/CaixaDiario.tsx` - Daily cash register open/close with reconciliation
+- `client/src/pages/Relatorios.tsx` - Financial reports with filters and PDF export
 
 ## Database Tables
 - `users` - User accounts (bcryptjs hashed passwords, isAdmin boolean)
@@ -81,6 +87,11 @@ Full-stack 3D printing quote management system in Portuguese (Brazilian). Calcul
 - `calculations` - Quote history with details JSON, employeeId/employeeName (userId-scoped)
 - `brands` - Brand names for stock items (userId-scoped, seeded with defaults)
 - `settings` - System configuration per user (userId-scoped, id=userId)
+- `cashEntries` - Cash book entries with type (entrada/saída), category, status, effectiveDate (userId-scoped)
+- `cashClosings` - Period closings for cash book (userId-scoped)
+- `orderFinancials` - Per-order financial tracking: totalAmount, amountPaid, amountPending, status (pendente/parcial/pago) (userId-scoped)
+- `orderPayments` - Individual payment records for orders, linked to orderFinancials (userId-scoped)
+- `dailyCash` - Daily cash register: open/close with opening/closing balances, reconciliation, paymentSummary JSONB (userId-scoped)
 
 ## Authentication & Authorization
 - First access shows setup mode to create initial admin account (isAdmin=true)

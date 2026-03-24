@@ -701,6 +701,172 @@ export async function registerRoutes(
     }
   });
 
+  // Financial Dashboard Summary
+  app.get("/api/financial/summary", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const [entries, ofs, dcs] = await Promise.all([
+      storage.getCashEntries(userId),
+      storage.getOrderFinancials(userId),
+      storage.getDailyCashList(userId),
+    ]);
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+    const today = now.toISOString().slice(0, 10);
+    const monthEntries = entries.filter(e => e.date.startsWith(currentMonth) && e.status !== "cancelado");
+    const totalIn = monthEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
+    const totalOut = monthEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
+    const todayEntries = entries.filter(e => e.date === today && e.status !== "cancelado");
+    const todayIn = todayEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
+    const todayOut = todayEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
+    const byPayment: Record<string, number> = {};
+    monthEntries.filter(e => e.type === "entrada").forEach(e => {
+      byPayment[e.paymentMethod] = (byPayment[e.paymentMethod] || 0) + e.amount;
+    });
+    const openDailyCash = dcs.find(d => d.date === today && d.status === "aberto");
+    res.json({
+      monthlyIn: totalIn, monthlyOut: totalOut, monthlyNet: totalIn - totalOut,
+      todayIn, todayOut,
+      ordersPending: ofs.filter(o => o.status === "pendente").length,
+      ordersPartial: ofs.filter(o => o.status === "parcial").length,
+      ordersPaid: ofs.filter(o => o.status === "pago").length,
+      byPayment,
+      openDailyCash: openDailyCash || null,
+    });
+  });
+
+  // Order Financials
+  app.get("/api/order-financials", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const data = await storage.getOrderFinancials(userId);
+    res.json(data);
+  });
+
+  app.get("/api/order-financials/by-calc/:calcId", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const data = await storage.getOrderFinancialByCalculationId(req.params.calcId, userId);
+    res.json(data || null);
+  });
+
+  app.post("/api/order-financials", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const body = stripUserId(req.body);
+    // Idempotent: don't create duplicate for same calculationId
+    const existing = await storage.getOrderFinancialByCalculationId(body.calculationId, userId);
+    if (existing) return res.json(existing);
+    const now = new Date().toISOString();
+    const of = await storage.createOrderFinancial({ ...body, userId, createdAt: now, amountPaid: 0, amountPending: body.totalAmount });
+    res.json(of);
+  });
+
+  app.patch("/api/order-financials/:id", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const body = stripUserId(req.body);
+    const updated = await storage.updateOrderFinancial(req.params.id, userId, body);
+    if (!updated) return res.status(404).json({ message: "Não encontrado" });
+    res.json(updated);
+  });
+
+  // Order Payments
+  app.get("/api/order-payments/:orderFinancialId", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const data = await storage.getOrderPayments(userId, req.params.orderFinancialId);
+    res.json(data);
+  });
+
+  app.post("/api/order-payments", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const body = stripUserId(req.body);
+    const now = new Date().toISOString();
+    // Create payment record
+    const op = await storage.createOrderPayment({ ...body, userId, createdAt: now });
+    // Update order financial totals
+    const of = await storage.getOrderFinancialByCalculationId(body.calculationId, userId);
+    if (of) {
+      const newPaid = of.amountPaid + op.amount;
+      const newPending = Math.max(0, of.totalAmount - newPaid);
+      const newStatus = newPending <= 0 ? "pago" : newPaid > 0 ? "parcial" : "pendente";
+      const firstDate = of.firstPaymentDate || body.date;
+      await storage.updateOrderFinancial(of.id, userId, {
+        amountPaid: newPaid, amountPending: newPending, status: newStatus,
+        firstPaymentDate: firstDate, paymentMethod: body.paymentMethod,
+      });
+      // Also create cash entry
+      await storage.createCashEntry({
+        userId, calculationId: body.calculationId,
+        clientName: of.clientName, projectName: of.projectName,
+        description: `Recebimento: ${of.projectName || of.clientName}`,
+        amount: op.amount, paymentMethod: body.paymentMethod,
+        date: body.date, type: "entrada", category: "venda de pedido",
+        status: "realizado", effectiveDate: body.date, notes: body.notes || "",
+      });
+    }
+    res.json(op);
+  });
+
+  app.delete("/api/order-payments/:id", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    await storage.deleteOrderPayment(req.params.id, userId);
+    res.json({ success: true });
+  });
+
+  // Daily Cash
+  app.get("/api/daily-cash", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const data = await storage.getDailyCashList(userId);
+    res.json(data);
+  });
+
+  app.get("/api/daily-cash/today", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const today = new Date().toISOString().slice(0, 10);
+    const data = await storage.getTodayDailyCash(userId, today);
+    res.json(data || null);
+  });
+
+  app.post("/api/daily-cash/open", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const today = new Date().toISOString().slice(0, 10);
+    const existing = await storage.getTodayDailyCash(userId, today);
+    if (existing) return res.status(400).json({ message: "Caixa já aberto para hoje." });
+    const dc = await storage.createDailyCash({
+      userId, date: today, status: "aberto",
+      openingBalance: Number(req.body.openingBalance) || 0,
+      totalIn: 0, totalOut: 0, closingBalance: 0,
+      openedAt: new Date().toISOString(),
+      notes: req.body.notes || "",
+    });
+    res.json(dc);
+  });
+
+  app.patch("/api/daily-cash/:id/close", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const { reportedBalance, notes } = req.body;
+    const dc = await storage.getDailyCashList(userId).then(list => list.find(d => d.id === req.params.id));
+    if (!dc) return res.status(404).json({ message: "Caixa não encontrado" });
+    // Compute totals from today's entries
+    const today = dc.date;
+    const entries = await storage.getCashEntries(userId);
+    const todayEntries = entries.filter(e => e.date === today && e.status !== "cancelado");
+    const totalIn = todayEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
+    const totalOut = todayEntries.filter(e => e.type === "saida").reduce((s, e) => s + e.amount, 0);
+    const byPayment: Record<string, number> = {};
+    todayEntries.forEach(e => {
+      const key = `${e.type}:${e.paymentMethod}`;
+      byPayment[key] = (byPayment[key] || 0) + e.amount;
+    });
+    const closingBalance = dc.openingBalance + totalIn - totalOut;
+    const diff = reportedBalance != null ? Number(reportedBalance) - closingBalance : undefined;
+    const updated = await storage.updateDailyCash(dc.id, userId, {
+      status: "fechado", totalIn, totalOut, closingBalance,
+      reportedBalance: reportedBalance != null ? Number(reportedBalance) : undefined,
+      difference: diff,
+      closedAt: new Date().toISOString(),
+      paymentSummary: byPayment,
+      notes: notes || dc.notes || "",
+    });
+    res.json(updated);
+  });
+
   // Cash Entries
   app.get("/api/cash-entries", requireAuth, async (req, res) => {
     const userId = req.session.userId!;

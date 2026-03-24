@@ -65,23 +65,39 @@ export default function History() {
     const { calc } = paymentModal;
     updateCalculation({ ...calc, status: 'confirmed' });
     try {
-      await fetch("/api/cash-entries", {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const paidAmount = Number(paymentAmount) || calc.suggestedPrice || calc.totalCost || 0;
+      // Create order financial record (idempotent)
+      const ofRes = await fetch("/api/order-financials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          calculationId: calc.id,
           clientName: calc.clientName || "",
           projectName: calc.projectName || "",
-          description: `Orçamento aprovado`,
-          amount: Number(paymentAmount) || calc.suggestedPrice || calc.totalCost || 0,
+          totalAmount: calc.suggestedPrice || calc.totalCost || 0,
           paymentMethod,
-          date: format(new Date(), "yyyy-MM-dd"),
-          calculationId: calc.id,
-          notes: "",
         }),
       });
-      toast({ title: "Orçamento Autorizado", description: "Lançamento registrado no Livro Caixa." });
+      const of = await ofRes.json();
+      // Register the payment (also creates cash entry)
+      if (of && of.id) {
+        await fetch("/api/order-payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderFinancialId: of.id,
+            calculationId: calc.id,
+            amount: paidAmount,
+            paymentMethod,
+            date: today,
+            notes: "",
+          }),
+        });
+      }
+      toast({ title: "Orçamento Autorizado", description: "Lançamento registrado no Financeiro." });
     } catch {
-      toast({ title: "Orçamento Autorizado", description: "Não foi possível registrar no Livro Caixa.", variant: "destructive" });
+      toast({ title: "Orçamento Autorizado", description: "Não foi possível registrar no Financeiro.", variant: "destructive" });
     }
     setPaymentModal(null);
   };

@@ -16,6 +16,10 @@ import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Commissions from "./pages/Commissions";
 import CashBook from "./pages/CashBook";
+import FinanceiroDashboard from "./pages/FinanceiroDashboard";
+import PedidosFinanceiro from "./pages/PedidosFinanceiro";
+import CaixaDiario from "./pages/CaixaDiario";
+import Relatorios from "./pages/Relatorios";
 import Login from "./pages/Login";
 import { Lock, Eye, EyeOff, KeyRound } from "lucide-react";
 
@@ -35,6 +39,10 @@ function Router() {
         <Route path="/history" component={History}/>
         <Route path="/commissions" component={Commissions}/>
         <Route path="/cashbook">{() => <AdminRoute component={CashBook} />}</Route>
+        <Route path="/financeiro">{() => <AdminRoute component={FinanceiroDashboard} />}</Route>
+        <Route path="/pedidos-financeiro">{() => <AdminRoute component={PedidosFinanceiro} />}</Route>
+        <Route path="/caixa-diario">{() => <AdminRoute component={CaixaDiario} />}</Route>
+        <Route path="/relatorios">{() => <AdminRoute component={Relatorios} />}</Route>
         <Route path="/settings" component={Settings}/>
         <Route component={NotFound} />
       </Switch>
