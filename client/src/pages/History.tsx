@@ -47,7 +47,7 @@ export default function History() {
   };
 
   const handleStatusChange = (calc: Calculation, newStatus: 'pending' | 'confirmed' | 'denied') => {
-    if (newStatus === 'confirmed' && isAdmin) {
+    if (newStatus === 'confirmed') {
       setPaymentModal({ calc });
       setPaymentMethod("pix");
       const price = calc.suggestedPrice || calc.totalCost || 0;
