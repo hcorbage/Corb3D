@@ -20,6 +20,7 @@ const PAYMENT_METHODS = [
   { value: "debito", label: "Cartão de Débito" },
   { value: "boleto", label: "Boleto" },
   { value: "transferencia", label: "Transferência" },
+  { value: "entrada_50", label: "50% Entrada + 50% na Entrega" },
 ];
 
 export default function History() {
@@ -63,10 +64,12 @@ export default function History() {
   const handleConfirmPayment = async () => {
     if (!paymentModal) return;
     const { calc } = paymentModal;
+    const totalPrice = calc.suggestedPrice || calc.totalCost || 0;
+    const isEntrada50 = paymentMethod === "entrada_50";
+    const paidAmount = isEntrada50 ? totalPrice * 0.5 : (Number(paymentAmount) || totalPrice);
     updateCalculation({ ...calc, status: 'confirmed' });
     try {
       const today = format(new Date(), "yyyy-MM-dd");
-      const paidAmount = Number(paymentAmount) || calc.suggestedPrice || calc.totalCost || 0;
       // Create order financial record (idempotent)
       const ofRes = await fetch("/api/order-financials", {
         method: "POST",
@@ -75,12 +78,12 @@ export default function History() {
           calculationId: calc.id,
           clientName: calc.clientName || "",
           projectName: calc.projectName || "",
-          totalAmount: calc.suggestedPrice || calc.totalCost || 0,
+          totalAmount: totalPrice,
           paymentMethod,
         }),
       });
       const of = await ofRes.json();
-      // Register the payment (also creates cash entry)
+      // Register the entry payment (also creates cash entry)
       if (of && of.id) {
         await fetch("/api/order-payments", {
           method: "POST",
@@ -91,11 +94,16 @@ export default function History() {
             amount: paidAmount,
             paymentMethod,
             date: today,
-            notes: "",
+            notes: isEntrada50 ? "Entrada 50% — saldo restante na entrega" : "",
           }),
         });
       }
-      toast({ title: "Orçamento Autorizado", description: "Lançamento registrado no Financeiro." });
+      toast({
+        title: "Orçamento Autorizado",
+        description: isEntrada50
+          ? `Entrada registrada (50%). Saldo na entrega: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalPrice * 0.5)}`
+          : "Lançamento registrado no Financeiro.",
+      });
     } catch {
       toast({ title: "Orçamento Autorizado", description: "Não foi possível registrar no Financeiro.", variant: "destructive" });
     }
@@ -492,7 +500,10 @@ export default function History() {
               Autorizar Orçamento
             </DialogTitle>
           </DialogHeader>
-          {paymentModal && (
+          {paymentModal && (() => {
+            const totalPrice = paymentModal.calc.suggestedPrice || paymentModal.calc.totalCost || 0;
+            const isEntrada50 = paymentMethod === "entrada_50";
+            return (
             <div className="space-y-4 py-2">
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm space-y-1">
                 <div className="flex justify-between">
@@ -504,24 +515,19 @@ export default function History() {
                   <span className="font-semibold">{paymentModal.calc.projectName || "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor original:</span>
-                  <span className="font-bold text-green-700">{formatCurrency(paymentModal.calc.suggestedPrice || paymentModal.calc.totalCost || 0)}</span>
+                  <span className="text-muted-foreground">Valor total:</span>
+                  <span className="font-bold text-green-700">{formatCurrency(totalPrice)}</span>
                 </div>
               </div>
-              <div>
-                <Label>Valor Pago (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="mt-1 font-bold"
-                />
-              </div>
+
               <div>
                 <Label>Forma de Pagamento</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <Select value={paymentMethod} onValueChange={(v) => {
+                  setPaymentMethod(v);
+                  if (v === "entrada_50") {
+                    setPaymentAmount((totalPrice * 0.5).toFixed(2));
+                  }
+                }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -532,11 +538,47 @@ export default function History() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {isEntrada50 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                  <div className="text-xs font-bold text-amber-800 mb-1 uppercase tracking-wide">Resumo do Parcelamento</div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-xs text-amber-700 font-semibold">Entrada agora (50%)</div>
+                      <div className="text-xs text-amber-600">Registrada no caixa hoje</div>
+                    </div>
+                    <span className="text-lg font-black text-green-700">{formatCurrency(totalPrice * 0.5)}</span>
+                  </div>
+                  <div className="border-t border-amber-200 pt-3 flex justify-between items-center">
+                    <div>
+                      <div className="text-xs text-amber-700 font-semibold">Saldo na entrega (50%)</div>
+                      <div className="text-xs text-amber-600">Ficará como pendente no financeiro</div>
+                    </div>
+                    <span className="text-lg font-black text-orange-600">{formatCurrency(totalPrice * 0.5)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <Label>Valor Pago (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="mt-1 font-bold"
+                  />
+                </div>
+              )}
+
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-                O lançamento será registrado automaticamente no Livro Caixa.
+                {isEntrada50
+                  ? "A entrada (50%) será lançada no Caixa. O saldo restante aparecerá como Parcial no Financeiro."
+                  : "O lançamento será registrado automaticamente no Livro Caixa."}
               </div>
             </div>
-          )}
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentModal(null)}>Cancelar</Button>
             <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">

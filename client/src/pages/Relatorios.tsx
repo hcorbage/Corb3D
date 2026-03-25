@@ -8,7 +8,8 @@ const fmtCurrency = (v: number) =>
 
 const PAYMENT_METHODS: Record<string, string> = {
   pix: "Pix", dinheiro: "Dinheiro", credito: "Cartão de Crédito",
-  debito: "Cartão de Débito", boleto: "Boleto", transferencia: "Transferência", outro: "Outro",
+  debito: "Cartão de Débito", boleto: "Boleto", transferencia: "Transferência",
+  entrada_50: "50% Entrada + 50% Entrega", outro: "Outro",
 };
 
 const CATEGORIES_ENTRADA = ["venda de pedido", "ajuste positivo", "outros recebimentos"];

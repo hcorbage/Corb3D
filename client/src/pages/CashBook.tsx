@@ -43,6 +43,7 @@ const PAYMENT_METHODS = [
   { value: "debito", label: "Cartão de Débito", color: "bg-indigo-100 text-indigo-800" },
   { value: "boleto", label: "Boleto", color: "bg-orange-100 text-orange-800" },
   { value: "transferencia", label: "Transferência", color: "bg-purple-100 text-purple-800" },
+  { value: "entrada_50", label: "50% Entrada + 50% Entrega", color: "bg-amber-100 text-amber-800" },
 ];
 
 const formatCurrency = (v: number) =>
