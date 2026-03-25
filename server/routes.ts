@@ -1063,7 +1063,12 @@ export async function registerRoutes(
                   closedByName: null,
                   closedByUserId: null,
                   paymentSummary: byPayment,
-                  notes: (todayCash.notes ? todayCash.notes + "\n" : "") + "Fechado automaticamente pelo sistema.",
+                  notes: (() => {
+                    const autoMsg = "Fechado automaticamente pelo sistema.";
+                    if (!todayCash.notes) return autoMsg;
+                    if (todayCash.notes.includes(autoMsg)) return todayCash.notes;
+                    return todayCash.notes + "\n" + autoMsg;
+                  })(),
                 });
                 console.log(`[AutoClose] Caixa de ${user.username} fechado automaticamente às ${now.toISOString()}`);
               }
