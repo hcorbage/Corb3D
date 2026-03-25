@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X, User, UserCheck, Bot, RefreshCw } from "lucide-react";
+import { Wallet, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Check, Printer, X, User, UserCheck, Bot, RefreshCw, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -99,6 +99,10 @@ export default function CaixaDiario() {
   const [closeNotes, setCloseNotes] = useState("");
   const today = format(new Date(), "yyyy-MM-dd");
 
+  const BLANK_ENTRY = { type: "entrada", amount: "", paymentMethod: "dinheiro", description: "", category: "lançamento manual" };
+  const [entryForm, setEntryForm] = useState(BLANK_ENTRY);
+  const [savingEntry, setSavingEntry] = useState(false);
+
   const fetchAll = async () => {
     try {
       const [dcRes, allDcRes, entriesRes] = await Promise.all([
@@ -150,6 +154,40 @@ export default function CaixaDiario() {
       await fetchAll();
       toast({ title: "Caixa reaberto!" });
     } catch { toast({ title: "Erro ao reabrir caixa", variant: "destructive" }); }
+  };
+
+  const handleAddEntry = async () => {
+    if (!entryForm.amount || Number(entryForm.amount) <= 0) {
+      toast({ title: "Informe um valor válido.", variant: "destructive" }); return;
+    }
+    if (!entryForm.description.trim()) {
+      toast({ title: "Informe uma descrição.", variant: "destructive" }); return;
+    }
+    setSavingEntry(true);
+    try {
+      const res = await fetch("/api/cash-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: entryForm.type,
+          amount: Number(entryForm.amount),
+          paymentMethod: entryForm.paymentMethod,
+          description: entryForm.description.trim(),
+          category: entryForm.category,
+          date: today,
+          effectiveDate: today,
+          status: "realizado",
+          notes: "",
+          clientName: "",
+          projectName: "",
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); toast({ title: e.message || "Erro ao lançar", variant: "destructive" }); return; }
+      setEntryForm(BLANK_ENTRY);
+      await fetchAll();
+      toast({ title: entryForm.type === "entrada" ? "✅ Entrada registrada!" : "✅ Saída registrada!" });
+    } catch { toast({ title: "Erro ao lançar movimentação", variant: "destructive" }); }
+    finally { setSavingEntry(false); }
   };
 
   const totalIn = todayEntries.filter(e => e.type === "entrada").reduce((s, e) => s + e.amount, 0);
@@ -374,6 +412,128 @@ export default function CaixaDiario() {
             </div>
           )}
 
+          {/* Quick Entry Form — only when cash is open */}
+          {todayDc.status === "aberto" && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" /> Lançamento Rápido
+              </h3>
+
+              {/* Entrada / Saída toggle */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  data-testid="btn-tipo-entrada"
+                  onClick={() => setEntryForm(f => ({ ...f, type: "entrada" }))}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                    entryForm.type === "entrada"
+                      ? "bg-green-500 text-white border-green-500 shadow-sm"
+                      : "bg-gray-50 text-gray-500 border-gray-200 hover:border-green-300 hover:text-green-600"
+                  }`}
+                >
+                  <TrendingUp className="w-4 h-4" /> Entrada
+                </button>
+                <button
+                  data-testid="btn-tipo-saida"
+                  onClick={() => setEntryForm(f => ({ ...f, type: "saida" }))}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                    entryForm.type === "saida"
+                      ? "bg-red-500 text-white border-red-500 shadow-sm"
+                      : "bg-gray-50 text-gray-500 border-gray-200 hover:border-red-300 hover:text-red-600"
+                  }`}
+                >
+                  <TrendingDown className="w-4 h-4" /> Saída
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                {/* Valor */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Valor (R$) *</label>
+                  <input
+                    data-testid="input-entry-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={entryForm.amount}
+                    onChange={e => setEntryForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                {/* Forma de Pagamento */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Forma de Pagamento *</label>
+                  <select
+                    data-testid="select-entry-payment"
+                    value={entryForm.paymentMethod}
+                    onChange={e => setEntryForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {PAYMENT_METHODS.map(pm => (
+                      <option key={pm.value} value={pm.value}>{pm.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {/* Descrição */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Descrição *</label>
+                  <input
+                    data-testid="input-entry-description"
+                    type="text"
+                    placeholder="Ex: Recebimento cliente, Aluguel, Suprimento..."
+                    value={entryForm.description}
+                    onChange={e => setEntryForm(f => ({ ...f, description: e.target.value }))}
+                    onKeyDown={e => { if (e.key === "Enter") handleAddEntry(); }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                {/* Categoria */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
+                  <select
+                    data-testid="select-entry-category"
+                    value={entryForm.category}
+                    onChange={e => setEntryForm(f => ({ ...f, category: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="lançamento manual">Lançamento Manual</option>
+                    <option value="venda">Venda</option>
+                    <option value="recebimento">Recebimento</option>
+                    <option value="despesa">Despesa</option>
+                    <option value="fornecedor">Fornecedor</option>
+                    <option value="material">Material / Suprimento</option>
+                    <option value="manutenção">Manutenção</option>
+                    <option value="salário">Salário / Retirada</option>
+                    <option value="outros">Outros</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                data-testid="btn-add-entry"
+                onClick={handleAddEntry}
+                disabled={savingEntry}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors shadow-sm ${
+                  entryForm.type === "entrada"
+                    ? "bg-green-500 hover:bg-green-600 text-white disabled:bg-green-300"
+                    : "bg-red-500 hover:bg-red-600 text-white disabled:bg-red-300"
+                }`}
+              >
+                {savingEntry ? (
+                  <span>Salvando...</span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    {entryForm.type === "entrada" ? "Registrar Entrada" : "Registrar Saída"}
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Today's Entries */}
           {todayDc.status === "aberto" && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -381,7 +541,7 @@ export default function CaixaDiario() {
                 <h3 className="text-sm font-bold text-gray-700">Movimentações de Hoje ({todayEntries.length})</h3>
               </div>
               {todayEntries.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">Nenhuma movimentação hoje — lance pelo Livro Caixa</div>
+                <div className="py-8 text-center text-sm text-muted-foreground">Nenhuma movimentação registrada hoje</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
