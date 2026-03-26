@@ -90,7 +90,7 @@ export default function History() {
           projectName: calc.projectName || "",
           totalAmount: totalPrice,
           paymentMethod,
-          dueDate: isAFaturar ? dueDate : "",
+          dueDate: isAFaturar ? dueDate : null,
           notes: isAFaturar ? `A faturar em ${dueDate}` : "",
         }),
       });

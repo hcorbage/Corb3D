@@ -229,7 +229,9 @@ export default function PedidosFinanceiro() {
                       <div className="text-xs text-blue-500 font-semibold mt-0.5">Vendedor: {order.sellerName}</div>
                     )}
                     {order.paymentMethod === "a_faturar" && order.dueDate && (() => {
-                      const isOverdue = order.status !== "pago" && order.dueDate < format(new Date(), "yyyy-MM-dd");
+                      const due = new Date(order.dueDate + "T00:00:00");
+                      const today = new Date(); today.setHours(0, 0, 0, 0);
+                      const isOverdue = order.status !== "pago" && due < today;
                       return (
                         <div className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${isOverdue ? "bg-red-100 text-red-700" : "bg-purple-100 text-purple-700"}`}>
                           <Clock className="w-3 h-3" />

@@ -758,8 +758,10 @@ export async function registerRoutes(
     // Use cash owner's userId if a daily cash is open; otherwise use seller's
     const openCash = await storage.getAnyOpenDailyCash();
     const userId = openCash ? openCash.userId : sellerUserId;
+    // Sanitize dueDate: empty string → null (column is DATE type in DB)
+    const dueDate = body.dueDate && body.dueDate.trim() ? body.dueDate.trim() : null;
     const of = await storage.createOrderFinancial({
-      ...body, userId, createdAt: now, amountPaid: 0, amountPending: body.totalAmount,
+      ...body, dueDate, userId, createdAt: now, amountPaid: 0, amountPending: body.totalAmount,
       sellerUserId: openCash ? sellerUserId : null,
       sellerName: openCash ? sellerName : null,
     });
@@ -769,6 +771,7 @@ export async function registerRoutes(
   app.patch("/api/order-financials/:id", requireAuth, async (req, res) => {
     const userId = req.session.userId!;
     const body = stripUserId(req.body);
+    if ("dueDate" in body) body.dueDate = body.dueDate && body.dueDate.trim() ? body.dueDate.trim() : null;
     const updated = await storage.updateOrderFinancial(req.params.id, userId, body);
     if (!updated) return res.status(404).json({ message: "Não encontrado" });
     res.json(updated);

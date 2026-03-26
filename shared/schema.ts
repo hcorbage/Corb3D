@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, doublePrecision, jsonb, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, doublePrecision, jsonb, boolean, integer, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -176,7 +176,7 @@ export const orderFinancials = pgTable("order_financials", {
   status: text("status").notNull().default("pendente"),
   paymentMethod: text("payment_method").notNull().default("pix"),
   firstPaymentDate: text("first_payment_date").default(""),
-  dueDate: text("due_date").default(""),
+  dueDate: date("due_date", { mode: "string" }),
   notes: text("notes").default(""),
   createdAt: text("created_at").notNull().default(""),
   sellerUserId: text("seller_user_id"),
