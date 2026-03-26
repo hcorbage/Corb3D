@@ -21,6 +21,7 @@ const PAYMENT_METHODS = [
   { value: "boleto", label: "Boleto" },
   { value: "transferencia", label: "Transferência" },
   { value: "entrada_50", label: "50% Entrada + 50% na Entrega" },
+  { value: "a_faturar", label: "A Faturar (cobrar depois)" },
 ];
 
 export default function History() {
@@ -42,6 +43,7 @@ export default function History() {
   const [paymentModal, setPaymentModal] = useState<{ calc: Calculation } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("pix");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -53,6 +55,9 @@ export default function History() {
       setPaymentMethod("pix");
       const price = calc.suggestedPrice || calc.totalCost || 0;
       setPaymentAmount(price.toFixed(2));
+      // Default due date = 7 days from today
+      const d = new Date(); d.setDate(d.getDate() + 7);
+      setDueDate(d.toISOString().slice(0, 10));
       return;
     }
     updateCalculation({ ...calc, status: newStatus });
@@ -66,10 +71,15 @@ export default function History() {
     const { calc } = paymentModal;
     const totalPrice = calc.suggestedPrice || calc.totalCost || 0;
     const isEntrada50 = paymentMethod === "entrada_50";
-    const paidAmount = isEntrada50 ? totalPrice * 0.5 : (Number(paymentAmount) || totalPrice);
+    const isAFaturar = paymentMethod === "a_faturar";
+    const paidAmount = isEntrada50 ? totalPrice * 0.5 : (isAFaturar ? 0 : (Number(paymentAmount) || totalPrice));
+    if (isAFaturar && !dueDate) {
+      toast({ title: "Informe a data de faturamento.", variant: "destructive" }); return;
+    }
     updateCalculation({ ...calc, status: 'confirmed' });
     try {
       const today = format(new Date(), "yyyy-MM-dd");
+      const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
       // Create order financial record (idempotent)
       const ofRes = await fetch("/api/order-financials", {
         method: "POST",
@@ -80,11 +90,13 @@ export default function History() {
           projectName: calc.projectName || "",
           totalAmount: totalPrice,
           paymentMethod,
+          dueDate: isAFaturar ? dueDate : "",
+          notes: isAFaturar ? `A faturar em ${dueDate}` : "",
         }),
       });
       const of = await ofRes.json();
-      // Register the entry payment (also creates cash entry)
-      if (of && of.id) {
+      // For "a_faturar": don't create payment/cash entry — money not received yet
+      if (!isAFaturar && of && of.id) {
         await fetch("/api/order-payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -100,9 +112,11 @@ export default function History() {
       }
       toast({
         title: "Orçamento Autorizado",
-        description: isEntrada50
-          ? `Entrada registrada (50%). Saldo na entrega: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalPrice * 0.5)}`
-          : "Lançamento registrado no Financeiro.",
+        description: isAFaturar
+          ? `A faturar em ${dueDate} — ${fmtBRL(totalPrice)} pendente no Financeiro.`
+          : isEntrada50
+            ? `Entrada registrada (50%). Saldo na entrega: ${fmtBRL(totalPrice * 0.5)}`
+            : "Lançamento registrado no Financeiro.",
       });
     } catch {
       toast({ title: "Orçamento Autorizado", description: "Não foi possível registrar no Financeiro.", variant: "destructive" });
@@ -503,6 +517,7 @@ export default function History() {
           {paymentModal && (() => {
             const totalPrice = paymentModal.calc.suggestedPrice || paymentModal.calc.totalCost || 0;
             const isEntrada50 = paymentMethod === "entrada_50";
+            const isAFaturar = paymentMethod === "a_faturar";
             return (
             <div className="space-y-4 py-2">
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm space-y-1">
@@ -557,6 +572,24 @@ export default function History() {
                     <span className="text-lg font-black text-orange-600">{formatCurrency(totalPrice * 0.5)}</span>
                   </div>
                 </div>
+              ) : isAFaturar ? (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                  <div className="text-xs font-bold text-purple-800 mb-2 uppercase tracking-wide">Faturamento Futuro</div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs text-purple-700 font-semibold">Valor a receber:</span>
+                    <span className="text-lg font-black text-purple-700">{formatCurrency(totalPrice)}</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-purple-700 mb-1">Data de Faturamento *</label>
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-purple-300"
+                    />
+                    <p className="text-xs text-purple-600 mt-1">Data prevista para cobrança / recebimento</p>
+                  </div>
+                </div>
               ) : (
                 <div>
                   <Label>Valor Pago (R$)</Label>
@@ -572,9 +605,11 @@ export default function History() {
               )}
 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-                {isEntrada50
-                  ? "A entrada (50%) será lançada no Caixa. O saldo restante aparecerá como Parcial no Financeiro."
-                  : "O lançamento será registrado automaticamente no Livro Caixa."}
+                {isAFaturar
+                  ? "Nenhum valor será lançado agora. O pedido ficará como Pendente no Financeiro até o recebimento."
+                  : isEntrada50
+                    ? "A entrada (50%) será lançada no Caixa. O saldo restante aparecerá como Parcial no Financeiro."
+                    : "O lançamento será registrado automaticamente no Livro Caixa."}
               </div>
             </div>
             );

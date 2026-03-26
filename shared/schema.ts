@@ -176,6 +176,7 @@ export const orderFinancials = pgTable("order_financials", {
   status: text("status").notNull().default("pendente"),
   paymentMethod: text("payment_method").notNull().default("pix"),
   firstPaymentDate: text("first_payment_date").default(""),
+  dueDate: text("due_date").default(""),
   notes: text("notes").default(""),
   createdAt: text("created_at").notNull().default(""),
   sellerUserId: text("seller_user_id"),

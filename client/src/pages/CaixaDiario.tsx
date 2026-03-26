@@ -21,7 +21,8 @@ const PAYMENT_METHODS = [
   { value: "pix", label: "Pix" }, { value: "dinheiro", label: "Dinheiro" },
   { value: "credito", label: "Cartão de Crédito" }, { value: "debito", label: "Cartão de Débito" },
   { value: "boleto", label: "Boleto" }, { value: "transferencia", label: "Transferência" },
-  { value: "entrada_50", label: "50% Entrada + 50% Entrega" }, { value: "outro", label: "Outro" },
+  { value: "entrada_50", label: "50% Entrada + 50% Entrega" },
+  { value: "a_faturar", label: "A Faturar" }, { value: "outro", label: "Outro" },
 ];
 
 type DailyCash = {

@@ -11,7 +11,8 @@ const PAYMENT_METHODS = [
   { value: "pix", label: "Pix" }, { value: "dinheiro", label: "Dinheiro" },
   { value: "credito", label: "Cartão de Crédito" }, { value: "debito", label: "Cartão de Débito" },
   { value: "boleto", label: "Boleto" }, { value: "transferencia", label: "Transferência" },
-  { value: "entrada_50", label: "50% Entrada + 50% Entrega" }, { value: "outro", label: "Outro" },
+  { value: "entrada_50", label: "50% Entrada + 50% Entrega" },
+  { value: "a_faturar", label: "A Faturar" }, { value: "outro", label: "Outro" },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -26,7 +27,7 @@ type OrderFinancial = {
   clientName: string; projectName: string;
   totalAmount: number; amountPaid: number; amountPending: number;
   status: string; paymentMethod: string;
-  firstPaymentDate: string; notes: string; createdAt: string;
+  firstPaymentDate: string; dueDate?: string; notes: string; createdAt: string;
   sellerUserId?: string | null; sellerName?: string | null;
 };
 
@@ -227,6 +228,15 @@ export default function PedidosFinanceiro() {
                     {order.sellerName && (
                       <div className="text-xs text-blue-500 font-semibold mt-0.5">Vendedor: {order.sellerName}</div>
                     )}
+                    {order.paymentMethod === "a_faturar" && order.dueDate && (() => {
+                      const isOverdue = order.status !== "pago" && order.dueDate < format(new Date(), "yyyy-MM-dd");
+                      return (
+                        <div className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${isOverdue ? "bg-red-100 text-red-700" : "bg-purple-100 text-purple-700"}`}>
+                          <Clock className="w-3 h-3" />
+                          {isOverdue ? "Vencido em " : "A faturar em "}{order.dueDate}
+                        </div>
+                      );
+                    })()}
                     <div className="mt-2">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
                         <span>{fmtCurrency(order.amountPaid)} recebido</span>
