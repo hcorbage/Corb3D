@@ -511,7 +511,7 @@ export async function registerRoutes(
           date: date,
           closingId: null,
           notes: cashCategory || "Matéria-prima",
-          type: "saída",
+          type: "saida",
           category: cashCategory || "Matéria-prima / Insumos",
           status: "realizado",
           effectiveDate: date,
