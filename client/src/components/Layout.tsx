@@ -1,10 +1,148 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Calculator, Package, Users, Users2, History, Settings, LogOut, Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen, BarChart2, DollarSign, Wallet, FileText } from "lucide-react";
+import {
+  Calculator, Package, Users, Users2, History, Settings, LogOut,
+  Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen,
+  BarChart2, DollarSign, Wallet, FileText, ChevronDown, ChevronRight,
+  LayoutDashboard,
+} from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
 import { CashStatusAlert } from "./CashStatusAlert";
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly: boolean;
+};
+
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly: boolean;
+  children: NavItem[];
+};
+
+type NavEntry = NavItem | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+
+const FINANCIAL_HREFS = [
+  "/financeiro",
+  "/pedidos-financeiro",
+  "/cashbook",
+  "/caixa-diario",
+  "/relatorio-clientes",
+  "/relatorios",
+];
+
+const allNavEntries: NavEntry[] = [
+  { href: "/", label: "CALCULADORA", icon: Calculator, adminOnly: false },
+  { href: "/inventory", label: "ESTOQUE", icon: Package, adminOnly: true },
+  { href: "/clients", label: "CLIENTES", icon: Users, adminOnly: true },
+  { href: "/history", label: "HISTÓRICO", icon: History, adminOnly: false },
+  { href: "/commissions", label: "COMISSÕES", icon: BadgeDollarSign, adminOnly: false },
+  {
+    id: "financeiro",
+    label: "FINANCEIRO",
+    icon: BarChart2,
+    adminOnly: true,
+    children: [
+      { href: "/financeiro", label: "Visão Geral", icon: LayoutDashboard, adminOnly: true },
+      { href: "/pedidos-financeiro", label: "Por Pedido", icon: DollarSign, adminOnly: true },
+      { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true },
+      { href: "/caixa-diario", label: "Caixa Diário", icon: Wallet, adminOnly: true },
+      { href: "/relatorio-clientes", label: "Rel. Clientes", icon: Users2, adminOnly: true },
+      { href: "/relatorios", label: "Relatórios", icon: FileText, adminOnly: true },
+    ],
+  },
+  { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false },
+];
+
+function NavLink({
+  item,
+  location,
+  indent = false,
+  onClick,
+}: {
+  item: NavItem;
+  location: string;
+  indent?: boolean;
+  onClick?: () => void;
+}) {
+  const isActive = location === item.href;
+  return (
+    <Link href={item.href}>
+      <a
+        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+        onClick={onClick}
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 relative ${
+          indent ? "ml-5 pl-3" : ""
+        } ${
+          isActive
+            ? "bg-primary/10 text-primary font-semibold after:absolute after:left-0 after:top-2 after:bottom-2 after:w-1 after:bg-primary after:rounded-r-md"
+            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+        }`}
+      >
+        <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+        <span className="text-sm tracking-wide">{item.label}</span>
+      </a>
+    </Link>
+  );
+}
+
+function NavGroupItem({
+  group,
+  location,
+  onChildClick,
+}: {
+  group: NavGroup;
+  location: string;
+  onChildClick?: () => void;
+}) {
+  const isChildActive = group.children.some(c => c.href === location);
+  const [open, setOpen] = useState(isChildActive);
+
+  useEffect(() => {
+    if (isChildActive) setOpen(true);
+  }, [location]);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+          isChildActive
+            ? "text-primary font-semibold bg-primary/5"
+            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+        }`}
+      >
+        <group.icon className={`w-5 h-5 flex-shrink-0 ${isChildActive ? "text-primary" : "text-muted-foreground"}`} />
+        <span className="text-sm tracking-wide flex-1 text-left">{group.label}</span>
+        {open
+          ? <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+          : <ChevronRight className="w-3.5 h-3.5 opacity-50" />}
+      </button>
+
+      {open && (
+        <div className="mt-0.5 space-y-0.5 border-l border-sidebar-border ml-6 pl-2">
+          {group.children.map(child => (
+            <NavLink
+              key={child.href}
+              item={child}
+              location={location}
+              onClick={onChildClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -31,30 +169,61 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const allNavItems = [
-    { href: "/", label: "CALCULADORA", icon: Calculator, adminOnly: false },
-    { href: "/inventory", label: "ESTOQUE", icon: Package, adminOnly: true },
-    { href: "/clients", label: "CLIENTES", icon: Users, adminOnly: true },
-    { href: "/history", label: "HISTÓRICO", icon: History, adminOnly: false },
-    { href: "/commissions", label: "COMISSÕES", icon: BadgeDollarSign, adminOnly: false },
-    { href: "/cashbook", label: "LIVRO CAIXA", icon: BookOpen, adminOnly: true },
-    { href: "/financeiro", label: "FINANCEIRO", icon: BarChart2, adminOnly: true },
-    { href: "/pedidos-financeiro", label: "PEDIDOS", icon: DollarSign, adminOnly: true },
-    { href: "/caixa-diario", label: "CAIXA DIÁRIO", icon: Wallet, adminOnly: true },
-    { href: "/relatorios", label: "RELATÓRIOS", icon: FileText, adminOnly: true },
-    { href: "/relatorio-clientes", label: "REL. CLIENTES", icon: Users2, adminOnly: true },
-    { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false },
-  ];
-
-  const navItems = useMemo(() => 
-    allNavItems.filter(item => !item.adminOnly || isAdmin),
+  const navEntries = useMemo(() =>
+    allNavEntries.filter(entry => !entry.adminOnly || isAdmin),
     [isAdmin]
+  );
+
+  const isFinancialActive = FINANCIAL_HREFS.includes(location);
+
+  const bottomNavItems: NavItem[] = useMemo(() => {
+    const items: NavItem[] = [];
+    for (const entry of allNavEntries) {
+      if (entry.adminOnly && !isAdmin) continue;
+      if (isGroup(entry)) {
+        items.push({
+          href: "/financeiro",
+          label: "FINANCEIRO",
+          icon: BarChart2,
+          adminOnly: true,
+        });
+      } else {
+        items.push(entry);
+      }
+    }
+    return items;
+  }, [isAdmin]);
+
+  const renderSidebarNav = (closeFn?: () => void) => (
+    <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+      {navEntries.map(entry => {
+        if (isGroup(entry)) {
+          return (
+            <NavGroupItem
+              key={entry.id}
+              group={entry}
+              location={location}
+              onChildClick={closeFn}
+            />
+          );
+        }
+        return (
+          <NavLink
+            key={entry.href}
+            item={entry}
+            location={location}
+            onClick={closeFn}
+          />
+        );
+      })}
+    </nav>
   );
 
   return (
     <div className="flex h-[100dvh] bg-background text-foreground font-sans">
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-sidebar border-r border-sidebar-border flex-col transition-all duration-300">
-        <div className="p-4 flex flex-col items-center justify-center border-b border-sidebar-border mb-4">
+        <div className="p-4 flex flex-col items-center justify-center border-b border-sidebar-border mb-2">
           {settings?.logoUrl ? (
             <div className="w-full aspect-square bg-transparent rounded-xl flex items-center justify-center overflow-hidden px-2">
               <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
@@ -63,27 +232,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-muted-foreground italic py-4">Sua logo aqui</p>
           )}
         </div>
-        
-        <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => {
-            const isActive = location === item.href;
-            return (
-              <Link key={item.href} href={item.href}>
-                <a
-                  data-testid={`nav-${item.label.toLowerCase()}`}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? "bg-primary/10 text-primary font-semibold relative after:absolute after:left-0 after:top-2 after:bottom-2 after:w-1 after:bg-primary after:rounded-r-md" 
-                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                  }`}
-                >
-                  <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-sm tracking-wide">{item.label}</span>
-                </a>
-              </Link>
-            );
-          })}
-        </nav>
+
+        {renderSidebarNav()}
 
         <div className="px-3 pb-4 pt-2 border-t border-sidebar-border mt-2">
           <button
@@ -101,6 +251,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* Mobile Slide-In Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
@@ -119,28 +270,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
-            
-            <nav className="flex-1 px-3 py-4 space-y-1">
-              {navItems.map((item) => {
-                const isActive = location === item.href;
-                return (
-                  <Link key={item.href} href={item.href}>
-                    <a
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                        isActive 
-                          ? "bg-primary/10 text-primary font-semibold" 
-                          : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                      }`}
-                    >
-                      <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className="text-sm tracking-wide">{item.label}</span>
-                    </a>
-                  </Link>
-                );
-              })}
-            </nav>
 
-            <div className="px-3 pb-4 pt-2 border-t border-sidebar-border mt-2">
+            <div className="flex-1 py-4 overflow-y-auto">
+              {renderSidebarNav(() => setMobileMenuOpen(false))}
+            </div>
+
+            <div className="px-3 pb-4 pt-2 border-t border-sidebar-border">
               <button
                 onClick={() => {
                   fetch('/api/auth/logout', { method: 'POST' }).then(() => {
@@ -157,6 +292,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-sidebar border-b border-sidebar-border safe-top">
           <button
@@ -189,19 +325,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
 
-        <nav className="md:hidden flex items-center justify-around bg-sidebar border-t border-sidebar-border py-2 safe-bottom">
-          {navItems.map((item) => {
-            const isActive = location === item.href;
+        {/* Mobile Bottom Nav — shows grouped items flat */}
+        <nav className="md:hidden flex items-center justify-around bg-sidebar border-t border-sidebar-border py-2 safe-bottom overflow-x-auto">
+          {bottomNavItems.map((item) => {
+            const isActive = isGroup({ ...item, id: "", children: [] } as any)
+              ? false
+              : item.href === "/financeiro"
+                ? isFinancialActive
+                : location === item.href;
             return (
               <Link key={item.href} href={item.href}>
                 <a
-                  data-testid={`nav-mobile-${item.label.toLowerCase()}`}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
+                  data-testid={`nav-mobile-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors flex-shrink-0 ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
+                  <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
                 </a>
               </Link>
             );
