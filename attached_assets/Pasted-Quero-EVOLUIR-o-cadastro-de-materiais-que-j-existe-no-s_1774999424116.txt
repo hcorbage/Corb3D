@@ -1,0 +1,122 @@
+Quero EVOLUIR o cadastro de materiais que já existe no sistema, sem refazer do zero e sem quebrar nada do que já está funcionando.
+
+IMPORTANTE:
+- aproveitar a estrutura atual da tela “Estoque de Materiais”
+- não remover campos existentes
+- não alterar o que já funciona hoje
+- implementar as novas funções em cima do módulo atual
+
+OBJETIVO:
+Transformar o cadastro atual de materiais em um controle de estoque funcional, com movimentação, baixa automática em pedidos, alertas de estoque e possibilidade de cadastrar novos tipos de material.
+
+FUNCIONALIDADES QUE QUERO:
+
+1) MOVIMENTAÇÃO DE ESTOQUE
+Adicionar controle de movimentação para cada material:
+- entrada de estoque
+- saída manual
+- ajuste manual
+- histórico de movimentações
+
+Cada movimentação deve registrar:
+- material
+- tipo de movimentação (entrada, saída, ajuste)
+- quantidade
+- data
+- observação/motivo
+- usuário que fez a movimentação
+
+2) ENTRADA DE MATERIAL POR COMPRA
+Quando eu comprar material, quero poder lançar uma entrada de estoque.
+Essa entrada deve:
+- aumentar a quantidade do material
+- atualizar o estoque atual
+- opcionalmente registrar valor de compra
+- opcionalmente gerar lançamento de saída no Livro Caixa
+
+3) SAÍDA MANUAL
+Quero poder lançar saída manual de material para:
+- perdas
+- testes
+- descarte
+- uso interno
+- correção de estoque
+
+4) BAIXA AUTOMÁTICA NO PEDIDO
+Quero poder vincular materiais aos pedidos, informando a quantidade usada.
+Ao salvar/confirmar o pedido, o sistema deve baixar automaticamente essa quantidade do estoque.
+
+IMPORTANTE:
+- não aplicar automaticamente em pedidos antigos
+- se necessário, ativar apenas para pedidos novos ou pedidos editados daqui pra frente
+- a baixa deve ocorrer com segurança, sem gerar inconsistência
+
+5) ALERTAS DE ESTOQUE
+Quero alerta visual quando:
+- o estoque estiver zerado
+- o estoque estiver baixo
+- a quantidade solicitada no pedido for maior que a disponível
+
+Exemplos:
+- “Estoque zerado”
+- “Estoque baixo”
+- “Estoque insuficiente. Disponível: X”
+
+6) CADASTRO DE NOVOS TIPOS DE MATERIAL
+Hoje o sistema já tem tipos de material cadastrados, mas eu quero também poder criar novos tipos de material manualmente, sem depender só dos tipos já existentes no banco.
+
+Exemplo:
+- PLA
+- PETG
+- ABS
+- Resina
+- Embalagem
+- Cola
+- Tinta
+- LED
+- Outros
+
+Quero que o campo “Tipo de Material” permita:
+- selecionar um tipo existente
+- ou cadastrar um novo tipo, que fique salvo para uso futuro
+
+7) FINANCEIRO / LIVRO CAIXA
+Quero que a compra de material possa, opcionalmente, gerar uma saída no Livro Caixa.
+
+Exemplo:
+- categoria: Matéria-prima / Insumos / Embalagens
+- descrição automática com nome do material
+- valor da compra
+- data da compra
+
+IMPORTANTE:
+isso deve ser integrado sem alterar os lançamentos antigos e sem quebrar o financeiro atual.
+
+8) INTERFACE
+Na tela atual de materiais, quero manter o padrão visual já existente.
+Adicionar:
+- botão de entrada
+- botão de saída
+- botão de ajuste
+- histórico por material
+- indicador visual de estoque baixo/zerado
+- opção para cadastrar novo tipo de material
+
+9) REGRAS IMPORTANTES
+- não quebrar o cadastro atual
+- não refazer a tela do zero sem necessidade
+- manter compatibilidade com os materiais já cadastrados
+- não alterar pedidos antigos automaticamente
+- não mexer no backend atual de forma destrutiva
+- implementar isso de forma modular e segura
+
+10) PREPARAR PARA RELATÓRIOS FUTUROS
+Deixar a estrutura pronta para depois mostrar:
+- consumo por material
+- custo por material
+- custo por pedido
+- histórico de compras
+- materiais com estoque baixo
+- materiais zerados
+
+Quero implementação segura, aproveitando o que já existe, e sem impactar negativamente o sistema atual.

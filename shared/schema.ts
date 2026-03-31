@@ -34,6 +34,22 @@ export const stockItems = pgTable("stock_items", {
   color: text("color").notNull().default(""),
   cost: doublePrecision("cost").notNull().default(0),
   quantity: doublePrecision("quantity").notNull().default(0),
+  minQuantity: doublePrecision("min_quantity").notNull().default(200),
+});
+
+export const stockMovements = pgTable("stock_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  stockItemId: text("stock_item_id").notNull(),
+  type: text("type").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  previousQuantity: doublePrecision("previous_quantity").notNull().default(0),
+  newQuantity: doublePrecision("new_quantity").notNull().default(0),
+  date: text("date").notNull(),
+  notes: text("notes").default(""),
+  triggeredBy: text("triggered_by").notNull().default("manual"),
+  calculationId: text("calculation_id"),
+  createdAt: text("created_at").notNull().default(""),
 });
 
 export const employees = pgTable("employees", {
@@ -221,6 +237,10 @@ export const dailyCash = pgTable("daily_cash", {
   reopenedByName: text("reopened_by_name"),
   reopenedAt: text("reopened_at"),
 });
+
+export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true });
+export type StockMovement = typeof stockMovements.$inferSelect;
+export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 
 export const insertCashEntrySchema = createInsertSchema(cashEntries).omit({ id: true });
 export const insertCashClosingSchema = createInsertSchema(cashClosings).omit({ id: true });

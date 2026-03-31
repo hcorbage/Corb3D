@@ -94,7 +94,7 @@ type AppStateContextType = {
   addClient: (client: Omit<Client, 'id'>) => void;
   updateClient: (client: Client) => void;
   deleteClient: (id: string) => void;
-  addMaterial: (material: Omit<Material, 'id'>) => void;
+  addMaterial: (material: Omit<Material, 'id'>) => Promise<Material | null>;
   updateMaterial: (material: Material) => void;
   deleteMaterial: (id: string) => void;
   addStockItem: (item: Omit<StockItem, 'id'>) => void;
@@ -246,11 +246,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error(e); }
   }, []);
 
-  const addMaterial = useCallback(async (material: Omit<Material, 'id'>) => {
+  const addMaterial = useCallback(async (material: Omit<Material, 'id'>): Promise<Material | null> => {
     try {
       const created = await api('/api/materials', { method: 'POST', body: JSON.stringify(material) });
       setInventory(prev => [...prev, created]);
-    } catch (e) { console.error(e); }
+      return created;
+    } catch (e) { console.error(e); return null; }
   }, []);
 
   const updateMaterial = useCallback(async (updatedMaterial: Material) => {

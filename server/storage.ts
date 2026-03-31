@@ -1,9 +1,10 @@
 import { 
-  clients, materials, stockItems, calculations, settings, users, employees, brands, cashEntries, cashClosings,
+  clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
   orderFinancials, orderPayments, dailyCash,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
+  type StockMovement, type InsertStockMovement,
   type Employee, type InsertEmployee,
   type Calculation, type InsertCalculation,
   type Settings, type InsertSettings,
@@ -49,6 +50,9 @@ export interface IStorage {
   createStockItem(item: InsertStockItem): Promise<StockItem>;
   updateStockItem(id: string, userId: string, item: Partial<InsertStockItem>): Promise<StockItem | undefined>;
   deleteStockItem(id: string, userId: string): Promise<void>;
+
+  getStockMovements(userId: string, stockItemId?: string): Promise<StockMovement[]>;
+  createStockMovement(userId: string, stockItemId: string, type: string, quantity: number, date: string, notes: string, triggeredBy: string, calculationId?: string): Promise<{ movement: StockMovement; stockItem: StockItem }>;
 
   getEmployees(userId: string): Promise<Employee[]>;
   getEmployeeByLinkedUserId(linkedUserId: string): Promise<Employee | undefined>;
@@ -171,6 +175,48 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteStockItem(id: string, userId: string): Promise<void> {
     await db.delete(stockItems).where(and(eq(stockItems.id, id), eq(stockItems.userId, userId)));
+  }
+
+  async getStockMovements(userId: string, stockItemId?: string): Promise<StockMovement[]> {
+    if (stockItemId) {
+      return db.select().from(stockMovements)
+        .where(and(eq(stockMovements.userId, userId), eq(stockMovements.stockItemId, stockItemId)))
+        .orderBy(sql`${stockMovements.createdAt} DESC`);
+    }
+    return db.select().from(stockMovements)
+      .where(eq(stockMovements.userId, userId))
+      .orderBy(sql`${stockMovements.createdAt} DESC`);
+  }
+
+  async createStockMovement(
+    userId: string, stockItemId: string, type: string, quantity: number,
+    date: string, notes: string, triggeredBy: string, calculationId?: string
+  ): Promise<{ movement: StockMovement; stockItem: StockItem }> {
+    const [current] = await db.select().from(stockItems).where(and(eq(stockItems.id, stockItemId), eq(stockItems.userId, userId)));
+    if (!current) throw new Error("Item de estoque não encontrado");
+
+    const previousQuantity = current.quantity;
+    let newQuantity: number;
+    if (type === "entrada") {
+      newQuantity = previousQuantity + quantity;
+    } else if (type === "saida") {
+      newQuantity = previousQuantity - quantity;
+    } else {
+      newQuantity = quantity;
+    }
+
+    const createdAt = new Date().toISOString();
+    const [movement] = await db.insert(stockMovements).values({
+      userId, stockItemId, type, quantity, previousQuantity, newQuantity,
+      date, notes: notes || "", triggeredBy, calculationId: calculationId || null, createdAt,
+    }).returning();
+
+    const [updatedItem] = await db.update(stockItems)
+      .set({ quantity: newQuantity })
+      .where(and(eq(stockItems.id, stockItemId), eq(stockItems.userId, userId)))
+      .returning();
+
+    return { movement, stockItem: updatedItem };
   }
 
   async getEmployees(userId: string): Promise<Employee[]> {

@@ -471,6 +471,60 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // ---- STOCK MOVEMENTS ----
+  app.use("/api/stock-movements", requireAuth);
+
+  app.get("/api/stock-movements/:stockItemId", async (req, res) => {
+    try {
+      const movements = await storage.getStockMovements(req.session.userId!, req.params.stockItemId);
+      res.json(movements);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/stock-movements", async (req, res) => {
+    try {
+      const { stockItemId, type, quantity, date, notes, triggeredBy, calculationId, generateCashEntry, purchaseValue, cashCategory } = req.body;
+      if (!stockItemId || !type || !quantity || !date) {
+        return res.status(400).json({ message: "Campos obrigatórios: stockItemId, type, quantity, date" });
+      }
+      const validTypes = ["entrada", "saida", "ajuste"];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ message: "Tipo inválido. Use: entrada, saida, ajuste" });
+      }
+      const result = await storage.createStockMovement(
+        req.session.userId!, stockItemId, type, Number(quantity), date,
+        notes || "", triggeredBy || "manual", calculationId
+      );
+      if (generateCashEntry && type === "entrada" && purchaseValue && Number(purchaseValue) > 0) {
+        const stockItem = result.stockItem;
+        const matDesc = `Compra de material: ${notes || stockItemId}`;
+        await storage.createCashEntry({
+          userId: req.session.userId!,
+          calculationId: null,
+          clientName: "",
+          projectName: "",
+          description: matDesc,
+          amount: Number(purchaseValue),
+          paymentMethod: "outros",
+          date: date,
+          closingId: null,
+          notes: cashCategory || "Matéria-prima",
+          type: "saída",
+          category: cashCategory || "Matéria-prima / Insumos",
+          status: "realizado",
+          effectiveDate: date,
+          sellerUserId: null,
+          sellerName: null,
+        });
+      }
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ---- EMPLOYEES ----
   app.get("/api/employees", async (req, res) => {
     if (req.session.isAdmin) {

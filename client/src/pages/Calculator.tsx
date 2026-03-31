@@ -1045,14 +1045,33 @@ export default function Calculator() {
                       />
                     </div>
                     
-                    {item.materialId && (
-                      <div className="w-24">
-                        <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">CUSTO MAT.</label>
-                        <div className="bg-input/50 border border-border rounded-lg px-2 py-2 text-[11px] font-medium text-muted-foreground flex items-center justify-end h-[38px] whitespace-nowrap" title="Custo do Filamento Utilizado">
-                          {formatCurrency((stockItems.find(s => s.id === item.materialId)?.cost || 0) * ((item.weight || 0) / 1000) * (item.qty || 1))}
-                        </div>
-                      </div>
-                    )}
+                    {item.materialId && (() => {
+                      const st = stockItems.find(s => s.id === item.materialId);
+                      const needed = (item.weight || 0) * (item.qty || 1);
+                      const available = st?.quantity ?? 0;
+                      const isInsufficient = needed > 0 && available < needed;
+                      const isZero = available <= 0;
+                      return (
+                        <>
+                          <div className="w-24">
+                            <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">CUSTO MAT.</label>
+                            <div className="bg-input/50 border border-border rounded-lg px-2 py-2 text-[11px] font-medium text-muted-foreground flex items-center justify-end h-[38px] whitespace-nowrap" title="Custo do Filamento Utilizado">
+                              {formatCurrency((st?.cost || 0) * ((item.weight || 0) / 1000) * (item.qty || 1))}
+                            </div>
+                          </div>
+                          {isZero && (
+                            <div className="flex items-center gap-1 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 h-[38px] whitespace-nowrap" title="Estoque zerado">
+                              ⚠ Zerado
+                            </div>
+                          )}
+                          {!isZero && isInsufficient && (
+                            <div className="flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 h-[38px] whitespace-nowrap" title={`Disponível: ${available}g`}>
+                              ⚠ Insuf. ({available}g)
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     
                     <div className="w-24">
                       <label className="text-[10px] font-semibold text-muted-foreground mb-1.5 block text-right pr-1">TOTAL</label>
