@@ -1,0 +1,94 @@
+Quero adicionar ao sistema um RELATÓRIO FINANCEIRO POR CLIENTE, completo e funcional, sem quebrar nada do que já existe.
+
+OBJETIVO:
+Criar uma página/relatório onde eu consiga ver, de forma agrupada por cliente, o histórico financeiro consolidado de cada um.
+
+O relatório deve mostrar por cliente:
+
+1. Nome do cliente
+2. Quantidade total de pedidos
+3. Valor total dos pedidos
+4. Valor total já pago
+5. Valor total pendente
+6. Quantidade de pedidos pagos
+7. Quantidade de pedidos parciais
+8. Quantidade de pedidos pendentes
+9. Data do último pagamento realizado pelo cliente
+10. Ticket médio do cliente
+11. Possibilidade de clicar no cliente e abrir os pedidos detalhados dele
+
+REGRAS DE CÁLCULO:
+- “Valor total dos pedidos” = soma do valor total de todos os pedidos daquele cliente
+- “Valor total já pago” = soma de todos os pagamentos lançados para os pedidos daquele cliente
+- “Valor pendente” = valor total dos pedidos - valor total já pago
+- “Pedidos pagos” = pedidos com pagamento quitado
+- “Pedidos parciais” = pedidos com pagamento parcial
+- “Pedidos pendentes” = pedidos sem pagamento ou em aberto
+- “Último pagamento” = data mais recente encontrada nos pagamentos daquele cliente
+- “Ticket médio” = valor total dos pedidos / quantidade de pedidos
+
+O relatório deve considerar os dados já existentes no sistema, aproveitando as tabelas e estruturas atuais de pedidos, clientes e financeiro. 
+Se já existir tabela como orderFinancials e orderPayments, usar essas tabelas para fazer os cálculos corretamente.
+
+O QUE EU QUERO NA INTERFACE:
+- Nova página no menu admin chamada: “Relatório por Cliente”
+- Cards no topo com:
+  - Total recebido geral
+  - Total pendente geral
+  - Número total de clientes
+  - Cliente que mais pagou
+- Tabela principal com:
+  - Cliente
+  - Pedidos
+  - Total em pedidos
+  - Total pago
+  - Pendente
+  - Último pagamento
+  - Status financeiro geral
+  - Ações
+
+FILTROS:
+Adicionar filtros por:
+- Nome do cliente
+- Período (data inicial e final)
+- Status financeiro:
+  - Pago
+  - Parcial
+  - Pendente
+  - Todos
+
+DETALHAMENTO:
+Ao clicar em um cliente, abrir uma visão detalhada com:
+- Lista de todos os pedidos dele
+- Valor de cada pedido
+- Quanto já foi pago em cada pedido
+- Quanto falta em cada pedido
+- Forma de pagamento
+- Data dos pagamentos
+- Status de cada pedido
+
+EXPORTAÇÃO:
+Adicionar botão para exportar esse relatório:
+- PDF
+- Excel
+
+IMPORTANTE:
+- Não alterar a lógica atual do sistema que já funciona
+- Não quebrar páginas existentes
+- Reaproveitar componentes já usados no sistema
+- Seguir o mesmo padrão visual do projeto
+- Garantir que os valores sejam formatados em real brasileiro (R$)
+- Garantir que o relatório seja responsivo no celular e no desktop
+
+BACKEND:
+Criar endpoint/API para retornar os dados consolidados por cliente, com os totais calculados no backend para ficar mais rápido e organizado.
+
+FRONTEND:
+Criar a página completa consumindo essa API, com filtros, tabela, cards de resumo e modal/página de detalhes do cliente.
+
+Se necessário, criar também uma visão resumida no cadastro/listagem de clientes mostrando:
+- total em pedidos
+- total pago
+- total pendente
+
+Quero a implementação completa, organizada e pronta para uso.
