@@ -38,6 +38,7 @@ const FINANCIAL_HREFS = [
   "/caixa-diario",
   "/relatorio-clientes",
   "/relatorios",
+  "/commissions",
 ];
 
 const allNavEntries: NavEntry[] = [
@@ -45,19 +46,19 @@ const allNavEntries: NavEntry[] = [
   { href: "/inventory", label: "ESTOQUE", icon: Package, adminOnly: true },
   { href: "/clients", label: "CLIENTES", icon: Users, adminOnly: true },
   { href: "/history", label: "HISTÓRICO", icon: History, adminOnly: false },
-  { href: "/commissions", label: "COMISSÕES", icon: BadgeDollarSign, adminOnly: false },
   {
     id: "financeiro",
     label: "FINANCEIRO",
     icon: BarChart2,
-    adminOnly: true,
+    adminOnly: false,
     children: [
+      { href: "/caixa-diario", label: "Caixa", icon: Wallet, adminOnly: true },
       { href: "/financeiro", label: "Visão Geral", icon: LayoutDashboard, adminOnly: true },
-      { href: "/pedidos-financeiro", label: "Por Pedido", icon: DollarSign, adminOnly: true },
-      { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true },
-      { href: "/caixa-diario", label: "Caixa Diário", icon: Wallet, adminOnly: true },
+      { href: "/pedidos-financeiro", label: "Financeiro por Pedido", icon: DollarSign, adminOnly: true },
+      { href: "/commissions", label: "Comissões", icon: BadgeDollarSign, adminOnly: false },
       { href: "/relatorio-clientes", label: "Rel. Clientes", icon: Users2, adminOnly: true },
       { href: "/relatorios", label: "Relatórios", icon: FileText, adminOnly: true },
+      { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true },
     ],
   },
   { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false },
@@ -98,18 +99,23 @@ function NavLink({
 function NavGroupItem({
   group,
   location,
+  isAdmin,
   onChildClick,
 }: {
   group: NavGroup;
   location: string;
+  isAdmin: boolean;
   onChildClick?: () => void;
 }) {
-  const isChildActive = group.children.some(c => c.href === location);
+  const visibleChildren = group.children.filter(c => !c.adminOnly || isAdmin);
+  const isChildActive = visibleChildren.some(c => c.href === location);
   const [open, setOpen] = useState(isChildActive);
 
   useEffect(() => {
     if (isChildActive) setOpen(true);
   }, [location]);
+
+  if (visibleChildren.length === 0) return null;
 
   return (
     <div>
@@ -130,7 +136,7 @@ function NavGroupItem({
 
       {open && (
         <div className="mt-0.5 space-y-0.5 border-l border-sidebar-border ml-6 pl-2">
-          {group.children.map(child => (
+          {visibleChildren.map(child => (
             <NavLink
               key={child.href}
               item={child}
@@ -181,11 +187,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     for (const entry of allNavEntries) {
       if (entry.adminOnly && !isAdmin) continue;
       if (isGroup(entry)) {
+        const visibleChildren = entry.children.filter(c => !c.adminOnly || isAdmin);
+        if (visibleChildren.length === 0) continue;
         items.push({
-          href: "/financeiro",
+          href: isAdmin ? "/financeiro" : "/commissions",
           label: "FINANCEIRO",
           icon: BarChart2,
-          adminOnly: true,
+          adminOnly: false,
         });
       } else {
         items.push(entry);
@@ -203,6 +211,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={entry.id}
               group={entry}
               location={location}
+              isAdmin={isAdmin}
               onChildClick={closeFn}
             />
           );
