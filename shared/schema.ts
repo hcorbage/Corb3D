@@ -52,6 +52,7 @@ export const employees = pgTable("employees", {
   city: text("city").notNull().default(""),
   uf: text("uf").notNull().default(""),
   linkedUserId: text("linked_user_id"),
+  birthdate: text("birthdate"),
 });
 
 export const calculations = pgTable("calculations", {

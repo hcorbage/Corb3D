@@ -20,6 +20,7 @@ import FinanceiroDashboard from "./pages/FinanceiroDashboard";
 import PedidosFinanceiro from "./pages/PedidosFinanceiro";
 import CaixaDiario from "./pages/CaixaDiario";
 import Relatorios from "./pages/Relatorios";
+import RelatorioClientes from "./pages/RelatorioClientes";
 import Login from "./pages/Login";
 import { Lock, Eye, EyeOff, KeyRound } from "lucide-react";
 
@@ -43,6 +44,7 @@ function Router() {
         <Route path="/pedidos-financeiro">{() => <AdminRoute component={PedidosFinanceiro} />}</Route>
         <Route path="/caixa-diario">{() => <AdminRoute component={CaixaDiario} />}</Route>
         <Route path="/relatorios">{() => <AdminRoute component={Relatorios} />}</Route>
+        <Route path="/relatorio-clientes">{() => <AdminRoute component={RelatorioClientes} />}</Route>
         <Route path="/settings" component={Settings}/>
         <Route component={NotFound} />
       </Switch>

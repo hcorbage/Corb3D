@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Calculator, Package, Users, History, Settings, LogOut, Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen, BarChart2, DollarSign, Wallet, FileText } from "lucide-react";
+import { Calculator, Package, Users, Users2, History, Settings, LogOut, Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen, BarChart2, DollarSign, Wallet, FileText } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
 import { CashStatusAlert } from "./CashStatusAlert";
@@ -42,6 +42,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/pedidos-financeiro", label: "PEDIDOS", icon: DollarSign, adminOnly: true },
     { href: "/caixa-diario", label: "CAIXA DIÁRIO", icon: Wallet, adminOnly: true },
     { href: "/relatorios", label: "RELATÓRIOS", icon: FileText, adminOnly: true },
+    { href: "/relatorio-clientes", label: "REL. CLIENTES", icon: Users2, adminOnly: true },
     { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false },
   ];
 

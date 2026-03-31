@@ -735,6 +735,12 @@ export async function registerRoutes(
   });
 
   // Order Financials
+  app.get("/api/client-financials", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const data = await storage.getClientFinancialsSummary(userId);
+    res.json(data);
+  });
+
   app.get("/api/order-financials", requireAuth, async (req, res) => {
     const userId = req.session.userId!;
     const data = await storage.getOrderFinancials(userId);

@@ -16,7 +16,19 @@ import {
   type DailyCash, type InsertDailyCash,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
+
+export type ClientFinancialSummary = {
+  clientName: string;
+  qtdPedidos: number;
+  totalComprado: number;
+  totalPago: number;
+  totalPendente: number;
+  aFaturar: number;
+  pendenteNaoFaturar: number;
+  temVencido: boolean;
+  ultimoPedido: string;
+};
 
 export interface IStorage {
   getClients(userId: string): Promise<Client[]>;
@@ -84,6 +96,7 @@ export interface IStorage {
   getOrderFinancialByCalculationId(calculationId: string, userId: string): Promise<OrderFinancial | undefined>;
   createOrderFinancial(of: InsertOrderFinancial): Promise<OrderFinancial>;
   updateOrderFinancial(id: string, userId: string, data: Partial<InsertOrderFinancial>): Promise<OrderFinancial | undefined>;
+  getClientFinancialsSummary(userId: string): Promise<ClientFinancialSummary[]>;
 
   // Order Payments
   getOrderPayments(userId: string, orderFinancialId: string): Promise<OrderPayment[]>;
@@ -344,6 +357,28 @@ export class DatabaseStorage implements IStorage {
   async updateOrderFinancial(id: string, userId: string, data: Partial<InsertOrderFinancial>): Promise<OrderFinancial | undefined> {
     const [r] = await db.update(orderFinancials).set(data).where(and(eq(orderFinancials.id, id), eq(orderFinancials.userId, userId))).returning();
     return r;
+  }
+
+  async getClientFinancialsSummary(userId: string): Promise<ClientFinancialSummary[]> {
+    const rows = await db.execute(sql`
+      SELECT
+        client_name                                                                                  AS "clientName",
+        COUNT(*)::int                                                                                AS "qtdPedidos",
+        COALESCE(SUM(total_amount), 0)::float                                                       AS "totalComprado",
+        COALESCE(SUM(amount_paid), 0)::float                                                        AS "totalPago",
+        COALESCE(SUM(amount_pending), 0)::float                                                     AS "totalPendente",
+        COALESCE(SUM(CASE WHEN payment_method = 'a_faturar' THEN amount_pending ELSE 0 END), 0)::float  AS "aFaturar",
+        COALESCE(SUM(CASE WHEN payment_method != 'a_faturar' THEN amount_pending ELSE 0 END), 0)::float AS "pendenteNaoFaturar",
+        BOOL_OR(payment_method = 'a_faturar' AND status != 'pago' AND due_date IS NOT NULL AND due_date < CURRENT_DATE) AS "temVencido",
+        MAX(created_at)                                                                             AS "ultimoPedido"
+      FROM order_financials
+      WHERE user_id = ${userId}
+        AND status != 'cancelado'
+        AND client_name != ''
+      GROUP BY client_name
+      ORDER BY SUM(total_amount) DESC
+    `);
+    return rows.rows as ClientFinancialSummary[];
   }
 
   // Order Payments
