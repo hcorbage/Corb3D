@@ -27,6 +27,18 @@ function stripUserId(body: any) {
   return rest;
 }
 
+const VALID_CASH_TYPES = ["entrada", "saida"] as const;
+type CashType = typeof VALID_CASH_TYPES[number];
+
+function normalizeCashType(raw: unknown): CashType {
+  const normalized = String(raw ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (normalized === "entrada" || normalized === "saida") return normalized;
+  throw new Error(`Tipo inválido: "${raw}". Use apenas "entrada" ou "saida".`);
+}
+
 const DEFAULT_MATERIALS = [
   { name: 'PLA (Ácido Polilático)', costPerKg: 85.90 },
   { name: 'PLA+ (PLA Reforçado)', costPerKg: 95.00 },
@@ -1011,27 +1023,36 @@ export async function registerRoutes(
   });
 
   app.post("/api/cash-entries", requireAuth, async (req, res) => {
-    const sellerUserId = req.session.userId!;
-    const sellerName = req.session.username || "";
-    const body = stripUserId(req.body);
-    // If there's an open daily cash, register under its owner
-    const openCash = await storage.getAnyOpenDailyCash();
-    const userId = openCash ? openCash.userId : sellerUserId;
-    const isSeller = openCash && openCash.userId !== sellerUserId;
-    const entry = await storage.createCashEntry({
-      ...body, userId,
-      sellerUserId: isSeller ? sellerUserId : null,
-      sellerName: isSeller ? sellerName : null,
-    });
-    res.json(entry);
+    try {
+      const sellerUserId = req.session.userId!;
+      const sellerName = req.session.username || "";
+      const body = stripUserId(req.body);
+      body.type = normalizeCashType(body.type);
+      const openCash = await storage.getAnyOpenDailyCash();
+      const userId = openCash ? openCash.userId : sellerUserId;
+      const isSeller = openCash && openCash.userId !== sellerUserId;
+      const entry = await storage.createCashEntry({
+        ...body, userId,
+        sellerUserId: isSeller ? sellerUserId : null,
+        sellerName: isSeller ? sellerName : null,
+      });
+      res.json(entry);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
   });
 
   app.patch("/api/cash-entries/:id", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const body = stripUserId(req.body);
-    const updated = await storage.updateCashEntry(req.params.id, userId, body);
-    if (!updated) return res.status(404).json({ message: "Lançamento não encontrado" });
-    res.json(updated);
+    try {
+      const userId = req.session.userId!;
+      const body = stripUserId(req.body);
+      if (body.type !== undefined) body.type = normalizeCashType(body.type);
+      const updated = await storage.updateCashEntry(req.params.id, userId, body);
+      if (!updated) return res.status(404).json({ message: "Lançamento não encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
   });
 
   app.delete("/api/cash-entries/:id", requireAuth, async (req, res) => {
