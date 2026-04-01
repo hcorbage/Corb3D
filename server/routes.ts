@@ -964,8 +964,8 @@ export async function registerRoutes(
       const timeout = setTimeout(() => controller.abort(), 8000);
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: controller.signal });
       clearTimeout(timeout);
-      if (response.status === 404) return res.status(404).json({ message: "CNPJ não encontrado na base da Receita Federal." });
-      if (!response.ok) return res.status(502).json({ message: "Serviço de consulta indisponível. Tente novamente." });
+      if (response.status === 404) return res.status(404).json({ message: "CNPJ não encontrado." });
+      if (!response.ok) return res.status(502).json({ message: "Consulta indisponível." });
       const d = await response.json();
 
       const formatPhone = (raw: string) => {
@@ -998,8 +998,7 @@ export async function registerRoutes(
         active: d.codigo_situacao_cadastral === 2,
       });
     } catch (e: any) {
-      if (e.name === "AbortError") return res.status(504).json({ message: "Tempo de resposta esgotado. Tente novamente." });
-      return res.status(502).json({ message: "Erro ao consultar CNPJ. Verifique sua conexão." });
+      return res.status(502).json({ message: "Consulta indisponível." });
     }
   });
 

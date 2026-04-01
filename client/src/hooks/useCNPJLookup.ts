@@ -19,20 +19,22 @@ export type CNPJData = {
 
 export type CNPJLookupState = {
   loading: boolean;
-  error: string;
+  hint: string;
   filled: string[];
   data: CNPJData | null;
 };
 
+const FRIENDLY_MSG = "Não foi possível consultar o CNPJ no momento. Você pode preencher os dados manualmente.";
+
 export function useCNPJLookup() {
   const [state, setState] = useState<CNPJLookupState>({
     loading: false,
-    error: "",
+    hint: "",
     filled: [],
     data: null,
   });
 
-  const reset = () => setState({ loading: false, error: "", filled: [], data: null });
+  const reset = () => setState({ loading: false, hint: "", filled: [], data: null });
 
   const lookup = async (
     raw: string,
@@ -41,20 +43,20 @@ export function useCNPJLookup() {
     const digits = raw.replace(/\D/g, "");
     if (digits.length !== 14 || !validateCNPJ(digits)) return;
 
-    setState(s => ({ ...s, loading: true, error: "", filled: [] }));
+    setState(s => ({ ...s, loading: true, hint: "", filled: [] }));
     try {
       const res = await fetch(`/api/cnpj/${digits}`);
       const data = await res.json();
       if (!res.ok) {
-        setState({ loading: false, error: data.message || "Erro ao consultar CNPJ.", filled: [], data: null });
+        setState({ loading: false, hint: FRIENDLY_MSG, filled: [], data: null });
         return;
       }
       const filledFields = onSuccess(data as CNPJData);
-      setState({ loading: false, error: "", filled: filledFields, data: data as CNPJData });
+      setState({ loading: false, hint: "", filled: filledFields, data: data as CNPJData });
     } catch {
-      setState({ loading: false, error: "Erro de conexão. Verifique sua internet.", filled: [], data: null });
+      setState({ loading: false, hint: FRIENDLY_MSG, filled: [], data: null });
     }
   };
 
-  return { ...state, lookup, reset };
+  return { ...state, error: state.hint, lookup, reset };
 }
