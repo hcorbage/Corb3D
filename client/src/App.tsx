@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 
 import { AppStateProvider } from "./context/AppState";
 import { AuthContext, useAuth, type AuthUser } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { Layout } from "./components/Layout";
 import Calculator from "./pages/Calculator";
 import Inventory from "./pages/Inventory";
@@ -190,45 +191,51 @@ function App() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Carregando...</div>
-      </div>
+      <ThemeProvider>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-muted-foreground text-sm">Carregando...</div>
+        </div>
+      </ThemeProvider>
     );
   }
 
   if (!user) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Login
-            onLogin={(u) => {
-              const authUser = { id: u.id, username: u.username, isAdmin: (u as any).isAdmin || false, isMasterAdmin: (u as any).isMasterAdmin || false };
-              setUser(authUser);
-              if ((u as any).mustChangePassword) {
-                setMustChangePassword(true);
-              }
-            }}
-          />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Login
+              onLogin={(u) => {
+                const authUser = { id: u.id, username: u.username, isAdmin: (u as any).isAdmin || false, isMasterAdmin: (u as any).isMasterAdmin || false };
+                setUser(authUser);
+                if ((u as any).mustChangePassword) {
+                  setMustChangePassword(true);
+                }
+              }}
+            />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
     );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={user}>
-        <AppStateProvider>
-          <TooltipProvider>
-            <Toaster />
-            {mustChangePassword && (
-              <ForceChangePassword onChanged={() => setMustChangePassword(false)} />
-            )}
-            <Router />
-          </TooltipProvider>
-        </AppStateProvider>
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={user}>
+          <AppStateProvider>
+            <TooltipProvider>
+              <Toaster />
+              {mustChangePassword && (
+                <ForceChangePassword onChanged={() => setMustChangePassword(false)} />
+              )}
+              <Router />
+            </TooltipProvider>
+          </AppStateProvider>
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

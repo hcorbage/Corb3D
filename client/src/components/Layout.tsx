@@ -4,10 +4,11 @@ import {
   Calculator, Package, Users, Users2, History, Settings, LogOut,
   Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen,
   BarChart2, DollarSign, Wallet, FileText, ChevronDown, ChevronRight,
-  LayoutDashboard,
+  LayoutDashboard, Sun, Moon, Monitor,
 } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { CashStatusAlert } from "./CashStatusAlert";
 
 type NavItem = {
@@ -150,6 +151,27 @@ function NavGroupItem({
   );
 }
 
+function ThemeToggleButton({ className = "" }: { className?: string }) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const cycle = () => {
+    const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    setTheme(next);
+  };
+  const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
+  const label = theme === "light" ? "Claro" : theme === "dark" ? "Escuro" : "Sistema";
+  return (
+    <button
+      onClick={cycle}
+      title={`Tema: ${label} — clique para alternar`}
+      data-testid="button-theme-toggle"
+      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors text-xs font-medium ${className}`}
+    >
+      <Icon className="w-4 h-4 flex-shrink-0" />
+      <span className="hidden xl:inline">{label}</span>
+    </button>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { settings } = useAppState();
@@ -244,7 +266,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {renderSidebarNav()}
 
-        <div className="px-3 pb-4 pt-2 border-t border-sidebar-border mt-2">
+        <div className="px-3 pb-4 pt-2 border-t border-sidebar-border mt-2 space-y-1">
+          <ThemeToggleButton className="w-full justify-start" />
           <button
             data-testid="button-logout"
             onClick={() => {
@@ -284,7 +307,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {renderSidebarNav(() => setMobileMenuOpen(false))}
             </div>
 
-            <div className="px-3 pb-4 pt-2 border-t border-sidebar-border">
+            <div className="px-3 pb-4 pt-2 border-t border-sidebar-border space-y-1">
+              <ThemeToggleButton className="w-full justify-start" />
               <button
                 onClick={() => {
                   fetch('/api/auth/logout', { method: 'POST' }).then(() => {
@@ -318,13 +342,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             )}
           </div>
-          <button
-            data-testid="button-fullscreen"
-            onClick={toggleFullscreen}
-            className="p-2 rounded-lg hover:bg-white/5"
-          >
-            {isFullscreen ? <Minimize className="w-5 h-5 text-foreground" /> : <Maximize className="w-5 h-5 text-foreground" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggleButton />
+            <button
+              data-testid="button-fullscreen"
+              onClick={toggleFullscreen}
+              className="p-2 rounded-lg hover:bg-white/5"
+            >
+              {isFullscreen ? <Minimize className="w-5 h-5 text-foreground" /> : <Maximize className="w-5 h-5 text-foreground" />}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 relative">

@@ -37,51 +37,133 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
 }
 
-/* Base Theme - Light Theme (matches Settings tab) */
-:root, .dark {
-  /* C3D Manager Light Theme */
-  --background: 210 40% 98%; /* gray-50 */
-  --foreground: 222.2 47.4% 11.2%; /* gray-900 */
+/* ── LIGHT THEME ──────────────────────────────────────────── */
+:root {
+  --background: 210 40% 98%;
+  --foreground: 222.2 47.4% 11.2%;
 
-  --sidebar: 0 0% 100%; /* white */
-  --sidebar-foreground: 222.2 47.4% 11.2%; /* gray-900 */
-  --sidebar-border: 214.3 31.8% 91.4%; /* gray-200 */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222.2 47.4% 11.2%;
+  --sidebar-border: 214.3 31.8% 91.4%;
 
-  --card: 0 0% 100%; /* white */
-  --card-foreground: 222.2 47.4% 11.2%; /* gray-900 */
-  --card-border: 214.3 31.8% 91.4%; /* gray-200 */
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+  --card-border: 214.3 31.8% 91.4%;
 
-  --popover: 0 0% 100%; /* white */
-  --popover-foreground: 222.2 47.4% 11.2%; /* gray-900 */
-  --popover-border: 214.3 31.8% 91.4%; /* gray-200 */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --popover-border: 214.3 31.8% 91.4%;
 
-  --primary: 221.2 83.2% 53.3%; /* blue-600 */
+  --primary: 221.2 83.2% 53.3%;
   --primary-foreground: 210 40% 98%;
 
-  --secondary: 210 40% 96.1%; /* gray-100 */
+  --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
 
-  --muted: 210 40% 96.1%; /* gray-100 */
-  --muted-foreground: 215.4 16.3% 46.9%; /* gray-500 */
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
 
-  --accent: 210 40% 96.1%; /* gray-100 */
+  --accent: 210 40% 96.1%;
   --accent-foreground: 222.2 47.4% 11.2%;
 
-  --destructive: 0 84.2% 60.2%; /* red-500 */
+  --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --success: 142.1 76.2% 36.3%; /* green-600 */
+  --success: 142.1 76.2% 36.3%;
   --success-foreground: 210 40% 98%;
 
-  --warning: 47.9 95.8% 53.1%; /* yellow-500 */
+  --warning: 47.9 95.8% 53.1%;
   --warning-foreground: 222.2 47.4% 11.2%;
 
-  --border: 214.3 31.8% 91.4%; /* gray-200 */
-  --input: 214.3 31.8% 91.4%; /* gray-200 */
-  --ring: 221.2 83.2% 53.3%; /* blue-600 */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
 
   --radius: 0.75rem;
 }
+
+/* ── DARK THEME ───────────────────────────────────────────── */
+.dark {
+  --background: 222.2 47.4% 9%;
+  --foreground: 210 40% 96%;
+
+  --sidebar: 222.2 47.4% 7%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-border: 217 33% 18%;
+
+  --card: 222.2 47.4% 12%;
+  --card-foreground: 210 40% 96%;
+  --card-border: 217 33% 20%;
+
+  --popover: 222.2 47.4% 12%;
+  --popover-foreground: 210 40% 96%;
+  --popover-border: 217 33% 20%;
+
+  --primary: 213 94% 68%;
+  --primary-foreground: 222.2 47.4% 9%;
+
+  --secondary: 217 33% 16%;
+  --secondary-foreground: 210 40% 90%;
+
+  --muted: 217 33% 16%;
+  --muted-foreground: 215 20% 60%;
+
+  --accent: 217 33% 20%;
+  --accent-foreground: 210 40% 96%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+
+  --success: 142 71% 45%;
+  --success-foreground: 210 40% 98%;
+
+  --warning: 48 96% 53%;
+  --warning-foreground: 222.2 47.4% 9%;
+
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 213 94% 68%;
+}
+
+/* ── DARK THEME: overrides for hardcoded Tailwind classes ── */
+.dark .bg-white           { background-color: hsl(222.2 47.4% 12%); }
+.dark .bg-gray-50         { background-color: hsl(222.2 47.4% 10%); }
+.dark .bg-gray-100        { background-color: hsl(217 33% 16%); }
+.dark .bg-gray-200        { background-color: hsl(217 33% 20%); }
+.dark .bg-slate-50        { background-color: hsl(222.2 47.4% 10%); }
+.dark .bg-slate-100       { background-color: hsl(217 33% 16%); }
+
+.dark .text-gray-900      { color: hsl(210 40% 94%); }
+.dark .text-gray-800      { color: hsl(210 40% 88%); }
+.dark .text-gray-700      { color: hsl(215 20% 78%); }
+.dark .text-gray-600      { color: hsl(215 20% 65%); }
+.dark .text-gray-500      { color: hsl(215 16% 54%); }
+.dark .text-gray-400      { color: hsl(215 16% 46%); }
+
+.dark .border-gray-100    { border-color: hsl(217 33% 18%); }
+.dark .border-gray-200    { border-color: hsl(217 33% 22%); }
+.dark .border-gray-300    { border-color: hsl(217 33% 26%); }
+
+.dark .divide-gray-100 > * + * { border-color: hsl(217 33% 18%); }
+.dark .divide-gray-200 > * + * { border-color: hsl(217 33% 22%); }
+
+/* Table rows in dark mode */
+.dark .hover\:bg-gray-50:hover   { background-color: hsl(217 33% 14%) !important; }
+.dark .hover\:bg-gray-100:hover  { background-color: hsl(217 33% 17%) !important; }
+.dark tr.bg-white                { background-color: hsl(222.2 47.4% 12%); }
+.dark thead .bg-gray-50,
+.dark thead th.bg-gray-50        { background-color: hsl(222.2 47.4% 10%); }
+
+/* Inputs that use white/gray backgrounds */
+.dark input.bg-white,
+.dark textarea.bg-white,
+.dark select.bg-white  { background-color: hsl(217 33% 16%); color: hsl(210 40% 94%); }
+
+/* Shadow softening in dark mode */
+.dark .shadow-sm  { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.4); }
+.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5), 0 2px 4px -2px rgba(0,0,0,0.5); }
+.dark .shadow-lg  { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5); }
+.dark .shadow-xl  { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.6), 0 8px 10px -6px rgba(0,0,0,0.6); }
 
 @layer base {
   * {

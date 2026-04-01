@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { format } from "date-fns";
@@ -24,6 +25,7 @@ export default function Settings() {
   const { settings, updateSettings, printers, clients, inventory, stockItems, history, employees, addEmployee, updateEmployee, deleteEmployee, loadBackup } = useAppState();
   const { isMasterAdmin } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
@@ -323,6 +325,41 @@ export default function Settings() {
               Salvar Ajustes
             </button>
           )}
+        </div>
+
+        {/* ── Aparência (visible to all users) ── */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h2 className="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <Monitor className="w-4 h-4 text-primary" />
+            Aparência
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">Escolha o tema do sistema. A preferência é salva neste dispositivo.</p>
+          <div className="flex gap-3">
+            {([
+              { value: "light" as ThemeMode, label: "Claro", icon: Sun, desc: "Sempre tema claro" },
+              { value: "dark"  as ThemeMode, label: "Escuro", icon: Moon, desc: "Sempre tema escuro" },
+              { value: "system" as ThemeMode, label: "Sistema", icon: Monitor, desc: "Segue o dispositivo" },
+            ] as { value: ThemeMode; label: string; icon: typeof Sun; desc: string }[]).map(({ value, label, icon: Icon, desc }) => {
+              const active = theme === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setTheme(value)}
+                  data-testid={`button-theme-${value}`}
+                  className={`flex-1 flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all text-center ${
+                    active
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${active ? "text-primary" : "text-gray-400"}`} />
+                  <span className={`text-xs font-semibold ${active ? "text-primary" : "text-gray-700"}`}>{label}</span>
+                  <span className="text-[10px] text-gray-400 leading-tight hidden sm:block">{desc}</span>
+                  {active && <span className="text-[9px] bg-primary text-white rounded-full px-2 py-0.5 font-bold">ATIVO</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {isAdmin && (<><div className="grid grid-cols-1 md:grid-cols-2 gap-6">
