@@ -66,6 +66,27 @@ app.use((req, res, next) => {
 async function ensureMasterAdmin() {
   const MASTER_USERNAME = "hcorbage";
   const MASTER_PASSWORD = "Ftghuh89*";
+
+  // Always enforce role via raw SQL first — never fails due to schema mismatch
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+    const rows = await db.execute(sql`SELECT id, role FROM users WHERE username = ${MASTER_USERNAME}`);
+    const row = (rows as any).rows?.[0] ?? rows?.[0];
+    if (row) {
+      if (row.role !== "super_admin") {
+        await db.execute(sql`UPDATE users SET role = 'super_admin', is_admin = true, company_id = NULL WHERE username = ${MASTER_USERNAME}`);
+        console.log(`[SEED] Role do master admin corrigida para super_admin via SQL direto.`);
+      } else {
+        console.log(`[SEED] Admin master OK — role=super_admin.`);
+      }
+      return;
+    }
+  } catch (rawErr) {
+    console.warn("[SEED] Fallback SQL falhou, tentando via storage:", rawErr);
+  }
+
+  // Fallback: ORM
   try {
     const existing = await storage.getUserByUsername(MASTER_USERNAME);
     if (!existing) {
