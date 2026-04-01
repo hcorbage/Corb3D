@@ -1919,10 +1919,10 @@ export default function Settings() {
             <div className="mb-5">
               <h2 className="text-lg font-bold text-red-700 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5" />
-                Avançado — Operações Destrutivas
+                Avançado — Reset do Sistema
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Estas operações são irreversíveis. Apenas o administrador master pode executá-las.
+                Esta ação não pode ser desfeita. Os dados operacionais serão reiniciados.
               </p>
             </div>
 
