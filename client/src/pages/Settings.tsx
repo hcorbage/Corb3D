@@ -64,6 +64,7 @@ export default function Settings() {
   const [trialEndDateEdit, setTrialEndDateEdit] = useState<string>("");
   const [emailEditValues, setEmailEditValues] = useState<Record<string, string>>({});
   const [emailSavingId, setEmailSavingId] = useState<string | null>(null);
+  const [emailEditingId, setEmailEditingId] = useState<string | null>(null);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [changingPasswordId, setChangingPasswordId] = useState<string | null>(null);
@@ -1469,6 +1470,21 @@ export default function Settings() {
             <p className="text-sm text-gray-500 mt-1">Gerencie o status de acesso de cada conta. Estrutura preparada para controle por empresa.</p>
           </div>
 
+          {/* Banner de contas sem email */}
+          {usersList.filter(u => !u.email).length > 0 && (
+            <div className="mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+              <div>
+                <p className="text-xs font-semibold text-amber-800">
+                  {usersList.filter(u => !u.email).length === 1
+                    ? "1 conta sem email cadastrado"
+                    : `${usersList.filter(u => !u.email).length} contas sem email cadastrado`}
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">A recuperação de senha por email estará indisponível para essas contas. Use o botão <strong>Cadastrar email</strong> em cada conta para habilitar.</p>
+              </div>
+            </div>
+          )}
+
           {usersList.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">Nenhuma conta cadastrada.</p>
           ) : (
@@ -1549,29 +1565,96 @@ export default function Settings() {
                         )}
                       </div>
 
-                      {/* Change status button */}
-                      <button
-                        data-testid={`button-access-status-${u.id}`}
-                        onClick={() => {
-                          if (isEditingThis) {
-                            setAccessStatusEditing(null);
-                            setTrialEndDateEdit("");
-                          } else {
-                            setAccessStatusEditing(u.id);
-                            if (u.trialEndsAt) {
-                              setTrialEndDateEdit(new Date(u.trialEndsAt).toISOString().slice(0, 10));
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Email button */}
+                        <button
+                          data-testid={`button-edit-email-${u.id}`}
+                          onClick={() => {
+                            if (emailEditingId === u.id) {
+                              setEmailEditingId(null);
                             } else {
-                              const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                              setTrialEndDateEdit(d.toISOString().slice(0, 10));
+                              setEmailEditingId(u.id);
+                              if (!(u.id in emailEditValues)) {
+                                setEmailEditValues(prev => ({ ...prev, [u.id]: u.email || "" }));
+                              }
                             }
-                          }
-                        }}
-                        className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-semibold border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                      >
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEditingThis ? "rotate-180" : ""}`} />
-                        Alterar status
-                      </button>
+                          }}
+                          className={`flex items-center gap-1.5 text-xs font-semibold border px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                            u.email
+                              ? "text-gray-500 hover:text-gray-700 border-gray-200 bg-gray-50 hover:bg-gray-100"
+                              : "text-amber-700 hover:text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100"
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                          {u.email ? "Editar email" : "Cadastrar email"}
+                        </button>
+
+                        {/* Status button */}
+                        <button
+                          data-testid={`button-access-status-${u.id}`}
+                          onClick={() => {
+                            if (isEditingThis) {
+                              setAccessStatusEditing(null);
+                              setTrialEndDateEdit("");
+                            } else {
+                              setAccessStatusEditing(u.id);
+                              if (u.trialEndsAt) {
+                                setTrialEndDateEdit(new Date(u.trialEndsAt).toISOString().slice(0, 10));
+                              } else {
+                                const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                                setTrialEndDateEdit(d.toISOString().slice(0, 10));
+                              }
+                            }
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-semibold border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEditingThis ? "rotate-180" : ""}`} />
+                          Alterar status
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Inline email editor */}
+                    {emailEditingId === u.id && (
+                      <div className="mt-3 pt-3 border-t border-amber-100 bg-amber-50/50 rounded-lg px-3 py-3">
+                        <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                          {u.email ? "Editar email de recuperação:" : "Cadastrar email de recuperação:"}
+                        </p>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            data-testid={`input-email-${u.id}`}
+                            type="email"
+                            value={emailEditValues[u.id] ?? (u.email || "")}
+                            onChange={e => setEmailEditValues(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            placeholder="email@empresa.com"
+                            autoFocus
+                            className="flex-1 border border-gray-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                          />
+                          <button
+                            data-testid={`button-save-email-${u.id}`}
+                            onClick={async () => {
+                              await handleSaveEmail(u.id);
+                              setEmailEditingId(null);
+                            }}
+                            disabled={emailSavingId === u.id}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
+                          >
+                            <Check className="w-4 h-4" />
+                            {emailSavingId === u.id ? "Salvando..." : "Salvar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEmailEditingId(null)}
+                            className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 bg-white hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1.5">Usado exclusivamente para recuperação de senha. Deixe vazio para remover.</p>
+                      </div>
+                    )}
 
                     {/* Inline status editor */}
                     {isEditingThis && (
@@ -1637,33 +1720,6 @@ export default function Settings() {
                         <p className="text-xs text-gray-400 mt-2">
                           A data de vencimento é usada mesmo quando o status é alterado para outro valor e depois volta para Trial.
                         </p>
-                        {/* Email edit */}
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                            Email para recuperação de senha:
-                          </p>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              data-testid={`input-email-${u.id}`}
-                              type="email"
-                              value={emailEditValues[u.id] ?? (u.email || "")}
-                              onChange={e => setEmailEditValues({ ...emailEditValues, [u.id]: e.target.value })}
-                              placeholder="email@empresa.com"
-                              className="flex-1 border border-gray-200 bg-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
-                            />
-                            <button
-                              data-testid={`button-save-email-${u.id}`}
-                              onClick={() => handleSaveEmail(u.id)}
-                              disabled={emailSavingId === u.id}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
-                            >
-                              <Check className="w-3 h-3" />
-                              {emailSavingId === u.id ? "Salvando..." : "Salvar email"}
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">O email é usado exclusivamente para recuperação de senha.</p>
-                        </div>
                       </div>
                     )}
                   </div>
