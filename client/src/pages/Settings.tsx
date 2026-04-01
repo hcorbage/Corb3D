@@ -1038,14 +1038,22 @@ export default function Settings() {
                       maxLength={18}
                     />
                     {empCNPJ.loading && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-500 animate-pulse">⏳</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                      </span>
                     )}
                   </div>
+                  {empCNPJ.loading && <p className="text-xs text-blue-500 mt-1">Consultando CNPJ...</p>}
                   {empDocError && <p className="text-xs text-red-500 mt-1">{empDocError}</p>}
                   {empCNPJ.error && <p className="text-xs text-amber-600 mt-1">{empCNPJ.error}</p>}
                   {empCNPJ.filled.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">✓ Preenchido automaticamente: {empCNPJ.filled.join(", ")}
-                      {empCNPJ.data?.status && <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${empCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{empCNPJ.data.status}</span>}
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                      Dados preenchidos automaticamente
+                      {empCNPJ.data?.status && <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${empCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{empCNPJ.data.status}</span>}
                     </p>
                   )}
                 </div>
@@ -1691,14 +1699,22 @@ export default function Settings() {
                       maxLength={18}
                     />
                     {userCNPJ.loading && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-500 animate-pulse">⏳</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                      </span>
                     )}
                   </div>
+                  {userCNPJ.loading && <p className="text-xs text-blue-500 mt-1">Consultando CNPJ...</p>}
                   {userDocError && <p className="text-xs text-red-500 mt-1">{userDocError}</p>}
                   {userCNPJ.error && <p className="text-xs text-amber-600 mt-1">{userCNPJ.error}</p>}
                   {userCNPJ.filled.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">✓ Preenchido automaticamente: {userCNPJ.filled.join(", ")}
-                      {userCNPJ.data?.status && <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${userCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{userCNPJ.data.status}</span>}
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                      Dados preenchidos automaticamente
+                      {userCNPJ.data?.status && <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${userCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{userCNPJ.data.status}</span>}
                     </p>
                   )}
                 </div>
