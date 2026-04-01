@@ -446,12 +446,9 @@ export async function registerRoutes(
 
   app.post("/api/users", requireAuth, requireMasterAdmin, async (req, res) => {
     try {
-      const { username, password, passwordHint, cpf, birthdate } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({ message: "Nome e senha são obrigatórios." });
-      }
-      if (password.length < 6) {
-        return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
+      const { username, cpf, birthdate } = req.body;
+      if (!username) {
+        return res.status(400).json({ message: "Nome completo é obrigatório." });
       }
       if (!cpf || !birthdate) {
         return res.status(400).json({ message: "CPF e data de nascimento são obrigatórios." });
@@ -467,7 +464,10 @@ export async function registerRoutes(
         generatedLogin = `${baseLogin}_${counter}`;
         counter++;
       }
-      const hashed = await bcrypt.hash(password, 10);
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      let tempPassword = '';
+      for (let i = 0; i < 8; i++) tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+      const hashed = await bcrypt.hash(tempPassword, 10);
       const now = new Date();
       const trialEnds = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const userData: any = {
@@ -475,7 +475,7 @@ export async function registerRoutes(
         password: hashed,
         isAdmin: true,
         mustChangePassword: true,
-        passwordHint: passwordHint || null,
+        passwordHint: null,
         cpf: cpf.replace(/\D/g, ''),
         birthdate: birthdate,
         trial: true,
@@ -485,7 +485,7 @@ export async function registerRoutes(
       const user = await storage.createUser(userData);
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);
-      return res.json({ id: user.id, username: user.username, generatedLogin: generatedLogin, fullName: username.trim() });
+      return res.json({ id: user.id, username: user.username, generatedLogin, tempPassword, fullName: username.trim() });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }

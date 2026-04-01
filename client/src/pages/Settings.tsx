@@ -146,13 +146,8 @@ export default function Settings() {
       toast({ title: "Erro", description: "Data de nascimento é obrigatória.", variant: "destructive" });
       return;
     }
-    if (!userForm.password || userForm.password.length < 6) {
-      toast({ title: "Erro", description: "A senha deve ter pelo menos 6 caracteres.", variant: "destructive" });
-      return;
-    }
     const body: any = {
       username: userForm.name.trim(),
-      password: userForm.password,
       cpf: userForm.document,
       birthdate: userForm.birthdate,
       email: userForm.email || "",
@@ -165,7 +160,6 @@ export default function Settings() {
       city: userForm.city || "",
       uf: userForm.uf || "",
     };
-    if (userForm.passwordHint.trim()) body.passwordHint = userForm.passwordHint.trim();
     const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     if (!res.ok) {
@@ -174,7 +168,7 @@ export default function Settings() {
     }
     setUsersList([...usersList, { id: data.id, username: data.username }]);
     setUserModalOpen(false);
-    setCredentialsModal({ username: data.username, password: userForm.password, whatsapp: userForm.whatsapp || "", name: userForm.name.trim(), type: 'user' });
+    setCredentialsModal({ username: data.generatedLogin || data.username, password: data.tempPassword, whatsapp: userForm.whatsapp || "", name: userForm.name.trim(), type: 'user' });
     setUserForm({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
     toast({ title: "Sucesso", description: "Usuário criado com sucesso." });
   };
@@ -1187,7 +1181,11 @@ export default function Settings() {
                     <span className="font-mono font-bold text-lg tracking-widest text-green-700">{credentialsModal.password}</span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">O funcionário será obrigado a criar uma nova senha no primeiro acesso.</p>
+                <p className="text-xs text-gray-500">
+                  {credentialsModal?.type === 'user'
+                    ? 'O usuário será obrigado a criar uma nova senha no primeiro acesso.'
+                    : 'O funcionário será obrigado a criar uma nova senha no primeiro acesso.'}
+                </p>
                 <button
                   data-testid="button-send-whatsapp-credentials"
                   onClick={() => {
@@ -1663,17 +1661,10 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
-              <div className="border-t border-border/50 pt-4">
-                <h4 className="text-sm font-semibold mb-3 text-gray-700">Credenciais de Acesso</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Senha *</label>
-                    <input data-testid="input-new-user-password" type="password" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Mín. 6 caracteres" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Dica de Senha</label>
-                    <input data-testid="input-new-user-hint" type="text" value={userForm.passwordHint} onChange={e => setUserForm({ ...userForm, passwordHint: e.target.value })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Opcional" />
-                  </div>
+              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 text-xs text-amber-700">
+                <div className="flex items-start gap-1">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>Uma senha temporária será gerada automaticamente e exibida após o cadastro. O usuário deverá criar uma senha definitiva no primeiro acesso.</span>
                 </div>
               </div>
               <button
