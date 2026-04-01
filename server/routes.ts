@@ -267,7 +267,7 @@ export async function registerRoutes(
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);
 
-      const role = user.role || (isAdmin ? (user.username === MASTER_ADMIN_USERNAME ? "super_admin" : "company_admin") : "employee");
+      const role = user.role || (isAdmin ? "company_admin" : "employee");
       let companyId = user.id;
       let permissions: string[] = [];
       if (!isAdmin) {
@@ -280,7 +280,7 @@ export async function registerRoutes(
       req.session.userId = user.id;
       req.session.username = user.username;
       req.session.isAdmin = isAdmin;
-      req.session.isMasterAdmin = user.username === MASTER_ADMIN_USERNAME;
+      req.session.isMasterAdmin = role === "super_admin";
       req.session.role = role;
       req.session.companyId = companyId;
       req.session.permissions = permissions;
