@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF_CNPJ } from "@shared/validators";
 import { useCNPJLookup } from "@/hooks/useCNPJLookup";
@@ -117,6 +117,68 @@ export default function Settings() {
   const [userDocError, setUserDocError] = useState("");
   const userCNPJ = useCNPJLookup();
   const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string; type?: 'employee' | 'user' } | null>(null);
+  type ResetModalType = 'system' | 'company' | null;
+  const [resetModalType, setResetModalType] = useState<ResetModalType>(null);
+  const [resetTargetUserId, setResetTargetUserId] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [resetShowPassword, setResetShowPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  const openResetModal = (type: 'system' | 'company') => {
+    setResetModalType(type);
+    setResetPassword("");
+    setResetConfirmText("");
+    setResetShowPassword(false);
+    setResetError("");
+    setResetTargetUserId("");
+  };
+  const closeResetModal = () => {
+    setResetModalType(null);
+    setResetPassword("");
+    setResetConfirmText("");
+    setResetError("");
+  };
+
+  const handleReset = async () => {
+    const expectedText = resetModalType === 'system' ? "RESETAR SISTEMA" : "RESETAR EMPRESA";
+    if (resetConfirmText !== expectedText) {
+      setResetError(`Digite exatamente: ${expectedText}`);
+      return;
+    }
+    if (!resetPassword) {
+      setResetError("Senha obrigatória.");
+      return;
+    }
+    if (resetModalType === 'company' && !resetTargetUserId) {
+      setResetError("Selecione a empresa.");
+      return;
+    }
+    setResetLoading(true);
+    setResetError("");
+    try {
+      const endpoint = resetModalType === 'system' ? "/api/admin/reset-system" : "/api/admin/reset-company";
+      const body: any = { password: resetPassword, confirmText: resetConfirmText };
+      if (resetModalType === 'company') body.targetUserId = resetTargetUserId;
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetError(data.message || "Erro ao executar reset.");
+      } else {
+        closeResetModal();
+        toast({ title: "Reset concluído", description: data.message });
+        if (resetModalType === 'company') {
+          setUsersList(prev => prev.filter(u => u.id !== resetTargetUserId));
+        }
+      }
+    } catch {
+      setResetError("Erro de conexão.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [cropZoom, setCropZoom] = useState(1);
@@ -1849,6 +1911,164 @@ export default function Settings() {
             </button>
           </div>
         </div>
+        )}
+
+        {/* ── AVANÇADO (somente super_admin) ── */}
+        {isMasterAdmin && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-100 mt-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-red-700 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Avançado — Operações Destrutivas
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Estas operações são irreversíveis. Apenas o administrador master pode executá-las.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Reset por empresa */}
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4" /> Resetar Empresa
+                </h3>
+                <p className="text-xs text-red-600 mb-3">
+                  Apaga todos os dados operacionais de uma empresa específica (clientes, orçamentos, estoque, financeiro, funcionários). A conta permanece ativa.
+                </p>
+                <div className="flex gap-2 items-center">
+                  <select
+                    data-testid="select-reset-company"
+                    value={resetTargetUserId}
+                    onChange={e => setResetTargetUserId(e.target.value)}
+                    className="flex-1 bg-white border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    <option value="">Selecione a empresa...</option>
+                    {usersList.map(u => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
+                    ))}
+                  </select>
+                  <button
+                    data-testid="button-open-reset-company"
+                    disabled={!resetTargetUserId}
+                    onClick={() => openResetModal('company')}
+                    className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Resetar
+                  </button>
+                </div>
+              </div>
+
+              {/* Reset global */}
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" /> Resetar Sistema Completo
+                </h3>
+                <p className="text-xs text-red-600 mb-3">
+                  Apaga os dados operacionais de <strong>todas as empresas</strong> cadastradas na plataforma. As contas permanecem ativas.
+                </p>
+                <button
+                  data-testid="button-open-reset-system"
+                  onClick={() => openResetModal('system')}
+                  className="flex items-center gap-1.5 bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <AlertTriangle className="w-4 h-4" /> Resetar Todas as Empresas
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL DE CONFIRMAÇÃO DE RESET ── */}
+        {resetModalType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-red-200">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="bg-red-100 rounded-full p-2 flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-red-800">
+                    {resetModalType === 'system' ? 'Confirmar Reset do Sistema' : 'Confirmar Reset da Empresa'}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {resetModalType === 'system'
+                      ? 'Esta ação apagará os dados operacionais de todas as empresas. Irreversível.'
+                      : `Esta ação apagará todos os dados da empresa selecionada. Irreversível.`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Senha */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Sua senha (super admin)</label>
+                  <div className="relative">
+                    <input
+                      data-testid="input-reset-password"
+                      type={resetShowPassword ? "text" : "password"}
+                      value={resetPassword}
+                      onChange={e => setResetPassword(e.target.value)}
+                      placeholder="Digite sua senha"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setResetShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {resetShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Texto de confirmação */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Digite <span className="font-mono bg-red-100 text-red-700 px-1 rounded">
+                      {resetModalType === 'system' ? 'RESETAR SISTEMA' : 'RESETAR EMPRESA'}
+                    </span> para confirmar
+                  </label>
+                  <input
+                    data-testid="input-reset-confirm-text"
+                    type="text"
+                    value={resetConfirmText}
+                    onChange={e => setResetConfirmText(e.target.value)}
+                    placeholder={resetModalType === 'system' ? 'RESETAR SISTEMA' : 'RESETAR EMPRESA'}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300"
+                  />
+                </div>
+
+                {resetError && (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{resetError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  data-testid="button-reset-cancel"
+                  onClick={closeResetModal}
+                  disabled={resetLoading}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  data-testid="button-reset-confirm"
+                  onClick={handleReset}
+                  disabled={resetLoading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  {resetLoading ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                  ) : <AlertTriangle className="w-4 h-4" />}
+                  {resetLoading ? 'Executando...' : 'Confirmar Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

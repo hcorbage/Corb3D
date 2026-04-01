@@ -573,6 +573,51 @@ export async function registerRoutes(
     }
   });
 
+  // ---- RESET ROUTES (super_admin only) ----
+  app.post("/api/admin/reset-company", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const { targetUserId, password, confirmText } = req.body;
+      if (!targetUserId || !password || !confirmText) {
+        return res.status(400).json({ message: "Dados incompletos." });
+      }
+      if (confirmText !== "RESETAR EMPRESA") {
+        return res.status(400).json({ message: "Texto de confirmação incorreto." });
+      }
+      const masterUser = await storage.getUserById(req.session.userId!);
+      if (!masterUser) return res.status(403).json({ message: "Não autorizado." });
+      const passwordMatch = await bcrypt.compare(password, masterUser.password);
+      if (!passwordMatch) return res.status(403).json({ message: "Senha incorreta." });
+      const targetUser = await storage.getUserById(targetUserId);
+      if (!targetUser || targetUser.role === "super_admin") {
+        return res.status(400).json({ message: "Empresa não encontrada ou protegida." });
+      }
+      await storage.resetCompanyData(targetUserId);
+      res.json({ ok: true, message: `Dados da empresa "${targetUser.username}" apagados com sucesso.` });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/admin/reset-system", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const { password, confirmText } = req.body;
+      if (!password || !confirmText) {
+        return res.status(400).json({ message: "Dados incompletos." });
+      }
+      if (confirmText !== "RESETAR SISTEMA") {
+        return res.status(400).json({ message: "Texto de confirmação incorreto." });
+      }
+      const masterUser = await storage.getUserById(req.session.userId!);
+      if (!masterUser) return res.status(403).json({ message: "Não autorizado." });
+      const passwordMatch = await bcrypt.compare(password, masterUser.password);
+      if (!passwordMatch) return res.status(403).json({ message: "Senha incorreta." });
+      await storage.resetAllCompaniesData(req.session.userId!);
+      res.json({ ok: true, message: "Todos os dados de empresas foram apagados com sucesso." });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ---- PROTECTED ROUTES ----
   app.use("/api/clients", requireAuth);
   app.use("/api/materials", requireAuth);

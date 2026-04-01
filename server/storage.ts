@@ -122,6 +122,10 @@ export interface IStorage {
   getUserPermissions(userId: string): Promise<string[]>;
   setUserPermissions(userId: string, modules: string[]): Promise<void>;
   updateUserRoleAndCompany(id: string, role: string, companyId?: string | null): Promise<void>;
+
+  // Reset
+  resetCompanyData(userId: string): Promise<void>;
+  resetAllCompaniesData(masterAdminId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -527,6 +531,41 @@ export class DatabaseStorage implements IStorage {
     const update: any = { role };
     if (companyId !== undefined) update.companyId = companyId;
     await db.update(users).set(update).where(eq(users.id, id));
+  }
+
+  async resetCompanyData(userId: string): Promise<void> {
+    // Find all employee linked user IDs before deleting employees
+    const emps = await db.select({ linkedUserId: employees.linkedUserId }).from(employees).where(eq(employees.userId, userId));
+    const linkedUserIds = emps.map(e => e.linkedUserId).filter(Boolean) as string[];
+
+    await db.delete(orderPayments).where(eq(orderPayments.userId, userId));
+    await db.delete(orderFinancials).where(eq(orderFinancials.userId, userId));
+    await db.delete(cashEntries).where(eq(cashEntries.userId, userId));
+    await db.delete(cashClosings).where(eq(cashClosings.userId, userId));
+    await db.delete(dailyCash).where(eq(dailyCash.userId, userId));
+    await db.delete(stockMovements).where(eq(stockMovements.userId, userId));
+    await db.delete(stockItems).where(eq(stockItems.userId, userId));
+    await db.delete(calculations).where(eq(calculations.userId, userId));
+    await db.delete(clients).where(eq(clients.userId, userId));
+    await db.delete(materials).where(eq(materials.userId, userId));
+    await db.delete(brands).where(eq(brands.userId, userId));
+    await db.delete(employees).where(eq(employees.userId, userId));
+    await db.delete(settings).where(eq(settings.userId, userId));
+
+    // Delete linked employee user accounts and their permissions
+    if (linkedUserIds.length > 0) {
+      await db.delete(userPermissions).where(inArray(userPermissions.userId, linkedUserIds));
+      await db.delete(users).where(inArray(users.id, linkedUserIds));
+    }
+  }
+
+  async resetAllCompaniesData(masterAdminId: string): Promise<void> {
+    const allAdminUsers = await db.select({ id: users.id }).from(users).where(
+      and(ne(users.id, masterAdminId), eq(users.role, "company_admin"))
+    );
+    for (const u of allAdminUsers) {
+      await this.resetCompanyData(u.id);
+    }
   }
 }
 
