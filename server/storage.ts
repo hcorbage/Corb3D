@@ -17,7 +17,7 @@ import {
   type DailyCash, type InsertDailyCash,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, ne, inArray, sql } from "drizzle-orm";
 
 export type ClientFinancialSummary = {
   clientName: string;
@@ -84,7 +84,8 @@ export interface IStorage {
   setMustChangePassword(id: string, value: boolean): Promise<void>;
   deleteUser(id: string): Promise<void>;
   promoteToAdmin(id: string): Promise<void>;
-  getAdminUsers(): Promise<{ id: string; username: string }[]>;
+  getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean }[]>;
+  updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void>;
 
   getCashEntries(userId: string): Promise<CashEntry[]>;
   createCashEntry(entry: InsertCashEntry): Promise<CashEntry>;
@@ -353,8 +354,23 @@ export class DatabaseStorage implements IStorage {
   async promoteToAdmin(id: string): Promise<void> {
     await db.update(users).set({ isAdmin: true }).where(eq(users.id, id));
   }
-  async getAdminUsers(): Promise<{ id: string; username: string }[]> {
-    return db.select({ id: users.id, username: users.username }).from(users).where(eq(users.isAdmin, true));
+  async getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean }[]> {
+    return db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role,
+      trial: users.trial,
+      trialStartedAt: users.trialStartedAt,
+      trialEndsAt: users.trialEndsAt,
+      accessStatus: users.accessStatus,
+      mustChangePassword: users.mustChangePassword,
+    }).from(users).where(and(eq(users.isAdmin, true), ne(users.role, "super_admin" as any)));
+  }
+
+  async updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void> {
+    const updateData: any = { accessStatus };
+    if (trialEndsAt !== undefined) updateData.trialEndsAt = trialEndsAt;
+    await db.update(users).set(updateData).where(eq(users.id, id));
   }
 
   async getCashEntries(userId: string): Promise<CashEntry[]> {

@@ -14,6 +14,8 @@ export type AuthUser = {
   trialEndsAt?: string | null;
   trialDaysRemaining?: number | null;
   trialExpired?: boolean;
+  accessStatus?: "trial" | "full" | "blocked";
+  blocked?: boolean;
 };
 
 export type AuthContextType = AuthUser & {

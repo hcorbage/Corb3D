@@ -61,6 +61,35 @@ function normalizeCashType(raw: unknown): CashType {
   throw new Error(`Tipo inválido: "${raw}". Use apenas "entrada" ou "saida".`);
 }
 
+type AccessData = {
+  trial: boolean;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number | null;
+  trialExpired: boolean;
+  accessStatus: string;
+  blocked: boolean;
+};
+
+function computeAccessData(dbUser: { trial?: boolean | null; trialEndsAt?: string | null; accessStatus?: string | null }): AccessData {
+  const status = dbUser.accessStatus || "full";
+  let trial = false;
+  let trialEndsAt: string | null = null;
+  let trialDaysRemaining: number | null = null;
+  let trialExpired = false;
+  const blocked = status === "blocked";
+
+  if ((status === "trial" || dbUser.trial) && dbUser.trialEndsAt) {
+    trial = true;
+    trialEndsAt = dbUser.trialEndsAt;
+    const now = new Date();
+    const ends = new Date(dbUser.trialEndsAt);
+    const diffDays = Math.ceil((ends.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    trialDaysRemaining = Math.max(0, diffDays);
+    trialExpired = status === "trial" && diffDays <= 0;
+  }
+  return { trial, trialEndsAt, trialDaysRemaining, trialExpired, accessStatus: status, blocked };
+}
+
 async function isTodayCashClosed(userId: string): Promise<boolean> {
   const BRAZIL_OFFSET_MS = -3 * 60 * 60 * 1000;
   const today = new Date(Date.now() + BRAZIL_OFFSET_MS).toISOString().slice(0, 10);
@@ -245,21 +274,9 @@ export async function registerRoutes(
       req.session.companyId = companyId;
       req.session.permissions = permissions;
 
-      let trial = false;
-      let trialEndsAt: string | null = null;
-      let trialDaysRemaining: number | null = null;
-      let trialExpired = false;
-      if (user.trial && user.trialEndsAt) {
-        trial = true;
-        trialEndsAt = user.trialEndsAt;
-        const ends = new Date(user.trialEndsAt);
-        const now = new Date();
-        const diffDays = Math.ceil((ends.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        trialDaysRemaining = Math.max(0, diffDays);
-        trialExpired = diffDays <= 0;
-      }
+      const access = computeAccessData(user);
 
-      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, trial, trialEndsAt, trialDaysRemaining, trialExpired });
+      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, ...access });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -337,20 +354,7 @@ export async function registerRoutes(
   app.get("/api/auth/me", async (req, res) => {
     if (req.session && req.session.userId) {
       const dbUser = await storage.getUserById(req.session.userId);
-      let trial = false;
-      let trialEndsAt: string | null = null;
-      let trialDaysRemaining: number | null = null;
-      let trialExpired = false;
-      if (dbUser && dbUser.trial && dbUser.trialEndsAt) {
-        trial = true;
-        trialEndsAt = dbUser.trialEndsAt;
-        const now = new Date();
-        const ends = new Date(dbUser.trialEndsAt);
-        const diffMs = ends.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        trialDaysRemaining = Math.max(0, diffDays);
-        trialExpired = diffDays <= 0;
-      }
+      const access = computeAccessData(dbUser || {});
       return res.json({
         id: req.session.userId,
         username: req.session.username,
@@ -359,10 +363,7 @@ export async function registerRoutes(
         role: req.session.role || "company_admin",
         companyId: req.session.companyId || req.session.userId,
         permissions: req.session.permissions || [],
-        trial,
-        trialEndsAt,
-        trialDaysRemaining,
-        trialExpired,
+        ...access,
       });
     }
     return res.status(401).json({ needsSetup: false });
@@ -513,6 +514,35 @@ export async function registerRoutes(
     }
     await storage.deleteUser(userId);
     res.json({ ok: true });
+  });
+
+  app.patch("/api/users/:id/access-status", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id as string;
+      const { accessStatus, trialEndsAt } = req.body;
+      const valid = ["trial", "full", "blocked"];
+      if (!accessStatus || !valid.includes(accessStatus)) {
+        return res.status(400).json({ message: "Status inválido. Use: trial, full ou blocked." });
+      }
+      let finalTrialEndsAt: string | null | undefined = undefined;
+      if (accessStatus === "trial") {
+        if (trialEndsAt) {
+          finalTrialEndsAt = new Date(trialEndsAt).toISOString();
+        } else {
+          const existing = await storage.getUserById(userId);
+          if (!existing?.trialEndsAt) {
+            const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            finalTrialEndsAt = ends.toISOString();
+          }
+        }
+      }
+      await storage.updateUserAccessStatus(userId, accessStatus, finalTrialEndsAt);
+      const updated = await storage.getUserById(userId);
+      const access = computeAccessData(updated || {});
+      res.json({ ok: true, ...access });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
   });
 
   // ---- PROTECTED ROUTES ----
@@ -1273,6 +1303,24 @@ export async function registerRoutes(
     }
   }
   runRoleMigration().catch(console.error);
+
+  async function runAccessStatusMigration() {
+    try {
+      const { db } = await import("./db");
+      const { users } = await import("@shared/schema");
+      const { sql: drizzleSql } = await import("drizzle-orm");
+      await db.execute(drizzleSql`
+        UPDATE users
+        SET access_status = 'trial'
+        WHERE trial = true
+          AND (access_status IS NULL OR access_status = '' OR access_status = 'full')
+      `);
+      console.log("[AccessStatusMigration] Completed.");
+    } catch (e) {
+      console.error("[AccessStatusMigration] Error:", e);
+    }
+  }
+  runAccessStatusMigration().catch(console.error);
 
   // ─── Auto-open / Auto-close scheduler (runs every 60s) ────────────────────
   async function runCashScheduler() {

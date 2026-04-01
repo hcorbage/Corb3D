@@ -64,16 +64,21 @@ function TrialBadge({ days }: { days: number }) {
   );
 }
 
-function TrialExpiredScreen() {
+function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" }) {
+  const isBlocked = variant === "blocked";
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-2xl mb-5">
-          <AlertTriangle className="w-8 h-8 text-red-500" />
+        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 ${isBlocked ? "bg-orange-50" : "bg-red-50"}`}>
+          <AlertTriangle className={`w-8 h-8 ${isBlocked ? "text-orange-500" : "text-red-500"}`} />
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-3">Período de teste encerrado</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">
+          {isBlocked ? "Acesso suspenso" : "Período de teste encerrado"}
+        </h2>
         <p className="text-sm text-gray-600 mb-6">
-          Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo.
+          {isBlocked
+            ? "O acesso à sua conta foi suspenso. Entre em contato com o suporte para mais informações."
+            : "Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo."}
         </p>
         <a
           href="https://wa.me/5500000000000"
@@ -95,6 +100,10 @@ function TrialExpiredScreen() {
       </div>
     </div>
   );
+}
+
+function TrialExpiredScreen() {
+  return <AccessBlockedScreen variant="trialExpired" />;
 }
 
 function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }: {
@@ -255,6 +264,8 @@ function buildAuthUser(data: any): AuthUser {
     trialEndsAt: data.trialEndsAt || null,
     trialDaysRemaining: data.trialDaysRemaining ?? null,
     trialExpired: data.trialExpired || false,
+    accessStatus: data.accessStatus || "full",
+    blocked: data.blocked || false,
   };
 }
 
@@ -306,7 +317,15 @@ function App() {
     );
   }
 
-  if (user.trialExpired && !user.isMasterAdmin) {
+  if (!user.isMasterAdmin && user.blocked) {
+    return (
+      <ThemeProvider>
+        <AccessBlockedScreen variant="blocked" />
+      </ThemeProvider>
+    );
+  }
+
+  if (!user.isMasterAdmin && user.trialExpired) {
     return (
       <ThemeProvider>
         <TrialExpiredScreen />

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +45,20 @@ export default function Settings() {
     setLocalSettings(settings);
   }, [settings]);
 
-  const [usersList, setUsersList] = useState<{ id: string; username: string }[]>([]);
+  type UserAccount = {
+    id: string;
+    username: string;
+    role: string;
+    trial: boolean | null;
+    trialStartedAt: string | null;
+    trialEndsAt: string | null;
+    accessStatus: string;
+    mustChangePassword: boolean;
+  };
+  const [usersList, setUsersList] = useState<UserAccount[]>([]);
+  const [accessStatusEditing, setAccessStatusEditing] = useState<string | null>(null);
+  const [accessStatusSaving, setAccessStatusSaving] = useState(false);
+  const [trialEndDateEdit, setTrialEndDateEdit] = useState<string>("");
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [changingPasswordId, setChangingPasswordId] = useState<string | null>(null);
@@ -176,6 +189,34 @@ export default function Settings() {
     }
     setUsersList(usersList.filter(u => u.id !== id));
     toast({ title: "Sucesso", description: "Usuário excluído." });
+  };
+
+  const handleUpdateAccessStatus = async (id: string, newStatus: string, trialEndsAt?: string) => {
+    setAccessStatusSaving(true);
+    try {
+      const body: any = { accessStatus: newStatus };
+      if (trialEndsAt) body.trialEndsAt = trialEndsAt;
+      const res = await fetch(`/api/users/${id}/access-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao atualizar status.");
+      setUsersList(usersList.map(u => u.id === id ? {
+        ...u,
+        accessStatus: newStatus,
+        trialEndsAt: trialEndsAt || u.trialEndsAt,
+      } : u));
+      setAccessStatusEditing(null);
+      setTrialEndDateEdit("");
+      const statusLabel = newStatus === "trial" ? "Trial" : newStatus === "full" ? "Full" : "Bloqueado";
+      toast({ title: "Status atualizado", description: `Acesso alterado para ${statusLabel}.` });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setAccessStatusSaving(false);
+    }
   };
 
   const handleChangePassword = async (id: string) => {
@@ -1264,6 +1305,180 @@ export default function Settings() {
         )}
 
         {isMasterAdmin ? (<>
+        {/* ── CONTROLE DE ACESSO ── */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-600" />
+              Controle de Acesso — Contas/Empresas
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Gerencie o status de acesso de cada conta. Estrutura preparada para controle por empresa.</p>
+          </div>
+
+          {usersList.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">Nenhuma conta cadastrada.</p>
+          ) : (
+            <div className="space-y-3">
+              {usersList.map(u => {
+                const status = u.accessStatus || "full";
+                const isEditingThis = accessStatusEditing === u.id;
+                let daysRemaining: number | null = null;
+                if (u.trialEndsAt) {
+                  const diff = Math.ceil((new Date(u.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  daysRemaining = diff;
+                }
+                const trialExpired = status === "trial" && daysRemaining !== null && daysRemaining <= 0;
+                return (
+                  <div key={u.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-800 text-sm font-mono">{u.username}</span>
+                          {/* Status badge */}
+                          {status === "trial" && !trialExpired && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                              <FlaskConical className="w-3 h-3" /> Trial
+                            </span>
+                          )}
+                          {status === "trial" && trialExpired && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                              <Clock className="w-3 h-3" /> Trial expirado
+                            </span>
+                          )}
+                          {status === "full" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                              <InfinityIcon className="w-3 h-3" /> Full
+                            </span>
+                          )}
+                          {status === "blocked" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              <Ban className="w-3 h-3" /> Bloqueado
+                            </span>
+                          )}
+                          {u.mustChangePassword && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
+                              🔑 1º acesso pendente
+                            </span>
+                          )}
+                        </div>
+                        {/* Trial info row */}
+                        {status === "trial" && u.trialEndsAt && (
+                          <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <CalendarDays className="w-3.5 h-3.5" />
+                              Vence em: <strong className="text-gray-700">{new Date(u.trialEndsAt).toLocaleDateString("pt-BR")}</strong>
+                            </span>
+                            <span className={`font-semibold ${trialExpired ? "text-red-600" : (daysRemaining ?? 8) <= 1 ? "text-red-500" : (daysRemaining ?? 8) <= 3 ? "text-amber-600" : "text-blue-600"}`}>
+                              {trialExpired ? "Expirado" : daysRemaining === 1 ? "1 dia restante" : `${daysRemaining} dias restantes`}
+                            </span>
+                          </div>
+                        )}
+                        {status === "full" && (
+                          <p className="mt-1 text-xs text-gray-400">Acesso completo sem limitação</p>
+                        )}
+                        {status === "blocked" && (
+                          <p className="mt-1 text-xs text-gray-400">Acesso bloqueado — login funciona mas funcionalidades bloqueadas</p>
+                        )}
+                      </div>
+
+                      {/* Change status button */}
+                      <button
+                        data-testid={`button-access-status-${u.id}`}
+                        onClick={() => {
+                          if (isEditingThis) {
+                            setAccessStatusEditing(null);
+                            setTrialEndDateEdit("");
+                          } else {
+                            setAccessStatusEditing(u.id);
+                            if (u.trialEndsAt) {
+                              setTrialEndDateEdit(new Date(u.trialEndsAt).toISOString().slice(0, 10));
+                            } else {
+                              const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                              setTrialEndDateEdit(d.toISOString().slice(0, 10));
+                            }
+                          }
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-semibold border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEditingThis ? "rotate-180" : ""}`} />
+                        Alterar status
+                      </button>
+                    </div>
+
+                    {/* Inline status editor */}
+                    {isEditingThis && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-600 mb-3">Novo status de acesso:</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {(["trial", "full", "blocked"] as const).map(s => {
+                            const labels = { trial: "Trial", full: "Full", blocked: "Bloqueado" };
+                            const colors = {
+                              trial: "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100",
+                              full: "border-green-300 bg-green-50 text-green-700 hover:bg-green-100",
+                              blocked: "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100",
+                            };
+                            const icons = {
+                              trial: <FlaskConical className="w-3.5 h-3.5" />,
+                              full: <InfinityIcon className="w-3.5 h-3.5" />,
+                              blocked: <Ban className="w-3.5 h-3.5" />,
+                            };
+                            return (
+                              <button
+                                key={s}
+                                data-testid={`button-set-status-${s}-${u.id}`}
+                                onClick={() => {
+                                  if (s !== "trial") {
+                                    handleUpdateAccessStatus(u.id, s);
+                                  } else {
+                                    handleUpdateAccessStatus(u.id, s, trialEndDateEdit ? new Date(trialEndDateEdit + "T12:00:00").toISOString() : undefined);
+                                  }
+                                }}
+                                disabled={accessStatusSaving || s === status}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-50 ${s === status ? "ring-2 ring-offset-1 ring-purple-400" : ""} ${colors[s]}`}
+                              >
+                                {icons[s]} {labels[s]}
+                                {s === status && <Check className="w-3 h-3" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Trial end date picker — only shown when trial is selected */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
+                            <span className="font-medium">Data de vencimento do trial:</span>
+                          </div>
+                          <input
+                            data-testid={`input-trial-end-date-${u.id}`}
+                            type="date"
+                            value={trialEndDateEdit}
+                            onChange={e => setTrialEndDateEdit(e.target.value)}
+                            className="border border-gray-200 bg-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+                          />
+                          {trialEndDateEdit && (
+                            <button
+                              onClick={() => handleUpdateAccessStatus(u.id, "trial", new Date(trialEndDateEdit + "T12:00:00").toISOString())}
+                              disabled={accessStatusSaving}
+                              className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-semibold transition-colors disabled:opacity-50"
+                            >
+                              <Check className="w-3 h-3" />
+                              Salvar data
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          A data de vencimento é usada mesmo quando o status é alterado para outro valor e depois volta para Trial.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── GERENCIAMENTO DE USUÁRIOS ── */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>

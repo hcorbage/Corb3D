@@ -118,6 +118,7 @@ export const users = pgTable("users", {
   trial: boolean("trial").default(false),
   trialStartedAt: text("trial_started_at"),
   trialEndsAt: text("trial_ends_at"),
+  accessStatus: text("access_status").default("full"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
