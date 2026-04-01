@@ -67,22 +67,36 @@ function TrialBadge({ days }: { days: number }) {
   );
 }
 
-function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" }) {
-  const isBlocked = variant === "blocked";
+function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" | "runtime" }) {
+  const config = {
+    trialExpired: {
+      bg: "bg-red-50",
+      icon: "text-red-500",
+      title: "Período de teste encerrado",
+      message: "Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo.",
+    },
+    blocked: {
+      bg: "bg-orange-50",
+      icon: "text-orange-500",
+      title: "Acesso suspenso",
+      message: "O acesso à sua conta foi suspenso. Entre em contato com o suporte para mais informações.",
+    },
+    runtime: {
+      bg: "bg-red-50",
+      icon: "text-red-500",
+      title: "Acesso indisponível",
+      message: "Seu acesso está indisponível. Seu período de teste expirou ou sua conta foi bloqueada.",
+    },
+  }[variant];
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-md text-center">
-        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 ${isBlocked ? "bg-orange-50" : "bg-red-50"}`}>
-          <AlertTriangle className={`w-8 h-8 ${isBlocked ? "text-orange-500" : "text-red-500"}`} />
+        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 ${config.bg}`}>
+          <AlertTriangle className={`w-8 h-8 ${config.icon}`} />
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-3">
-          {isBlocked ? "Acesso suspenso" : "Período de teste encerrado"}
-        </h2>
-        <p className="text-sm text-gray-600 mb-6">
-          {isBlocked
-            ? "O acesso à sua conta foi suspenso. Entre em contato com o suporte para mais informações."
-            : "Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo."}
-        </p>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">{config.title}</h2>
+        <p className="text-sm text-gray-600 mb-6">{config.message}</p>
         <a
           href="https://wa.me/5500000000000"
           target="_blank"
@@ -405,6 +419,13 @@ function App() {
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [isNewCompanyAdmin, setIsNewCompanyAdmin] = useState(false);
   const [needsTerms, setNeedsTerms] = useState(false);
+  const [runtimeBlocked, setRuntimeBlocked] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setRuntimeBlocked(true);
+    window.addEventListener("accountBlocked", handler);
+    return () => window.removeEventListener("accountBlocked", handler);
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -455,6 +476,14 @@ function App() {
             />
           </TooltipProvider>
         </QueryClientProvider>
+      </ThemeProvider>
+    );
+  }
+
+  if (!user.isMasterAdmin && runtimeBlocked) {
+    return (
+      <ThemeProvider>
+        <AccessBlockedScreen variant="runtime" />
       </ThemeProvider>
     );
   }

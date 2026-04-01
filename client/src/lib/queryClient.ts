@@ -1,8 +1,23 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+const ACCOUNT_BLOCKED_MSG = "Acesso indisponível. Sua conta está expirada ou bloqueada.";
+
+function dispatchAccountBlocked() {
+  window.dispatchEvent(new CustomEvent("accountBlocked"));
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    if (res.status === 403) {
+      try {
+        const json = JSON.parse(text);
+        if (json.message === ACCOUNT_BLOCKED_MSG) {
+          dispatchAccountBlocked();
+          return;
+        }
+      } catch {}
+    }
     throw new Error(`${res.status}: ${text}`);
   }
 }
