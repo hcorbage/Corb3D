@@ -1,0 +1,92 @@
+Quero melhorar a tela de primeiro acesso do usuário/empresa para que ele possa definir, de uma só vez, o nome de usuário definitivo e a nova senha.
+
+OBJETIVO:
+No primeiro login, além de trocar a senha temporária, o usuário também deve poder escolher o nome de usuário final que usará para acessar o sistema dali em diante.
+
+CENÁRIO ATUAL:
+Hoje o sistema gera login automático + senha temporária.
+No primeiro acesso, o usuário só troca a senha.
+
+QUERO EVOLUIR PARA:
+No primeiro acesso, o usuário deve:
+1. visualizar o username atual gerado automaticamente
+2. poder editar esse username
+3. definir a nova senha
+4. confirmar a nova senha
+5. concluir o acesso com username + senha definitivos
+
+FRONTEND:
+Na tela de primeiro acesso / troca obrigatória de senha:
+- adicionar campo:
+  "Nome de usuário"
+- esse campo deve vir preenchido com o username atual gerado automaticamente
+- permitir edição livre, respeitando as regras abaixo
+
+Campos finais da tela:
+- Nome de usuário
+- Nova senha
+- Confirmar nova senha
+
+TEXTO NA TELA:
+- título:
+  "Defina seu nome de usuário e senha"
+- subtítulo:
+  "Esses serão seus dados de acesso ao sistema a partir de agora."
+
+BOTÃO:
+- "Finalizar acesso"
+
+VALIDAÇÕES DO USERNAME:
+- obrigatório
+- mínimo de 3 caracteres
+- sem espaços
+- aceitar apenas letras minúsculas, números, underline e ponto, se fizer sentido
+- não permitir caracteres especiais problemáticos
+- verificar se já existe no banco
+
+VALIDAÇÕES DA SENHA:
+- manter as validações atuais
+- confirmar senha obrigatoriamente
+- não concluir se as senhas forem diferentes
+
+BACKEND:
+Na rota responsável pelo primeiro acesso / troca de senha obrigatória:
+- aceitar também o campo username no body
+- validar formato do username
+- validar unicidade no banco
+- se estiver disponível:
+  - atualizar username
+  - atualizar password com hash
+  - definir mustChangePassword = false
+- se não estiver disponível:
+  - retornar erro claro:
+    "Nome de usuário já está em uso"
+
+REGRAS IMPORTANTES:
+- após concluir, o login futuro deve funcionar com o novo username
+- a senha temporária anterior deve deixar de valer
+- o fluxo atual não pode ser quebrado
+- isso deve funcionar para usuário/admin e também para funcionário, se o fluxo de primeiro acesso for o mesmo
+
+UX / MENSAGENS:
+- exibir mensagem de ajuda abaixo do campo username:
+  "Este será seu login de acesso ao sistema."
+- se o username estiver em uso, mostrar feedback claro no campo
+- se possível, validar disponibilidade antes de salvar (ou no submit com retorno amigável)
+
+COMPATIBILIDADE:
+- não afetar usuários que já concluíram o primeiro acesso
+- aplicar apenas a quem ainda está com mustChangePassword = true
+
+VALIDAÇÃO FINAL:
+Quero que você confirme ao final que:
+1. o usuário consegue editar o username no primeiro acesso
+2. o sistema impede username duplicado
+3. o username novo é salvo corretamente
+4. a senha nova é salva corretamente
+5. o usuário consegue entrar depois com o novo username
+6. a senha temporária antiga deixa de funcionar
+7. o fluxo continua funcionando tanto para admin quanto para funcionário, se aplicável
+
+IMPORTANTE:
+Quero a implementação completa, feita de uma vez, sem quebrar o fluxo atual e com UX profissional.

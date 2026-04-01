@@ -123,20 +123,38 @@ function TrialExpiredScreen() {
   return <AccessBlockedScreen variant="trialExpired" />;
 }
 
-function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }: {
+function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining, currentUsername }: {
   onChanged: () => void;
   showTrialMessage?: boolean;
   trialDaysRemaining?: number | null;
+  currentUsername?: string;
 }) {
+  const [username, setUsername] = useState(currentUsername || "");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const validateUsername = (value: string) => {
+    if (!value || value.length < 3) return "Mínimo de 3 caracteres.";
+    if (/\s/.test(value)) return "Não é permitido espaços.";
+    if (!/^[a-z0-9_.]+$/.test(value)) return "Use apenas letras minúsculas, números, underscore ou ponto.";
+    return "";
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toLowerCase().replace(/\s/g, "");
+    setUsername(val);
+    setUsernameError(validateUsername(val));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const uErr = validateUsername(username);
+    if (uErr) { setUsernameError(uErr); return; }
     if (newPassword.length < 6) {
       setError("A senha deve ter pelo menos 6 caracteres.");
       return;
@@ -150,11 +168,15 @@ function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }
       const res = await fetch("/api/auth/force-change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify({ newPassword, newUsername: username }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || "Erro ao alterar senha.");
+        if (data.field === "username") {
+          setUsernameError(data.message || "Nome de usuário já está em uso.");
+        } else {
+          setError(data.message || "Erro ao salvar dados.");
+        }
         setLoading(false);
         return;
       }
@@ -201,11 +223,32 @@ function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }
             <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-50 rounded-2xl mb-4">
               <KeyRound className="w-7 h-7 text-amber-500" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800">Criar Nova Senha</h2>
-            <p className="text-sm text-gray-500 mt-2">Por segurança, crie uma nova senha para continuar usando o sistema.</p>
+            <h2 className="text-xl font-bold text-gray-800">Defina seu nome de usuário e senha</h2>
+            <p className="text-sm text-gray-500 mt-2">Esses serão seus dados de acesso ao sistema a partir de agora.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nome de usuário</label>
+              <div className="relative">
+                <input
+                  data-testid="input-force-username"
+                  type="text"
+                  value={username}
+                  onChange={handleUsernameChange}
+                  className={`w-full bg-gray-50 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all ${usernameError ? "border-red-300 focus:ring-red-200" : "border-gray-200 focus:ring-primary/30 focus:border-primary/50"}`}
+                  placeholder="Ex: joao.silva"
+                  autoComplete="username"
+                  required
+                />
+              </div>
+              {usernameError ? (
+                <p className="text-xs text-red-500 mt-1">{usernameError}</p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">Este será seu login de acesso ao sistema.</p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nova Senha</label>
               <div className="relative">
@@ -217,6 +260,7 @@ function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-12 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
                   placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
                   required
                 />
                 <button
@@ -241,6 +285,7 @@ function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
                   placeholder="Repita a nova senha"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -255,11 +300,11 @@ function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }
             <button
               data-testid="button-force-change-password"
               type="submit"
-              disabled={loading}
+              disabled={loading || !!usernameError}
               className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
             >
               <KeyRound className="w-5 h-5" />
-              {loading ? "Salvando..." : "Salvar e Acessar o Sistema"}
+              {loading ? "Salvando..." : "Finalizar acesso"}
             </button>
           </form>
         </div>
@@ -519,6 +564,7 @@ function App() {
                   onChanged={() => { setMustChangePassword(false); setIsNewCompanyAdmin(false); }}
                   showTrialMessage={isNewCompanyAdmin}
                   trialDaysRemaining={user.trialDaysRemaining}
+                  currentUsername={user.username}
                 />
               )}
               <Router />

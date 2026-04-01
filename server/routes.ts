@@ -356,9 +356,27 @@ export async function registerRoutes(
       if (!req.session || !req.session.userId) {
         return res.status(401).json({ message: "Não autenticado." });
       }
-      const { newPassword } = req.body;
+      const { newPassword, newUsername } = req.body;
       if (!newPassword || newPassword.length < 6) {
         return res.status(400).json({ message: "A nova senha deve ter pelo menos 6 caracteres." });
+      }
+      if (newUsername !== undefined) {
+        if (!newUsername || typeof newUsername !== "string") {
+          return res.status(400).json({ message: "Nome de usuário inválido." });
+        }
+        const trimmed = newUsername.trim().toLowerCase();
+        if (trimmed.length < 3) {
+          return res.status(400).json({ message: "O nome de usuário deve ter pelo menos 3 caracteres." });
+        }
+        if (!/^[a-z0-9_.]+$/.test(trimmed)) {
+          return res.status(400).json({ message: "Use apenas letras minúsculas, números, underscore ou ponto." });
+        }
+        const existing = await storage.getUserByUsername(trimmed);
+        if (existing && existing.id !== req.session.userId) {
+          return res.status(409).json({ field: "username", message: "Nome de usuário já está em uso." });
+        }
+        await storage.updateUsername(req.session.userId, trimmed);
+        req.session.username = trimmed;
       }
       const hashed = await bcrypt.hash(newPassword, 10);
       await storage.updateUserPassword(req.session.userId, hashed);
