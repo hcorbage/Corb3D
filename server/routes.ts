@@ -512,14 +512,16 @@ export async function registerRoutes(
       if (!validTypes.includes(type)) {
         return res.status(400).json({ message: "Tipo inválido. Use: entrada, saida, ajuste" });
       }
+      // Check cash status BEFORE saving anything — so user can decide without side effects
+      const needsCashEntry = generateCashEntry && type === "entrada" && purchaseValue && Number(purchaseValue) > 0;
+      if (needsCashEntry && await isTodayCashClosed(req.session.userId!)) {
+        return res.status(409).json({ cashClosed: true, message: "O caixa de hoje está fechado." });
+      }
       const result = await storage.createStockMovement(
         req.session.userId!, stockItemId, type, Number(quantity), date,
         notes || "", triggeredBy || "manual", calculationId
       );
-      if (generateCashEntry && type === "entrada" && purchaseValue && Number(purchaseValue) > 0) {
-        if (await isTodayCashClosed(req.session.userId!)) {
-          return res.status(409).json({ message: "O caixa de hoje está fechado. Reabra o caixa para registrar a compra no Livro Caixa.", stockMovement: result });
-        }
+      if (needsCashEntry) {
         const stockItem = result.stockItem;
         const matDesc = `Compra de material: ${notes || stockItemId}`;
         await storage.createCashEntry({

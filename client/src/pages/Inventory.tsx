@@ -72,17 +72,10 @@ function MovementModal({
   const [cashEntry, setCashEntry] = useState(false);
   const [purchaseValue, setPurchaseValue] = useState("");
   const [cashCategory, setCashCategory] = useState(CASH_CATEGORIES[0]);
+  const [showCashClosedConfirm, setShowCashClosedConfirm] = useState(false);
 
-  const handleSubmit = async () => {
+  const submitMovement = async (withCashEntry: boolean) => {
     const qty = Number(quantity);
-    if (!qty || qty <= 0) {
-      toast({ title: "Erro", description: "Informe uma quantidade válida.", variant: "destructive" });
-      return;
-    }
-    if (type === "saida" && qty > item.quantity) {
-      toast({ title: "Erro", description: `Quantidade maior que o estoque disponível (${formatQty(item.quantity)}).`, variant: "destructive" });
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch("/api/stock-movements", {
@@ -95,29 +88,44 @@ function MovementModal({
           date,
           notes,
           triggeredBy: "manual",
-          generateCashEntry: cashEntry && type === "entrada",
+          generateCashEntry: withCashEntry && cashEntry && type === "entrada",
           purchaseValue: cashEntry ? Number(purchaseValue) : 0,
           cashCategory,
         }),
       });
       const data = await res.json();
-      if (res.status === 409 && data.stockMovement) {
-        onSaved(data.stockMovement.stockItem);
-        toast({ title: "Estoque atualizado", description: data.message, variant: "destructive" });
-        onClose();
+      if (res.status === 409 && data.cashClosed) {
+        setShowCashClosedConfirm(true);
         return;
       }
       if (!res.ok) throw new Error(data.message);
       const { stockItem } = data;
       onSaved(stockItem);
       const typeLabel = type === "entrada" ? "Entrada" : type === "saida" ? "Saída" : "Ajuste";
-      toast({ title: `${typeLabel} registrada`, description: `${formatQty(qty)} ${type === "entrada" ? "adicionado(s) ao" : type === "saida" ? "removido(s) do" : "ajustado(s) no"} estoque.` });
+      if (!withCashEntry && cashEntry) {
+        toast({ title: `${typeLabel} registrada`, description: `Estoque atualizado. Lançamento financeiro não registrado (caixa fechado).`, variant: "destructive" });
+      } else {
+        toast({ title: `${typeLabel} registrada`, description: `${formatQty(qty)} ${type === "entrada" ? "adicionado(s) ao" : type === "saida" ? "removido(s) do" : "ajustado(s) no"} estoque.` });
+      }
       onClose();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao registrar movimentação.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      toast({ title: "Erro", description: "Informe uma quantidade válida.", variant: "destructive" });
+      return;
+    }
+    if (type === "saida" && qty > item.quantity) {
+      toast({ title: "Erro", description: `Quantidade maior que o estoque disponível (${formatQty(item.quantity)}).`, variant: "destructive" });
+      return;
+    }
+    await submitMovement(true);
   };
 
   const typeConfig: Record<MovementType, { label: string; icon: any; color: string; bg: string }> = {
@@ -263,6 +271,41 @@ function MovementModal({
           </div>
         </div>
       </div>
+
+      {showCashClosedConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Caixa de hoje fechado</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  O lançamento de <strong>{cashEntry && purchaseValue ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(purchaseValue)) : ""}</strong> no Livro Caixa não poderá ser registrado.
+                </p>
+                <p className="text-sm text-gray-600 mt-2">Como deseja prosseguir?</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => { setShowCashClosedConfirm(false); submitMovement(false); }}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl border-2 border-amber-400 text-amber-800 bg-amber-50 text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-60"
+              >
+                Atualizar estoque sem lançamento financeiro
+              </button>
+              <button
+                onClick={() => setShowCashClosedConfirm(false)}
+                className="w-full py-2.5 rounded-xl border border-border text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar operação
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Para registrar o valor financeiro, reabra o caixa antes de lançar a entrada de material.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
