@@ -39,6 +39,13 @@ function normalizeCashType(raw: unknown): CashType {
   throw new Error(`Tipo inválido: "${raw}". Use apenas "entrada" ou "saida".`);
 }
 
+async function isTodayCashClosed(userId: string): Promise<boolean> {
+  const BRAZIL_OFFSET_MS = -3 * 60 * 60 * 1000;
+  const today = new Date(Date.now() + BRAZIL_OFFSET_MS).toISOString().slice(0, 10);
+  const todayCash = await storage.getTodayDailyCash(userId, today);
+  return !!(todayCash && todayCash.status === "fechado");
+}
+
 const DEFAULT_MATERIALS = [
   { name: 'PLA (Ácido Polilático)', costPerKg: 85.90 },
   { name: 'PLA+ (PLA Reforçado)', costPerKg: 95.00 },
@@ -510,6 +517,9 @@ export async function registerRoutes(
         notes || "", triggeredBy || "manual", calculationId
       );
       if (generateCashEntry && type === "entrada" && purchaseValue && Number(purchaseValue) > 0) {
+        if (await isTodayCashClosed(req.session.userId!)) {
+          return res.status(409).json({ message: "O caixa de hoje está fechado. Reabra o caixa para registrar a compra no Livro Caixa.", stockMovement: result });
+        }
         const stockItem = result.stockItem;
         const matDesc = `Compra de material: ${notes || stockItemId}`;
         await storage.createCashEntry({
@@ -858,6 +868,9 @@ export async function registerRoutes(
 
   app.post("/api/order-payments", requireAuth, async (req, res) => {
     const sellerUserId = req.session.userId!;
+    if (await isTodayCashClosed(sellerUserId)) {
+      return res.status(409).json({ message: "O caixa de hoje está fechado. Reabra o caixa para registrar recebimentos." });
+    }
     const sellerName = req.session.username || "";
     const body = stripUserId(req.body);
     const now = new Date().toISOString();
@@ -1049,6 +1062,9 @@ export async function registerRoutes(
       const sellerName = req.session.username || "";
       const body = stripUserId(req.body);
       body.type = normalizeCashType(body.type);
+      if (await isTodayCashClosed(sellerUserId)) {
+        return res.status(409).json({ message: "O caixa de hoje está fechado. Reabra o caixa para registrar novos lançamentos." });
+      }
       const openCash = await storage.getAnyOpenDailyCash();
       const userId = openCash ? openCash.userId : sellerUserId;
       const isSeller = openCash && openCash.userId !== sellerUserId;

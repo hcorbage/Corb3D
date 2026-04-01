@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format, parseISO, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { BookOpen, Plus, Trash2, Lock, TrendingUp, Wallet, CreditCard, Search, X, Printer, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, Plus, Trash2, Lock, TrendingUp, Wallet, CreditCard, Search, X, Printer, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type CashEntry = {
@@ -83,16 +83,19 @@ export default function CashBook() {
   );
 
   const [expandedClosing, setExpandedClosing] = useState<string | null>(null);
+  const [cashClosed, setCashClosed] = useState(false);
   const balanceRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
     try {
-      const [e, c] = await Promise.all([
+      const [e, c, status] = await Promise.all([
         fetch("/api/cash-entries").then((r) => r.json()),
         fetch("/api/cash-closings").then((r) => r.json()),
+        fetch("/api/daily-cash/status").then((r) => r.json()),
       ]);
       setEntries(Array.isArray(e) ? e : []);
       setClosings(Array.isArray(c) ? c : []);
+      setCashClosed(status?.todayCash?.status === "fechado");
     } catch {
       toast({ title: "Erro", description: "Não foi possível carregar os dados.", variant: "destructive" });
     } finally {
@@ -399,14 +402,23 @@ export default function CashBook() {
             Fechar Caixa
           </button>
           <button
-            onClick={() => setShowNewEntry(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+            onClick={() => !cashClosed && setShowNewEntry(true)}
+            disabled={cashClosed}
+            title={cashClosed ? "Reabra o caixa para registrar novos lançamentos" : undefined}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm ${cashClosed ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-primary text-white hover:bg-primary/90"}`}
           >
             <Plus className="w-4 h-4" />
             Novo Lançamento
           </button>
         </div>
       </div>
+
+      {cashClosed && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+          <span><strong>Caixa de hoje fechado.</strong> Novos lançamentos estão bloqueados. Vá até o módulo <strong>Caixa</strong> e reabra o caixa para registrar movimentações.</span>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

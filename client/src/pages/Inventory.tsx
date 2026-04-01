@@ -100,11 +100,15 @@ function MovementModal({
           cashCategory,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message);
+      const data = await res.json();
+      if (res.status === 409 && data.stockMovement) {
+        onSaved(data.stockMovement.stockItem);
+        toast({ title: "Estoque atualizado", description: data.message, variant: "destructive" });
+        onClose();
+        return;
       }
-      const { stockItem } = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      const { stockItem } = data;
       onSaved(stockItem);
       const typeLabel = type === "entrada" ? "Entrada" : type === "saida" ? "Saída" : "Ajuste";
       toast({ title: `${typeLabel} registrada`, description: `${formatQty(qty)} ${type === "entrada" ? "adicionado(s) ao" : type === "saida" ? "removido(s) do" : "ajustado(s) no"} estoque.` });
