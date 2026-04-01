@@ -10,6 +10,10 @@ export type AuthUser = {
   role: UserRole;
   companyId: string;
   permissions: string[];
+  trial?: boolean;
+  trialEndsAt?: string | null;
+  trialDaysRemaining?: number | null;
+  trialExpired?: boolean;
 };
 
 export type AuthContextType = AuthUser & {

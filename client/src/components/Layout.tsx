@@ -4,7 +4,7 @@ import {
   Calculator, Package, Users, Users2, History, Settings, LogOut,
   Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen,
   BarChart2, DollarSign, Wallet, FileText, ChevronDown, ChevronRight,
-  LayoutDashboard, Sun, Moon, Monitor,
+  LayoutDashboard, Sun, Moon, Monitor, Clock, MessageCircle,
 } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
@@ -180,7 +180,7 @@ function ThemeToggleButton({ className = "" }: { className?: string }) {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { settings } = useAppState();
-  const { isAdmin, hasPermission } = useAuth();
+  const { isAdmin, hasPermission, trial, trialDaysRemaining, trialExpired } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -370,6 +370,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 relative">
           <div className="max-w-[1400px] mx-auto w-full h-full flex flex-col">
+            {trial && !trialExpired && trialDaysRemaining != null && (
+              <div data-testid="trial-banner" className={`mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
+                (trialDaysRemaining ?? 8) <= 1
+                  ? "bg-red-50 border-red-200 text-red-800"
+                  : (trialDaysRemaining ?? 8) <= 3
+                    ? "bg-amber-50 border-amber-200 text-amber-800"
+                    : "bg-blue-50 border-blue-200 text-blue-800"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    {trialDaysRemaining === 0
+                      ? "Seu período de teste expira hoje!"
+                      : trialDaysRemaining === 1
+                        ? "Último dia do seu período de teste!"
+                        : `Período de teste: ${trialDaysRemaining} dias restantes`}
+                  </span>
+                </div>
+                <a
+                  href="https://wa.me/5500000000000"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 underline underline-offset-2 hover:opacity-80 transition-opacity flex-shrink-0"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  Contratar plano
+                </a>
+              </div>
+            )}
             <CashStatusAlert />
             {children}
           </div>

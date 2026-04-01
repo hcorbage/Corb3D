@@ -1,0 +1,64 @@
+Quero implementar um período de teste (trial) de 7 dias para novos usuários/empresas, com contador visível e mensagem informativa no primeiro login.
+
+OBJETIVO:
+- informar claramente que o sistema está em período de teste
+- mostrar quantos dias restam
+- preparar o sistema para cobrança futura
+
+FUNCIONALIDADES:
+
+1) BACKEND (trial)
+- ao criar uma nova empresa/usuário, definir:
+  - trial = true
+  - trial_started_at = data atual
+  - trial_ends_at = +7 dias
+- calcular dinamicamente:
+  - dias restantes de teste
+
+2) API
+- incluir no endpoint /api/auth/me:
+  - trial (boolean)
+  - trialEndsAt
+  - trialDaysRemaining
+
+3) FRONTEND — PRIMEIRO LOGIN
+Na tela onde o usuário define a senha (primeiro acesso), exibir um bloco com a seguinte mensagem:
+
+"Bem-vindo ao sistema 👋
+
+Você está utilizando uma versão de avaliação para testar todas as funcionalidades.
+
+Durante esse período, você pode usar o sistema normalmente e ver como ele pode te ajudar a organizar pedidos, financeiro e estoque.
+
+Após o período de teste, o acesso passa a ser mediante assinatura mensal para manutenção e continuidade do serviço.
+
+Qualquer dúvida ou sugestão, estou à disposição para te ajudar 👍"
+
+4) CONTADOR VISUAL
+Exibir de forma clara:
+- "Você tem X dias restantes de teste"
+- destacar visualmente (badge ou card)
+
+Regras:
+- se faltarem 3 dias ou menos → destacar em amarelo/laranja
+- se faltar 1 dia → destacar em vermelho
+
+5) APÓS LOGIN (DENTRO DO SISTEMA)
+- mostrar um banner discreto no topo com:
+  - dias restantes
+- botão opcional: "Falar com suporte"
+
+6) EXPIRAÇÃO
+- se trialDaysRemaining <= 0:
+  - bloquear acesso às funcionalidades
+  - exibir mensagem:
+    "Seu período de teste expirou. Entre em contato para continuar utilizando o sistema."
+
+7) IMPORTANTE
+- não quebrar o sistema atual
+- manter compatibilidade com usuários existentes
+- aplicar apenas para novos usuários/empresas ou tratar antigos como ativos
+- cálculo de dias deve ser no backend (não confiar só no frontend)
+
+OBJETIVO FINAL:
+Criar um fluxo de trial profissional, com contagem de dias e comunicação clara, preparando o sistema para cobrança mensal futura.

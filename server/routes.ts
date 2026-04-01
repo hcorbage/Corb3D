@@ -244,7 +244,22 @@ export async function registerRoutes(
       req.session.role = role;
       req.session.companyId = companyId;
       req.session.permissions = permissions;
-      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions });
+
+      let trial = false;
+      let trialEndsAt: string | null = null;
+      let trialDaysRemaining: number | null = null;
+      let trialExpired = false;
+      if (user.trial && user.trialEndsAt) {
+        trial = true;
+        trialEndsAt = user.trialEndsAt;
+        const ends = new Date(user.trialEndsAt);
+        const now = new Date();
+        const diffDays = Math.ceil((ends.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        trialDaysRemaining = Math.max(0, diffDays);
+        trialExpired = diffDays <= 0;
+      }
+
+      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, trial, trialEndsAt, trialDaysRemaining, trialExpired });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -321,7 +336,34 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", async (req, res) => {
     if (req.session && req.session.userId) {
-      return res.json({ id: req.session.userId, username: req.session.username, isAdmin: req.session.isAdmin || false, isMasterAdmin: req.session.isMasterAdmin || false, role: req.session.role || "company_admin", companyId: req.session.companyId || req.session.userId, permissions: req.session.permissions || [] });
+      const dbUser = await storage.getUserById(req.session.userId);
+      let trial = false;
+      let trialEndsAt: string | null = null;
+      let trialDaysRemaining: number | null = null;
+      let trialExpired = false;
+      if (dbUser && dbUser.trial && dbUser.trialEndsAt) {
+        trial = true;
+        trialEndsAt = dbUser.trialEndsAt;
+        const now = new Date();
+        const ends = new Date(dbUser.trialEndsAt);
+        const diffMs = ends.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        trialDaysRemaining = Math.max(0, diffDays);
+        trialExpired = diffDays <= 0;
+      }
+      return res.json({
+        id: req.session.userId,
+        username: req.session.username,
+        isAdmin: req.session.isAdmin || false,
+        isMasterAdmin: req.session.isMasterAdmin || false,
+        role: req.session.role || "company_admin",
+        companyId: req.session.companyId || req.session.userId,
+        permissions: req.session.permissions || [],
+        trial,
+        trialEndsAt,
+        trialDaysRemaining,
+        trialExpired,
+      });
     }
     return res.status(401).json({ needsSetup: false });
   });
@@ -409,9 +451,20 @@ export async function registerRoutes(
         counter++;
       }
       const hashed = await bcrypt.hash(password, 10);
-      const userData: any = { username: generatedLogin, password: hashed, isAdmin: true, passwordHint: passwordHint || null };
-      userData.cpf = cpf.replace(/\D/g, '');
-      userData.birthdate = birthdate;
+      const now = new Date();
+      const trialEnds = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const userData: any = {
+        username: generatedLogin,
+        password: hashed,
+        isAdmin: true,
+        mustChangePassword: true,
+        passwordHint: passwordHint || null,
+        cpf: cpf.replace(/\D/g, ''),
+        birthdate: birthdate,
+        trial: true,
+        trialStartedAt: now.toISOString(),
+        trialEndsAt: trialEnds.toISOString(),
+      };
       const user = await storage.createUser(userData);
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);

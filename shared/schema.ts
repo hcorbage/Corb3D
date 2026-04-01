@@ -115,6 +115,9 @@ export const users = pgTable("users", {
   birthdate: text("birthdate"),
   role: text("role").notNull().default("company_admin"),
   companyId: text("company_id"),
+  trial: boolean("trial").default(false),
+  trialStartedAt: text("trial_started_at"),
+  trialEndsAt: text("trial_ends_at"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

@@ -23,7 +23,7 @@ import CaixaDiario from "./pages/CaixaDiario";
 import Relatorios from "./pages/Relatorios";
 import RelatorioClientes from "./pages/RelatorioClientes";
 import Login from "./pages/Login";
-import { Lock, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Lock, Eye, EyeOff, KeyRound, Clock, MessageCircle, AlertTriangle } from "lucide-react";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdmin } = useAuth();
@@ -53,7 +53,55 @@ function Router() {
   );
 }
 
-function ForceChangePassword({ onChanged }: { onChanged: () => void }) {
+function TrialBadge({ days }: { days: number }) {
+  if (days <= 0) return null;
+  const color = days <= 1 ? "bg-red-100 text-red-700 border-red-200" : days <= 3 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-blue-100 text-blue-700 border-blue-200";
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-semibold ${color}`}>
+      <Clock className="w-3.5 h-3.5" />
+      {days === 1 ? "Último dia de teste!" : `${days} dias restantes`}
+    </span>
+  );
+}
+
+function TrialExpiredScreen() {
+  return (
+    <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-md text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-2xl mb-5">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">Período de teste encerrado</h2>
+        <p className="text-sm text-gray-600 mb-6">
+          Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo.
+        </p>
+        <a
+          href="https://wa.me/5500000000000"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm"
+        >
+          <MessageCircle className="w-5 h-5" />
+          Falar com suporte
+        </a>
+        <div className="mt-4">
+          <button
+            onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload())}
+            className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
+          >
+            Sair da conta
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining }: {
+  onChanged: () => void;
+  showTrialMessage?: boolean;
+  trialDaysRemaining?: number | null;
+}) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -93,89 +141,134 @@ function ForceChangePassword({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-50 rounded-2xl mb-4">
-            <KeyRound className="w-7 h-7 text-amber-500" />
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md overflow-y-auto max-h-[90vh]">
+        {showTrialMessage && (
+          <div className="p-6 pb-0">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-1">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">👋</span>
+                <h3 className="font-bold text-blue-900 text-base">Bem-vindo ao sistema!</h3>
+              </div>
+              <p className="text-sm text-blue-800 leading-relaxed mb-3">
+                Você está utilizando uma <strong>versão de avaliação</strong> para testar todas as funcionalidades.
+              </p>
+              <p className="text-sm text-blue-700 leading-relaxed mb-3">
+                Durante esse período, você pode usar o sistema normalmente e ver como ele pode te ajudar a organizar pedidos, financeiro e estoque.
+              </p>
+              <p className="text-sm text-blue-700 leading-relaxed mb-4">
+                Após o período de teste, o acesso passa a ser mediante <strong>assinatura mensal</strong> para manutenção e continuidade do serviço.
+              </p>
+              <p className="text-sm text-blue-700 leading-relaxed mb-4">
+                Qualquer dúvida ou sugestão, estou à disposição para te ajudar 👍
+              </p>
+              {trialDaysRemaining != null && (
+                <div className="flex items-center justify-center">
+                  <TrialBadge days={trialDaysRemaining} />
+                </div>
+              )}
+            </div>
           </div>
-          <h2 className="text-xl font-bold text-gray-800">Criar Nova Senha</h2>
-          <p className="text-sm text-gray-500 mt-2">Sua senha foi resetada. Por segurança, crie uma nova senha para continuar usando o sistema.</p>
+        )}
+
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-50 rounded-2xl mb-4">
+              <KeyRound className="w-7 h-7 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800">Criar Nova Senha</h2>
+            <p className="text-sm text-gray-500 mt-2">Por segurança, crie uma nova senha para continuar usando o sistema.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nova Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                <input
+                  data-testid="input-force-new-password"
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-12 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirmar Nova Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                <input
+                  data-testid="input-force-confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+                  placeholder="Repita a nova senha"
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
+                {error}
+              </div>
+            )}
+
+            <button
+              data-testid="button-force-change-password"
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
+            >
+              <KeyRound className="w-5 h-5" />
+              {loading ? "Salvando..." : "Salvar e Acessar o Sistema"}
+            </button>
+          </form>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nova Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-              <input
-                data-testid="input-force-new-password"
-                type={showPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-12 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
-                placeholder="Mínimo 6 caracteres"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirmar Nova Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-              <input
-                data-testid="input-force-confirm-password"
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
-                placeholder="Repita a nova senha"
-                required
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
-              {error}
-            </div>
-          )}
-
-          <button
-            data-testid="button-force-change-password"
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
-          >
-            <KeyRound className="w-5 h-5" />
-            {loading ? "Salvando..." : "Salvar Nova Senha"}
-          </button>
-        </form>
       </div>
     </div>
   );
+}
+
+function buildAuthUser(data: any): AuthUser {
+  return {
+    id: data.id,
+    username: data.username,
+    isAdmin: data.isAdmin || false,
+    isMasterAdmin: data.isMasterAdmin || false,
+    role: data.role || "company_admin",
+    companyId: data.companyId || data.id,
+    permissions: data.permissions || [],
+    trial: data.trial || false,
+    trialEndsAt: data.trialEndsAt || null,
+    trialDaysRemaining: data.trialDaysRemaining ?? null,
+    trialExpired: data.trialExpired || false,
+  };
 }
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [isNewCompanyAdmin, setIsNewCompanyAdmin] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then(res => res.json().then(data => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
-        if (ok) {
-          setUser({ id: data.id, username: data.username, isAdmin: data.isAdmin || false, isMasterAdmin: data.isMasterAdmin || false, role: data.role || "company_admin", companyId: data.companyId || data.id, permissions: data.permissions || [] });
-        }
+        if (ok) setUser(buildAuthUser(data));
         setChecking(false);
       })
       .catch(() => setChecking(false));
@@ -199,15 +292,24 @@ function App() {
             <Toaster />
             <Login
               onLogin={(u) => {
-                const authUser = { id: u.id, username: u.username, isAdmin: (u as any).isAdmin || false, isMasterAdmin: (u as any).isMasterAdmin || false, role: (u as any).role || "company_admin", companyId: (u as any).companyId || u.id, permissions: (u as any).permissions || [] };
+                const authUser = buildAuthUser(u as any);
                 setUser(authUser);
                 if ((u as any).mustChangePassword) {
                   setMustChangePassword(true);
+                  setIsNewCompanyAdmin(authUser.trial === true && authUser.role === "company_admin");
                 }
               }}
             />
           </TooltipProvider>
         </QueryClientProvider>
+      </ThemeProvider>
+    );
+  }
+
+  if (user.trialExpired && !user.isMasterAdmin) {
+    return (
+      <ThemeProvider>
+        <TrialExpiredScreen />
       </ThemeProvider>
     );
   }
@@ -220,7 +322,11 @@ function App() {
             <TooltipProvider>
               <Toaster />
               {mustChangePassword && (
-                <ForceChangePassword onChanged={() => setMustChangePassword(false)} />
+                <ForceChangePassword
+                  onChanged={() => { setMustChangePassword(false); setIsNewCompanyAdmin(false); }}
+                  showTrialMessage={isNewCompanyAdmin}
+                  trialDaysRemaining={user.trialDaysRemaining}
+                />
               )}
               <Router />
             </TooltipProvider>
