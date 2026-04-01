@@ -18,6 +18,7 @@ declare module "express-session" {
 }
 
 const MASTER_ADMIN_USERNAME = "hcorbage";
+const TERMS_VERSION = "1.0";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (req.session && req.session.userId) {
@@ -275,8 +276,9 @@ export async function registerRoutes(
       req.session.permissions = permissions;
 
       const access = computeAccessData(user);
+      const mustAcceptTerms = role === "company_admin" && (user.acceptedTermsVersion !== TERMS_VERSION);
 
-      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, ...access });
+      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, ...access, mustAcceptTerms });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -345,6 +347,17 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/accept-terms", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const ip = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+      await storage.acceptTerms(userId, TERMS_VERSION, ip);
+      return res.json({ ok: true, acceptedTermsVersion: TERMS_VERSION });
+    } catch (e: any) {
+      return res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => {
       res.json({ ok: true });
@@ -355,15 +368,18 @@ export async function registerRoutes(
     if (req.session && req.session.userId) {
       const dbUser = await storage.getUserById(req.session.userId);
       const access = computeAccessData(dbUser || {});
+      const role = req.session.role || "company_admin";
+      const mustAcceptTerms = role === "company_admin" && (!dbUser || dbUser.acceptedTermsVersion !== TERMS_VERSION);
       return res.json({
         id: req.session.userId,
         username: req.session.username,
         isAdmin: req.session.isAdmin || false,
         isMasterAdmin: req.session.isMasterAdmin || false,
-        role: req.session.role || "company_admin",
+        role,
         companyId: req.session.companyId || req.session.userId,
         permissions: req.session.permissions || [],
         ...access,
+        mustAcceptTerms,
       });
     }
     return res.status(401).json({ needsSetup: false });

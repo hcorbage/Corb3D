@@ -16,6 +16,7 @@ export type AuthUser = {
   trialExpired?: boolean;
   accessStatus?: "trial" | "full" | "blocked";
   blocked?: boolean;
+  mustAcceptTerms?: boolean;
 };
 
 export type AuthContextType = AuthUser & {

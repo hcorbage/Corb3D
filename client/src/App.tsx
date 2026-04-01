@@ -23,7 +23,10 @@ import CaixaDiario from "./pages/CaixaDiario";
 import Relatorios from "./pages/Relatorios";
 import RelatorioClientes from "./pages/RelatorioClientes";
 import Login from "./pages/Login";
-import { Lock, Eye, EyeOff, KeyRound, Clock, MessageCircle, AlertTriangle } from "lucide-react";
+import { Lock, Eye, EyeOff, KeyRound, Clock, MessageCircle, AlertTriangle, FileText, ShieldCheck, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
+import TermsOfUse from "@/pages/TermsOfUse";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdmin } = useAuth();
@@ -266,24 +269,162 @@ function buildAuthUser(data: any): AuthUser {
     trialExpired: data.trialExpired || false,
     accessStatus: data.accessStatus || "full",
     blocked: data.blocked || false,
+    mustAcceptTerms: data.mustAcceptTerms || false,
   };
 }
 
+const TERMS_VERSION = "1.0";
+
+function TermsAcceptanceModal({ onAccepted }: { onAccepted: () => void }) {
+  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleAccept = async () => {
+    if (!checked) { setError("Você precisa marcar o checkbox para continuar."); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/accept-terms", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message || "Erro ao registrar aceite."); setLoading(false); return; }
+      onAccepted();
+    } catch {
+      setError("Erro de conexão com o servidor.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg overflow-y-auto max-h-[92vh]">
+        <div className="p-6 pb-0">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-50 rounded-2xl mb-4">
+              <FileText className="w-7 h-7 text-blue-500" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800">Termos de Uso e Privacidade</h2>
+            <p className="text-sm text-gray-500 mt-2">
+              Antes de começar a usar o C3D Manager®, leia e aceite os termos abaixo.
+            </p>
+          </div>
+
+          <div className="space-y-3 mb-5">
+            <a
+              href="/termos-de-uso"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-blue-900 text-sm">Termos de Uso</p>
+                  <p className="text-xs text-blue-600">Versão {TERMS_VERSION} — Clique para ler</p>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-blue-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+            </a>
+
+            <a
+              href="/politica-de-privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 p-4 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-purple-900 text-sm">Política de Privacidade</p>
+                  <p className="text-xs text-purple-600">Versão {TERMS_VERSION} — Clique para ler</p>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+            </a>
+          </div>
+
+          <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors mb-5">
+            <input
+              data-testid="checkbox-accept-terms"
+              type="checkbox"
+              checked={checked}
+              onChange={e => { setChecked(e.target.checked); if (e.target.checked) setError(""); }}
+              className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
+            />
+            <span className="text-sm text-gray-700 leading-relaxed">
+              Li e aceito os <strong>Termos de Uso</strong> e a <strong>Política de Privacidade</strong> do C3D Manager®. Compreendo que meus dados serão tratados conforme descrito nesses documentos.
+            </span>
+          </label>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100 mb-4">
+              {error}
+            </div>
+          )}
+
+          <div className="pb-6 space-y-3">
+            <button
+              data-testid="button-accept-terms"
+              onClick={handleAccept}
+              disabled={loading || !checked}
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-colors shadow-sm disabled:opacity-50"
+            >
+              <ShieldCheck className="w-5 h-5" />
+              {loading ? "Registrando aceite..." : "Aceitar e Continuar"}
+            </button>
+            <button
+              onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload())}
+              className="w-full text-sm text-gray-400 hover:text-gray-600 py-2 transition-colors"
+            >
+              Não aceito — Sair da conta
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PublicPageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          {children}
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+
 function App() {
+  const [location] = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [isNewCompanyAdmin, setIsNewCompanyAdmin] = useState(false);
+  const [needsTerms, setNeedsTerms] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then(res => res.json().then(data => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
-        if (ok) setUser(buildAuthUser(data));
+        if (ok) {
+          setUser(buildAuthUser(data));
+          setNeedsTerms(data.mustAcceptTerms || false);
+        }
         setChecking(false);
       })
       .catch(() => setChecking(false));
   }, []);
+
+  if (location === "/termos-de-uso") {
+    return <PublicPageWrapper><TermsOfUse /></PublicPageWrapper>;
+  }
+  if (location === "/politica-de-privacidade") {
+    return <PublicPageWrapper><PrivacyPolicy /></PublicPageWrapper>;
+  }
 
   if (checking) {
     return (
@@ -305,6 +446,7 @@ function App() {
               onLogin={(u) => {
                 const authUser = buildAuthUser(u as any);
                 setUser(authUser);
+                setNeedsTerms((u as any).mustAcceptTerms || false);
                 if ((u as any).mustChangePassword) {
                   setMustChangePassword(true);
                   setIsNewCompanyAdmin(authUser.trial === true && authUser.role === "company_admin");
@@ -340,7 +482,10 @@ function App() {
           <AppStateProvider>
             <TooltipProvider>
               <Toaster />
-              {mustChangePassword && (
+              {needsTerms && (
+                <TermsAcceptanceModal onAccepted={() => setNeedsTerms(false)} />
+              )}
+              {!needsTerms && mustChangePassword && (
                 <ForceChangePassword
                   onChanged={() => { setMustChangePassword(false); setIsNewCompanyAdmin(false); }}
                   showTrialMessage={isNewCompanyAdmin}

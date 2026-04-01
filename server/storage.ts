@@ -86,6 +86,7 @@ export interface IStorage {
   promoteToAdmin(id: string): Promise<void>;
   getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean }[]>;
   updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void>;
+  acceptTerms(id: string, version: string, ip: string): Promise<void>;
 
   getCashEntries(userId: string): Promise<CashEntry[]>;
   createCashEntry(entry: InsertCashEntry): Promise<CashEntry>;
@@ -371,6 +372,18 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = { accessStatus };
     if (trialEndsAt !== undefined) updateData.trialEndsAt = trialEndsAt;
     await db.update(users).set(updateData).where(eq(users.id, id));
+  }
+
+  async acceptTerms(id: string, version: string, ip: string): Promise<void> {
+    const now = new Date().toISOString();
+    await db.update(users).set({
+      acceptedTerms: true,
+      acceptedTermsAt: now,
+      acceptedTermsVersion: version,
+      acceptedPrivacy: true,
+      acceptedPrivacyAt: now,
+      acceptedIp: ip,
+    }).where(eq(users.id, id));
   }
 
   async getCashEntries(userId: string): Promise<CashEntry[]> {

@@ -119,6 +119,12 @@ export const users = pgTable("users", {
   trialStartedAt: text("trial_started_at"),
   trialEndsAt: text("trial_ends_at"),
   accessStatus: text("access_status").default("full"),
+  acceptedTerms: boolean("accepted_terms").default(false),
+  acceptedTermsAt: text("accepted_terms_at"),
+  acceptedTermsVersion: text("accepted_terms_version"),
+  acceptedPrivacy: boolean("accepted_privacy").default(false),
+  acceptedPrivacyAt: text("accepted_privacy_at"),
+  acceptedIp: text("accepted_ip"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
