@@ -4,6 +4,16 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/modules";
+import { validateCPF, validateCNPJ } from "@shared/validators";
+
+function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 0) return { valid: false, message: "CPF/CNPJ é obrigatório." };
+  if (digits.length <= 11) {
+    return validateCPF(digits) ? { valid: true, message: "" } : { valid: false, message: "CPF inválido." };
+  }
+  return validateCNPJ(digits) ? { valid: true, message: "" } : { valid: false, message: "CNPJ inválido." };
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -453,6 +463,8 @@ export async function registerRoutes(
       if (!cpf || !birthdate) {
         return res.status(400).json({ message: "CPF e data de nascimento são obrigatórios." });
       }
+      const docCheck = validateDocumentBackend(cpf);
+      if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
       const nameParts = username.trim().split(/\s+/).filter((p: string) => p.length > 0);
       const firstInitial = (nameParts[0] || 'u').charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
@@ -577,11 +589,21 @@ export async function registerRoutes(
     res.json(data);
   });
   app.post("/api/clients", requirePermission("clientes"), async (req, res) => {
-    const client = await storage.createClient({ ...stripUserId(req.body), userId: getScopeId(req) });
+    const body = stripUserId(req.body);
+    if (body.document) {
+      const docCheck = validateDocumentBackend(body.document);
+      if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
+    }
+    const client = await storage.createClient({ ...body, userId: getScopeId(req) });
     res.json(client);
   });
   app.patch("/api/clients/:id", requirePermission("clientes"), async (req, res) => {
-    const client = await storage.updateClient(req.params.id, getScopeId(req), stripUserId(req.body));
+    const body = stripUserId(req.body);
+    if (body.document) {
+      const docCheck = validateDocumentBackend(body.document);
+      if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
+    }
+    const client = await storage.updateClient(req.params.id, getScopeId(req), body);
     res.json(client);
   });
   app.delete("/api/clients/:id", requirePermission("clientes"), async (req, res) => {
@@ -719,6 +741,10 @@ export async function registerRoutes(
   app.post("/api/employees", requireAdmin, async (req, res) => {
     try {
       const body = stripUserId(req.body);
+      if (body.document) {
+        const docCheck = validateDocumentBackend(body.document);
+        if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
+      }
       const emp = await storage.createEmployee({ ...body, userId: req.session.userId! });
       
       const nameParts = body.name.trim().split(/\s+/).filter((p: string) => p.length > 0);

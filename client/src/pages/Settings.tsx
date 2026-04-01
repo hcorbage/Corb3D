@@ -3,6 +3,7 @@ import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
 import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
+import { validateCPF_CNPJ } from "@shared/validators";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -108,8 +109,10 @@ export default function Settings() {
 
   const [empModalOpen, setEmpModalOpen] = useState(false);
   const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
+  const [empDocError, setEmpDocError] = useState("");
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
+  const [userDocError, setUserDocError] = useState("");
   const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string; type?: 'employee' | 'user' } | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
@@ -140,6 +143,12 @@ export default function Settings() {
     }
     if (!userForm.document.replace(/\D/g, '')) {
       toast({ title: "Erro", description: "CPF/CNPJ é obrigatório.", variant: "destructive" });
+      return;
+    }
+    const userDocValidation = validateCPF_CNPJ(userForm.document);
+    if (!userDocValidation.valid) {
+      setUserDocError(userDocValidation.message);
+      toast({ title: "Erro", description: userDocValidation.message, variant: "destructive" });
       return;
     }
     if (!userForm.birthdate) {
@@ -986,7 +995,17 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">CPF/CNPJ *</label>
-                  <input data-testid="input-emp-document" type="text" value={empForm.document} onChange={e => setEmpForm({ ...empForm, document: formatCPF_CNPJ(e.target.value) })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="000.000.000-00" maxLength={18} />
+                  <input
+                    data-testid="input-emp-document"
+                    type="text"
+                    value={empForm.document}
+                    onChange={e => { setEmpForm({ ...empForm, document: formatCPF_CNPJ(e.target.value) }); setEmpDocError(""); }}
+                    onBlur={e => { if (e.target.value) { const r = validateCPF_CNPJ(e.target.value); setEmpDocError(r.valid ? "" : r.message); } }}
+                    className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${empDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
+                    placeholder="000.000.000-00"
+                    maxLength={18}
+                  />
+                  {empDocError && <p className="text-xs text-red-500 mt-1">{empDocError}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">WhatsApp *</label>
@@ -1068,6 +1087,8 @@ export default function Settings() {
                 onClick={async () => {
                   if (!empForm.name.trim()) { toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" }); return; }
                   if (!empForm.document.trim()) { toast({ title: "Erro", description: "CPF/CNPJ é obrigatório.", variant: "destructive" }); return; }
+                  const empDocValidation = validateCPF_CNPJ(empForm.document);
+                  if (!empDocValidation.valid) { setEmpDocError(empDocValidation.message); toast({ title: "Erro", description: empDocValidation.message, variant: "destructive" }); return; }
                   if (!empForm.whatsapp.trim()) { toast({ title: "Erro", description: "WhatsApp é obrigatório.", variant: "destructive" }); return; }
                   if (!empForm.birthdate) { toast({ title: "Erro", description: "Data de nascimento é obrigatória.", variant: "destructive" }); return; }
                   const result = await addEmployee({
@@ -1588,7 +1609,17 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">CPF/CNPJ *</label>
-                  <input data-testid="input-new-user-cpf" type="text" value={userForm.document} onChange={e => setUserForm({ ...userForm, document: formatCPF_CNPJ(e.target.value) })} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="000.000.000-00" maxLength={18} />
+                  <input
+                    data-testid="input-new-user-cpf"
+                    type="text"
+                    value={userForm.document}
+                    onChange={e => { setUserForm({ ...userForm, document: formatCPF_CNPJ(e.target.value) }); setUserDocError(""); }}
+                    onBlur={e => { if (e.target.value) { const r = validateCPF_CNPJ(e.target.value); setUserDocError(r.valid ? "" : r.message); } }}
+                    className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${userDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
+                    placeholder="000.000.000-00"
+                    maxLength={18}
+                  />
+                  {userDocError && <p className="text-xs text-red-500 mt-1">{userDocError}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Data de Nascimento *</label>

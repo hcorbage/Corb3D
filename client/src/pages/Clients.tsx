@@ -13,10 +13,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { validateCPF_CNPJ } from "@shared/validators";
 
 const clientSchema = z.object({
   name: z.string().min(3, "Nome é obrigatório"),
-  document: z.string().min(14, "Documento inválido"),
+  document: z.string().min(14, "Documento obrigatório").refine(v => validateCPF_CNPJ(v).valid, v => ({ message: validateCPF_CNPJ(v).message })),
   email: z.string().email("E-mail inválido").or(z.literal('')),
   whatsapp: z.string().min(14, "WhatsApp inválido").or(z.literal('')),
   cep: z.string().min(9, "CEP inválido").or(z.literal('')),
@@ -77,8 +78,9 @@ export default function Clients() {
       .catch(() => {});
   }, []);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ClientFormValues>({
+  const { register, handleSubmit, reset, setValue, trigger, formState: { errors } } = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
+    mode: "onBlur",
     defaultValues: {
       name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: ""
     }
@@ -315,7 +317,13 @@ export default function Clients() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">CPF / CNPJ *</label>
-                <input {...register("document")} onChange={(e) => setValue("document", formatCPF_CNPJ(e.target.value))} maxLength={18} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                <input
+                  {...register("document")}
+                  onChange={e => setValue("document", formatCPF_CNPJ(e.target.value), { shouldDirty: true })}
+                  onBlur={() => trigger("document")}
+                  maxLength={18}
+                  className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${errors.document ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/50"}`}
+                />
                 {errors.document && <span className="text-[10px] text-destructive">{errors.document.message}</span>}
               </div>
               <div>
