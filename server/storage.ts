@@ -104,8 +104,10 @@ export interface IStorage {
 
   // Order Payments
   getOrderPayments(userId: string, orderFinancialId: string): Promise<OrderPayment[]>;
+  getOrderPaymentById(id: string): Promise<OrderPayment | undefined>;
   createOrderPayment(op: InsertOrderPayment): Promise<OrderPayment>;
   deleteOrderPayment(id: string, userId: string): Promise<void>;
+  deleteCashEntryByPayment(calculationId: string, amount: number, date: string, userId: string): Promise<void>;
 
   // Daily Cash
   getDailyCashList(userId: string): Promise<DailyCash[]>;
@@ -435,8 +437,27 @@ export class DatabaseStorage implements IStorage {
     const [r] = await db.insert(orderPayments).values(op).returning();
     return r;
   }
+  async getOrderPaymentById(id: string): Promise<OrderPayment | undefined> {
+    const [r] = await db.select().from(orderPayments).where(eq(orderPayments.id, id));
+    return r;
+  }
   async deleteOrderPayment(id: string, userId: string): Promise<void> {
     await db.delete(orderPayments).where(and(eq(orderPayments.id, id), eq(orderPayments.userId, userId)));
+  }
+  async deleteCashEntryByPayment(calculationId: string, amount: number, date: string, userId: string): Promise<void> {
+    const matches = await db.select().from(cashEntries).where(
+      and(
+        eq(cashEntries.userId, userId),
+        eq(cashEntries.calculationId, calculationId),
+        eq(cashEntries.amount, amount),
+        eq(cashEntries.date, date),
+        eq(cashEntries.type, "entrada"),
+        eq(cashEntries.category, "venda de pedido")
+      )
+    );
+    if (matches.length > 0) {
+      await db.delete(cashEntries).where(eq(cashEntries.id, matches[0].id));
+    }
   }
 
   // Daily Cash

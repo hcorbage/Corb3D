@@ -899,6 +899,27 @@ export async function registerRoutes(
 
   app.delete("/api/order-payments/:id", requireAuth, async (req, res) => {
     const userId = req.session.userId!;
+    // Fetch payment first so we can cascade-delete related records
+    const payment = await storage.getOrderPaymentById(req.params.id);
+    if (payment) {
+      // 1. Remove the matching cash_entry generated when this payment was created
+      if (payment.calculationId) {
+        await storage.deleteCashEntryByPayment(
+          payment.calculationId, payment.amount, payment.date, payment.userId
+        );
+      }
+      // 2. Recalculate order_financial after removing this payment
+      const of = await storage.getOrderFinancialByCalculationId(payment.calculationId!, userId);
+      if (of) {
+        const newPaid = Math.max(0, of.amountPaid - payment.amount);
+        const newPending = Math.max(0, of.totalAmount - newPaid);
+        const newStatus = newPending <= 0 ? "pago" : newPaid > 0 ? "parcial" : "pendente";
+        await storage.updateOrderFinancial(of.id, of.userId, {
+          amountPaid: newPaid, amountPending: newPending, status: newStatus,
+        });
+      }
+    }
+    // 3. Delete the payment record itself
     await storage.deleteOrderPayment(req.params.id, userId);
     res.json({ success: true });
   });
@@ -1098,6 +1119,24 @@ export async function registerRoutes(
       for (const user of adminUsers) {
         try {
           const userSettings = await storage.getSettings(user.id);
+
+          // ── Close stale open cashes from past dates ─────────────────────
+          const allCashes = await storage.getDailyCashList(user.id);
+          const staleCashes = allCashes.filter(dc => dc.status === "aberto" && dc.date < today);
+          for (const stale of staleCashes) {
+            const staleEntries = await storage.getCashEntries(user.id);
+            const staleDayEntries = staleEntries.filter((e: any) => e.date === stale.date && e.status !== "cancelado");
+            const staleIn = staleDayEntries.filter((e: any) => e.type === "entrada").reduce((s: number, e: any) => s + e.amount, 0);
+            const staleOut = staleDayEntries.filter((e: any) => e.type === "saida").reduce((s: number, e: any) => s + e.amount, 0);
+            const staleBalance = stale.openingBalance + staleIn - staleOut;
+            await storage.updateDailyCash(stale.id, user.id, {
+              status: "fechado", totalIn: staleIn, totalOut: staleOut,
+              closingBalance: staleBalance, closedAt: now.toISOString(),
+              closeType: "automatico", closedByName: null, closedByUserId: null,
+              notes: (stale.notes ? stale.notes + "\n" : "") + "Fechado automaticamente (caixa de data anterior não encerrado).",
+            });
+            console.log(`[AutoClose] Caixa órfão de ${stale.date} (${user.username}) fechado automaticamente.`);
+          }
 
           // ── Auto-open ──────────────────────────────────────────────────────
           if (userSettings.caixaAutoOpenEnabled && userSettings.caixaAutoOpenTime) {
