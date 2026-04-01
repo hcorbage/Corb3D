@@ -1,6 +1,6 @@
 import { 
   clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
-  orderFinancials, orderPayments, dailyCash, userPermissions,
+  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -15,6 +15,7 @@ import {
   type OrderFinancial, type InsertOrderFinancial,
   type OrderPayment, type InsertOrderPayment,
   type DailyCash, type InsertDailyCash,
+  type AuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, inArray, sql } from "drizzle-orm";
@@ -126,6 +127,10 @@ export interface IStorage {
   // Reset
   resetCompanyData(userId: string): Promise<void>;
   resetAllCompaniesData(masterAdminId: string): Promise<void>;
+
+  // Audit
+  createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string }): Promise<AuditLog>;
+  getAuditLogs(): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -566,6 +571,23 @@ export class DatabaseStorage implements IStorage {
     for (const u of allAdminUsers) {
       await this.resetCompanyData(u.id);
     }
+  }
+
+  async createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string }): Promise<AuditLog> {
+    const [row] = await db.insert(auditLogs).values({
+      executedByUserId: entry.executedByUserId,
+      executedByUsername: entry.executedByUsername,
+      action: entry.action,
+      targetUserId: entry.targetUserId ?? null,
+      targetUsername: entry.targetUsername ?? null,
+      details: entry.details ?? null,
+      createdAt: new Date().toISOString(),
+    }).returning();
+    return row;
+  }
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    return db.select().from(auditLogs).orderBy(sql`created_at DESC`);
   }
 }
 

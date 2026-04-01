@@ -592,6 +592,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Empresa não encontrada ou protegida." });
       }
       await storage.resetCompanyData(targetUserId);
+      await storage.createAuditLog({
+        executedByUserId: req.session.userId!,
+        executedByUsername: req.session.username!,
+        action: "reset_company",
+        targetUserId: targetUser.id,
+        targetUsername: targetUser.username,
+        details: `Reset de dados da empresa "${targetUser.username}" executado pelo super admin.`,
+      });
       res.json({ ok: true, message: `Dados da empresa "${targetUser.username}" apagados com sucesso.` });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -612,6 +620,12 @@ export async function registerRoutes(
       const passwordMatch = await bcrypt.compare(password, masterUser.password);
       if (!passwordMatch) return res.status(403).json({ message: "Senha incorreta." });
       await storage.resetAllCompaniesData(req.session.userId!);
+      await storage.createAuditLog({
+        executedByUserId: req.session.userId!,
+        executedByUsername: req.session.username!,
+        action: "reset_system",
+        details: "Reset global do sistema executado pelo super admin — dados de todas as empresas apagados.",
+      });
       res.json({ ok: true, message: "Todos os dados de empresas foram apagados com sucesso." });
     } catch (e: any) {
       res.status(500).json({ message: e.message });

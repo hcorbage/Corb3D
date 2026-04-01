@@ -280,3 +280,16 @@ export type OrderPayment = typeof orderPayments.$inferSelect;
 export type InsertOrderPayment = z.infer<typeof insertOrderPaymentSchema>;
 export type DailyCash = typeof dailyCash.$inferSelect;
 export type InsertDailyCash = z.infer<typeof insertDailyCashSchema>;
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  executedByUserId: text("executed_by_user_id").notNull(),
+  executedByUsername: text("executed_by_username").notNull(),
+  action: text("action").notNull(),
+  targetUserId: text("target_user_id"),
+  targetUsername: text("target_username"),
+  details: text("details"),
+  createdAt: text("created_at").notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
