@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import session from "express-session";
 import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF, validateCNPJ } from "@shared/validators";
+import crypto from "crypto";
+import { sendPasswordResetEmail } from "./email";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
   const digits = raw.replace(/\D/g, "");
@@ -387,6 +389,69 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { identifier } = req.body;
+      if (!identifier || typeof identifier !== "string" || identifier.trim().length < 2) {
+        return res.status(400).json({ message: "Informe seu usuário ou email." });
+      }
+      const id = identifier.trim().toLowerCase();
+      const user = id.includes("@")
+        ? await storage.getUserByEmail(id)
+        : await storage.getUserByUsername(id);
+
+      const NEUTRAL_MSG = "Se existir uma conta com esses dados, enviamos um código de recuperação para o email cadastrado.";
+
+      if (!user || !user.email) {
+        return res.json({ ok: true, message: NEUTRAL_MSG });
+      }
+
+      await storage.deleteExpiredResetTokens();
+
+      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const tokenHash = crypto.createHash("sha256").update(code).digest("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      await storage.createResetToken(user.id, tokenHash, expiresAt);
+      await sendPasswordResetEmail(user.email, code);
+
+      return res.json({ ok: true, message: NEUTRAL_MSG });
+    } catch (e: any) {
+      return res.status(500).json({ message: "Erro ao processar a solicitação." });
+    }
+  });
+
+  app.post("/api/auth/confirm-reset-password", async (req, res) => {
+    try {
+      const { identifier, code, newPassword } = req.body;
+      if (!identifier || !code || !newPassword) {
+        return res.status(400).json({ message: "Todos os campos são obrigatórios." });
+      }
+      if (typeof newPassword !== "string" || newPassword.length < 6) {
+        return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
+      }
+
+      const tokenHash = crypto.createHash("sha256").update(code.trim().toUpperCase()).digest("hex");
+      const tokenRow = await storage.getValidResetToken(tokenHash);
+
+      if (!tokenRow) {
+        return res.status(400).json({ field: "code", message: "Código inválido ou já utilizado." });
+      }
+      if (new Date(tokenRow.expiresAt) < new Date()) {
+        return res.status(400).json({ field: "code", message: "Código expirado. Solicite um novo." });
+      }
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(tokenRow.userId, hashed);
+      await storage.setMustChangePassword(tokenRow.userId, false);
+      await storage.markResetTokenUsed(tokenRow.id);
+
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(500).json({ message: "Erro ao redefinir a senha." });
+    }
+  });
+
   app.post("/api/auth/accept-terms", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -520,6 +585,7 @@ export async function registerRoutes(
         passwordHint: null,
         cpf: cpf.replace(/\D/g, ''),
         birthdate: birthdate,
+        email: req.body.email ? req.body.email.trim().toLowerCase() : null,
         trial: true,
         trialStartedAt: now.toISOString(),
         trialEndsAt: trialEnds.toISOString(),

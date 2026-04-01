@@ -1,6 +1,6 @@
 import { 
   clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
-  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs,
+  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs, passwordResetTokens,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -77,6 +77,12 @@ export interface IStorage {
   updateSettings(userId: string, s: Partial<InsertSettings>): Promise<Settings>;
 
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserEmail(id: string, email: string): Promise<void>;
+  createResetToken(userId: string, tokenHash: string, expiresAt: string): Promise<void>;
+  getValidResetToken(tokenHash: string): Promise<{ id: string; userId: string; expiresAt: string } | undefined>;
+  markResetTokenUsed(id: string): Promise<void>;
+  deleteExpiredResetTokens(): Promise<void>;
   getUserById(id: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUserCount(): Promise<number>;
@@ -342,6 +348,42 @@ export class DatabaseStorage implements IStorage {
   }
   async updateUsername(id: string, username: string): Promise<void> {
     await db.update(users).set({ username }).where(eq(users.id, id));
+  }
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+  async updateUserEmail(id: string, email: string): Promise<void> {
+    await db.update(users).set({ email }).where(eq(users.id, id));
+  }
+  async createResetToken(userId: string, tokenHash: string, expiresAt: string): Promise<void> {
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, userId));
+    await db.insert(passwordResetTokens).values({
+      userId,
+      tokenHash,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  async getValidResetToken(tokenHash: string): Promise<{ id: string; userId: string; expiresAt: string } | undefined> {
+    const [row] = await db.select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          sql`${passwordResetTokens.usedAt} IS NULL`
+        )
+      );
+    return row ? { id: row.id, userId: row.userId, expiresAt: row.expiresAt } : undefined;
+  }
+  async markResetTokenUsed(id: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ usedAt: new Date().toISOString() })
+      .where(eq(passwordResetTokens.id, id));
+  }
+  async deleteExpiredResetTokens(): Promise<void> {
+    await db.delete(passwordResetTokens)
+      .where(sql`${passwordResetTokens.expiresAt} < ${new Date().toISOString()}`);
   }
   async deleteUser(id: string): Promise<void> {
     const emps = await db.select().from(employees).where(eq(employees.userId, id));

@@ -1,0 +1,121 @@
+Quero implementar recuperação de senha por TOKEN/CÓDIGO enviado por email, sem usar link de redefinição.
+
+OBJETIVO:
+Permitir que o usuário/empresa recupere a senha de forma segura usando um token temporário enviado para o email cadastrado.
+
+FLUXO DESEJADO:
+
+1) TELA DE LOGIN
+Adicionar a opção:
+- "Esqueci minha senha"
+
+Ao clicar:
+- abrir um formulário para o usuário informar:
+  - email cadastrado
+  OU
+  - login/username
+
+2) SOLICITAÇÃO DE RECUPERAÇÃO
+Quando o usuário enviar a solicitação:
+- o backend deve localizar a conta correspondente
+- se existir, gerar um token/código temporário
+- o token pode ser numérico ou alfanumérico (ex: 6 dígitos ou 6 caracteres)
+- salvar esse token de forma segura (preferencialmente hash do token)
+- definir expiração curta (ex: 15 minutos)
+- enviar esse token por email ao endereço cadastrado
+
+IMPORTANTE:
+A resposta da API deve ser neutra, por segurança.
+Exemplo:
+"Se existir uma conta com esses dados, enviamos um código de recuperação para o email cadastrado."
+
+Não revelar se a conta existe ou não.
+
+3) TELA DE REDEFINIÇÃO
+Após solicitar a recuperação, exibir uma tela/formulário com:
+- campo para token/código recebido por email
+- nova senha
+- confirmar nova senha
+
+4) BACKEND
+Criar endpoints como:
+- POST /api/auth/forgot-password
+- POST /api/auth/reset-password
+
+5) REGRAS DO TOKEN
+- token único
+- expiração obrigatória (ex: 15 minutos)
+- uso único
+- invalidar/remover após uso
+- limitar quantidade de solicitações por email/IP
+- limitar tentativas inválidas
+- não enviar senha por email
+- não usar link
+
+6) RESET DE SENHA
+Ao confirmar:
+- validar token
+- validar expiração
+- validar nova senha
+- salvar a nova senha com hash
+- invalidar o token
+- permitir login normal com a nova senha
+
+7) COMPATIBILIDADE
+- funcionar para admin/company_admin e employee
+- usar o email já cadastrado
+- não quebrar o login atual
+- não interferir no fluxo de primeiro acesso
+
+8) UX
+Na tela de login:
+- link "Esqueci minha senha"
+
+Na recuperação:
+- fluxo claro e simples
+- mensagens amigáveis
+- loading ao enviar
+- confirmação de envio
+- erro claro para:
+  - token inválido
+  - token expirado
+- sucesso claro quando a senha for redefinida
+
+TEXTO DO EMAIL:
+Assunto:
+Recuperação de senha
+
+Corpo:
+Olá,
+
+Recebemos uma solicitação para redefinir a senha da sua conta.
+
+Seu código de recuperação é:
+
+[CÓDIGO AQUI]
+
+Esse código expira em 15 minutos.
+
+Se você não solicitou a redefinição de senha, ignore este email.
+
+Atenciosamente,
+Equipe do sistema
+
+9) SEGURANÇA
+- não revelar se a conta existe
+- não enviar senha temporária
+- não salvar token puro, se possível salvar hash
+- registrar logs da operação, se fizer sentido
+
+10) VALIDAÇÃO FINAL
+Ao final, quero confirmação de:
+- onde o token é gerado
+- onde ele é salvo
+- tempo de expiração
+- como é invalidado
+- quais endpoints foram criados
+- como o email está sendo enviado
+- fluxo completo de ponta a ponta
+
+OBJETIVO FINAL:
+Ter recuperação de senha profissional e segura por token enviado por email, sem usar link e sem enviar senha temporária.

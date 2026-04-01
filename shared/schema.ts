@@ -113,6 +113,7 @@ export const users = pgTable("users", {
   mustChangePassword: boolean("must_change_password").notNull().default(false),
   cpf: text("cpf"),
   birthdate: text("birthdate"),
+  email: text("email"),
   role: text("role").notNull().default("company_admin"),
   companyId: text("company_id"),
   trial: boolean("trial").default(false),
@@ -125,6 +126,15 @@ export const users = pgTable("users", {
   acceptedPrivacy: boolean("accepted_privacy").default(false),
   acceptedPrivacyAt: text("accepted_privacy_at"),
   acceptedIp: text("accepted_ip"),
+});
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
