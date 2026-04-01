@@ -51,6 +51,18 @@ function requirePermission(module: string): RequestHandler {
   };
 }
 
+async function requireActiveAccount(req: Request, res: Response, next: NextFunction) {
+  if (req.session.isMasterAdmin) return next();
+  if (!req.session.userId) return next();
+  const dbUser = await storage.getUserById(req.session.userId);
+  if (!dbUser) return next();
+  const access = computeAccessData(dbUser);
+  if (access.blocked || access.trialExpired) {
+    return res.status(403).json({ message: "Acesso indisponível. Sua conta está expirada ou bloqueada." });
+  }
+  return next();
+}
+
 function getScopeId(req: Request): string {
   return req.session.companyId || req.session.userId!;
 }
@@ -493,6 +505,7 @@ export async function registerRoutes(
         trial: true,
         trialStartedAt: now.toISOString(),
         trialEndsAt: trialEnds.toISOString(),
+        accessStatus: "trial",
       };
       const user = await storage.createUser(userData);
       await seedMaterialsForUser(user.id);
@@ -637,14 +650,24 @@ export async function registerRoutes(
   });
 
   // ---- PROTECTED ROUTES ----
-  app.use("/api/clients", requireAuth);
-  app.use("/api/materials", requireAuth);
-  app.use("/api/stock-items", requireAuth);
-  app.use("/api/employees", requireAuth);
-  app.use("/api/calculations", requireAuth);
-  app.use("/api/settings", requireAuth);
-  app.use("/api/brands", requireAuth);
-  app.use("/api/backup", requireAuth);
+  app.use("/api/clients", requireAuth, requireActiveAccount);
+  app.use("/api/materials", requireAuth, requireActiveAccount);
+  app.use("/api/stock-items", requireAuth, requireActiveAccount);
+  app.use("/api/employees", requireAuth, requireActiveAccount);
+  app.use("/api/calculations", requireAuth, requireActiveAccount);
+  app.use("/api/settings", requireAuth, requireActiveAccount);
+  app.use("/api/brands", requireAuth, requireActiveAccount);
+  app.use("/api/backup", requireAuth, requireActiveAccount);
+  app.use("/api/financial", requireAuth, requireActiveAccount);
+  app.use("/api/client-financials", requireAuth, requireActiveAccount);
+  app.use("/api/order-financials", requireAuth, requireActiveAccount);
+  app.use("/api/order-payments", requireAuth, requireActiveAccount);
+  app.use("/api/daily-cash", requireAuth, requireActiveAccount);
+  app.use("/api/cash-entries", requireAuth, requireActiveAccount);
+  app.use("/api/cash-closings", requireAuth, requireActiveAccount);
+  app.use("/api/user-permissions", requireAuth, requireActiveAccount);
+  app.use("/api/cep", requireAuth, requireActiveAccount);
+  app.use("/api/cnpj", requireAuth, requireActiveAccount);
 
   // ---- CLIENTS ----
   app.get("/api/clients", requirePermission("clientes"), async (req, res) => {
