@@ -337,6 +337,17 @@ function MovementModal({
   );
 }
 
+const CASH_CLOSED_MARKER = "[CAIXA FECHADO]";
+
+function parseCashClosedNotes(raw: string): { userNotes: string; auditLine: string; isCashClosed: boolean } {
+  if (!raw?.includes(CASH_CLOSED_MARKER)) return { userNotes: raw || "", auditLine: "", isCashClosed: false };
+  const sepIdx = raw.indexOf(` | ${CASH_CLOSED_MARKER}`);
+  if (sepIdx !== -1) {
+    return { userNotes: raw.slice(0, sepIdx).trim(), auditLine: raw.slice(sepIdx + 3).trim(), isCashClosed: true };
+  }
+  return { userNotes: "", auditLine: raw.trim(), isCashClosed: true };
+}
+
 function HistoryModal({
   item,
   materialName,
@@ -348,6 +359,7 @@ function HistoryModal({
 }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"todos" | "sem_financeiro">("todos");
 
   useEffect(() => {
     fetch(`/api/stock-movements/${item.id}`)
@@ -363,9 +375,14 @@ function HistoryModal({
     pedido: { label: "Pedido", color: "bg-purple-100 text-purple-700" },
   };
 
+  const cashClosedCount = movements.filter((m) => m.notes?.includes(CASH_CLOSED_MARKER)).length;
+  const filtered = filter === "sem_financeiro"
+    ? movements.filter((m) => m.notes?.includes(CASH_CLOSED_MARKER))
+    : movements;
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg border border-card-border max-h-[80vh] flex flex-col">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg border border-card-border max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
           <div>
             <h2 className="font-semibold text-base flex items-center gap-2"><History className="w-4 h-4" />Histórico de Movimentações</h2>
@@ -373,25 +390,57 @@ function HistoryModal({
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground"><X className="w-4 h-4" /></button>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4">
+
+        {/* Filter bar */}
+        <div className="px-6 pt-3 pb-2 flex gap-2 flex-shrink-0">
+          <button
+            onClick={() => setFilter("todos")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === "todos" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-secondary/80"}`}
+            data-testid="filter-movements-todos"
+          >
+            Todos ({movements.length})
+          </button>
+          <button
+            onClick={() => setFilter("sem_financeiro")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${filter === "sem_financeiro" ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"}`}
+            data-testid="filter-movements-sem-financeiro"
+          >
+            <AlertTriangle className="w-3 h-3" />
+            Sem lançamento financeiro {cashClosedCount > 0 && <span className={`${filter === "sem_financeiro" ? "bg-white/30" : "bg-amber-200"} rounded-full px-1.5 py-0 text-[10px] font-bold`}>{cashClosedCount}</span>}
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-6 py-2">
           {loading ? (
             <p className="text-center text-muted-foreground text-sm py-8">Carregando...</p>
-          ) : movements.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">
               <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p>Nenhuma movimentação registrada.</p>
-              <p className="text-xs mt-1">Use os botões de Entrada/Saída/Ajuste para registrar movimentos.</p>
+              {filter === "sem_financeiro"
+                ? <p>Nenhuma movimentação sem lançamento financeiro.</p>
+                : <><p>Nenhuma movimentação registrada.</p><p className="text-xs mt-1">Use os botões de Entrada/Saída/Ajuste para registrar movimentos.</p></>
+              }
             </div>
           ) : (
-            <div className="space-y-2">
-              {movements.map((m) => {
+            <div className="space-y-2 pb-2">
+              {filtered.map((m) => {
                 const cfg = typeCfg[m.type] || { label: m.type, color: "bg-gray-100 text-gray-700" };
                 const direction = m.type === "entrada" ? "+" : m.type === "saida" ? "-" : "→";
                 const qtyColor = m.type === "entrada" ? "text-emerald-600" : m.type === "saida" ? "text-red-600" : "text-blue-600";
+                const { userNotes, auditLine, isCashClosed } = parseCashClosedNotes(m.notes || "");
                 return (
-                  <div key={m.id} className="flex items-start gap-3 p-3 rounded-xl border border-border hover:bg-secondary/20 transition-colors" data-testid={`row-movement-${m.id}`}>
-                    <div className="flex-shrink-0 pt-0.5">
+                  <div
+                    key={m.id}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${isCashClosed ? "border-amber-300 bg-amber-50/60 hover:bg-amber-50" : "border-border hover:bg-secondary/20"}`}
+                    data-testid={`row-movement-${m.id}`}
+                  >
+                    <div className="flex-shrink-0 pt-0.5 flex flex-col gap-1 items-start">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
+                      {isCashClosed && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-800 flex items-center gap-0.5 whitespace-nowrap">
+                          <AlertTriangle className="w-2.5 h-2.5" />sem caixa
+                        </span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -400,10 +449,15 @@ function HistoryModal({
                         </span>
                         <span className="text-xs text-muted-foreground">{m.date}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5 flex gap-3">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         <span>{formatQty(m.previousQuantity)} → {formatQty(m.newQuantity)}</span>
                       </div>
-                      {m.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{m.notes}</p>}
+                      {userNotes && <p className="text-xs text-muted-foreground mt-1 truncate">{userNotes}</p>}
+                      {isCashClosed && auditLine && (
+                        <p className="text-[10px] text-amber-700 bg-amber-100 rounded px-2 py-1 mt-1.5 leading-relaxed">
+                          {auditLine.replace(CASH_CLOSED_MARKER, "").trim()}
+                        </p>
+                      )}
                       {m.triggeredBy === "pedido" && <p className="text-xs text-purple-600 mt-0.5">Gerado por pedido</p>}
                     </div>
                   </div>
