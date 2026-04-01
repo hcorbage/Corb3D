@@ -21,6 +21,15 @@ function formatCPF_CNPJ(value: string) {
 }
 function formatCEP(value: string) { return value.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2"); }
 function formatPhone(value: string) { return value.replace(/\D/g, "").replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3"); }
+function generateLoginPreview(name: string, birthdate: string): string {
+  const parts = name.trim().split(/\s+/).filter(p => p.length > 0);
+  if (parts.length === 0 || !birthdate) return '';
+  const first = parts[0].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+  const year = new Date(birthdate + 'T12:00:00').getFullYear();
+  if (isNaN(year)) return '';
+  return `${first}${last}${year}`;
+}
 
 export default function Settings() {
   const { settings, updateSettings, printers, clients, inventory, stockItems, history, employees, addEmployee, updateEmployee, deleteEmployee, loadBackup } = useAppState();
@@ -1007,8 +1016,17 @@ export default function Settings() {
                 </div>
               </div>
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-xs text-blue-700">
-                <Info className="w-4 h-4 inline mr-1" />
-                O login será gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento (ex: hc1990). A senha será gerada e exibida para envio via WhatsApp.
+                <div className="flex items-start gap-1">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <span>Login gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento. A senha será exibida para envio via WhatsApp.</span>
+                    {generateLoginPreview(empForm.name, empForm.birthdate) && (
+                      <div className="mt-1.5 font-semibold">
+                        Login previsto: <span className="font-mono bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{generateLoginPreview(empForm.name, empForm.birthdate)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <button
                 data-testid="button-add-employee"
@@ -1418,8 +1436,17 @@ export default function Settings() {
                 </div>
               </div>
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-xs text-blue-700">
-                <Info className="w-4 h-4 inline mr-1" />
-                O login será gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento (ex: hc1990). As credenciais serão exibidas após o cadastro.
+                <div className="flex items-start gap-1">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <span>Login gerado automaticamente: iniciais do nome/sobrenome + ano de nascimento. As credenciais serão exibidas após o cadastro.</span>
+                    {generateLoginPreview(userForm.name, userForm.birthdate) && (
+                      <div className="mt-1.5 font-semibold">
+                        Login previsto: <span className="font-mono bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{generateLoginPreview(userForm.name, userForm.birthdate)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="border-t border-border/50 pt-4">
                 <h4 className="text-sm font-semibold mb-3 text-gray-700">Credenciais de Acesso</h4>
