@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { validateCPF_CNPJ } from "@shared/validators";
+import { useCNPJLookup } from "@/hooks/useCNPJLookup";
 
 const clientSchema = z.object({
   name: z.string().min(3, "Nome é obrigatório"),
@@ -86,6 +87,8 @@ export default function Clients() {
     }
   });
 
+  const clientCNPJ = useCNPJLookup();
+
   const filteredClients = clients.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.document.includes(searchTerm)
@@ -138,12 +141,14 @@ export default function Clients() {
   const openNewClientModal = () => {
     setEditingClient(null);
     reset({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
+    clientCNPJ.reset();
     setIsModalOpen(true);
   };
 
   const openEditClientModal = (client: Client) => {
     setEditingClient(client);
     reset({ name: client.name, document: client.document, email: client.email || "", whatsapp: client.whatsapp, cep: client.cep, street: client.street, number: client.number, complement: client.complement, neighborhood: client.neighborhood, city: client.city, uf: client.uf });
+    clientCNPJ.reset();
     setIsModalOpen(true);
   };
 
@@ -317,14 +322,49 @@ export default function Clients() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">CPF / CNPJ *</label>
-                <input
-                  {...register("document")}
-                  onChange={e => setValue("document", formatCPF_CNPJ(e.target.value), { shouldDirty: true })}
-                  onBlur={() => trigger("document")}
-                  maxLength={18}
-                  className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${errors.document ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/50"}`}
-                />
+                <div className="relative">
+                  <input
+                    {...register("document")}
+                    onChange={e => { setValue("document", formatCPF_CNPJ(e.target.value), { shouldDirty: true }); clientCNPJ.reset(); }}
+                    onBlur={async e => {
+                      await trigger("document");
+                      const val = e.target.value;
+                      const digits = val.replace(/\D/g, "");
+                      if (digits.length === 14 && validateCPF_CNPJ(val).valid) {
+                        clientCNPJ.lookup(val, (d) => {
+                          const getVal = (field: keyof ClientFormValues) => {
+                            const el = document.querySelector<HTMLInputElement>(`[name="${field}"]`);
+                            return el?.value || "";
+                          };
+                          const filled: string[] = [];
+                          if (!getVal("name") && d.name) { setValue("name", d.tradeName || d.name, { shouldDirty: true }); filled.push("Nome"); }
+                          if (!getVal("email") && d.email) { setValue("email", d.email, { shouldDirty: true }); filled.push("E-mail"); }
+                          if (!getVal("whatsapp") && d.phone) { setValue("whatsapp", d.phone, { shouldDirty: true }); filled.push("WhatsApp"); }
+                          if (d.cep) { setValue("cep", d.cep, { shouldDirty: true }); filled.push("CEP"); }
+                          if (d.street) { setValue("street", d.street, { shouldDirty: true }); filled.push("Rua"); }
+                          if (d.number) { setValue("number", d.number, { shouldDirty: true }); filled.push("Número"); }
+                          if (d.complement) { setValue("complement", d.complement, { shouldDirty: true }); }
+                          if (d.neighborhood) { setValue("neighborhood", d.neighborhood, { shouldDirty: true }); filled.push("Bairro"); }
+                          if (d.city) { setValue("city", d.city, { shouldDirty: true }); filled.push("Cidade"); }
+                          if (d.uf) { setValue("uf", d.uf, { shouldDirty: true }); filled.push("UF"); }
+                          return filled;
+                        });
+                      }
+                    }}
+                    maxLength={18}
+                    className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors pr-8 ${errors.document ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/50"}`}
+                  />
+                  {clientCNPJ.loading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-500 animate-pulse">⏳</span>
+                  )}
+                </div>
                 {errors.document && <span className="text-[10px] text-destructive">{errors.document.message}</span>}
+                {clientCNPJ.error && <span className="text-[10px] text-amber-600">{clientCNPJ.error}</span>}
+                {clientCNPJ.filled.length > 0 && (
+                  <p className="text-[10px] text-green-600">✓ Preenchido: {clientCNPJ.filled.join(", ")}
+                    {clientCNPJ.data?.status && <span className={`ml-2 px-1 rounded text-[9px] font-semibold ${clientCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{clientCNPJ.data.status}</span>}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">WhatsApp</label>

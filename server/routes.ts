@@ -956,6 +956,53 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/cnpj/:cnpj", requireAuth as RequestHandler, async (req: Request, res: Response) => {
+    const cnpj = req.params.cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) return res.status(400).json({ message: "CNPJ inválido." });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (response.status === 404) return res.status(404).json({ message: "CNPJ não encontrado na base da Receita Federal." });
+      if (!response.ok) return res.status(502).json({ message: "Serviço de consulta indisponível. Tente novamente." });
+      const d = await response.json();
+
+      const formatPhone = (raw: string) => {
+        if (!raw) return "";
+        const digits = raw.replace(/\D/g, "");
+        if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+        if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return raw.trim();
+      };
+
+      const cleanCEP = (raw: string) => {
+        if (!raw) return "";
+        const digits = raw.replace(/\D/g, "");
+        return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : raw;
+      };
+
+      return res.json({
+        name: d.razao_social || "",
+        tradeName: d.nome_fantasia || "",
+        email: (d.email || "").toLowerCase(),
+        phone: formatPhone(d.ddd_telefone_1 || ""),
+        cep: cleanCEP(d.cep || ""),
+        street: d.logradouro || "",
+        number: d.numero || "",
+        complement: d.complemento || "",
+        neighborhood: d.bairro || "",
+        city: d.municipio || "",
+        uf: d.uf || "",
+        status: d.descricao_situacao_cadastral || "",
+        active: d.codigo_situacao_cadastral === 2,
+      });
+    } catch (e: any) {
+      if (e.name === "AbortError") return res.status(504).json({ message: "Tempo de resposta esgotado. Tente novamente." });
+      return res.status(502).json({ message: "Erro ao consultar CNPJ. Verifique sua conexão." });
+    }
+  });
+
   // Financial Dashboard Summary
   app.get("/api/financial/summary", requirePermission("financeiro"), async (req, res) => {
     const userId = getScopeId(req);

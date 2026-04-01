@@ -1,0 +1,66 @@
+Quero implementar autopreenchimento por API para CNPJ no sistema, aproveitando os campos já existentes no formulário de cadastro.
+
+OBJETIVO:
+Quando o usuário digitar um CNPJ válido e sair do campo, o sistema deve consultar uma API externa e preencher automaticamente os dados da empresa.
+
+IMPORTANTE:
+- usar os campos reais já existentes no sistema
+- não criar campos duplicados
+- mapear os dados retornados da API para os inputs que já existem hoje no cadastro
+
+REGRAS:
+1. Validar o CNPJ antes da consulta
+- só consultar a API se o CNPJ for realmente válido
+- se for inválido, mostrar “CNPJ inválido”
+
+2. Fazer a consulta preferencialmente no backend
+- criar um endpoint interno, por exemplo:
+  /api/cnpj/:cnpj
+- o frontend chama apenas esse endpoint interno
+- não quero a API externa exposta diretamente no frontend
+
+3. Preencher automaticamente os campos existentes do formulário com os dados retornados, conforme disponibilidade:
+- razão social / nome da empresa
+- nome fantasia
+- email
+- telefone
+- CEP
+- logradouro
+- número
+- complemento
+- bairro
+- cidade
+- estado / UF
+- situação cadastral, se fizer sentido exibir
+
+4. UX
+- ao sair do campo CNPJ (onBlur), se o CNPJ for válido, iniciar a consulta
+- mostrar loading enquanto consulta
+- se encontrar dados, preencher automaticamente
+- se não encontrar, mostrar mensagem amigável
+- permitir edição manual depois do autopreenchimento
+- não sobrescrever campos já preenchidos sem critério; se necessário, apenas preencher os vazios ou avisar antes
+
+5. Segurança e robustez
+- tratar erro de API
+- tratar CNPJ não encontrado
+- tratar timeout/falha externa
+- manter o cadastro funcionando normalmente mesmo se a API externa falhar
+
+6. Escopo
+Aplicar isso onde houver cadastro de empresa/cliente com CNPJ no sistema.
+Se o formulário aceitar CPF ou CNPJ, fazer autopreenchimento apenas quando for CNPJ válido.
+Para CPF, não fazer consulta externa.
+
+7. Compatibilidade
+- não quebrar o fluxo atual
+- manter a validação real de CPF/CNPJ já implementada
+- não alterar os dados antigos
+- apenas melhorar a experiência de novos cadastros e edições
+
+8. Entrega
+Quero que você:
+- identifique quais campos do formulário atual correspondem aos dados retornados pela API
+- faça o mapeamento usando os nomes reais do sistema
+- implemente de forma limpa e profissional
+- me informe quais campos foram preenchidos automaticamente

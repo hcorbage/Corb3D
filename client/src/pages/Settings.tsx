@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF_CNPJ } from "@shared/validators";
+import { useCNPJLookup } from "@/hooks/useCNPJLookup";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -110,9 +111,11 @@ export default function Settings() {
   const [empModalOpen, setEmpModalOpen] = useState(false);
   const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
   const [empDocError, setEmpDocError] = useState("");
+  const empCNPJ = useCNPJLookup();
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
   const [userDocError, setUserDocError] = useState("");
+  const userCNPJ = useCNPJLookup();
   const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string; type?: 'employee' | 'user' } | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
@@ -995,17 +998,56 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">CPF/CNPJ *</label>
-                  <input
-                    data-testid="input-emp-document"
-                    type="text"
-                    value={empForm.document}
-                    onChange={e => { setEmpForm({ ...empForm, document: formatCPF_CNPJ(e.target.value) }); setEmpDocError(""); }}
-                    onBlur={e => { if (e.target.value) { const r = validateCPF_CNPJ(e.target.value); setEmpDocError(r.valid ? "" : r.message); } }}
-                    className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${empDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
-                    placeholder="000.000.000-00"
-                    maxLength={18}
-                  />
+                  <div className="relative">
+                    <input
+                      data-testid="input-emp-document"
+                      type="text"
+                      value={empForm.document}
+                      onChange={e => { setEmpForm({ ...empForm, document: formatCPF_CNPJ(e.target.value) }); setEmpDocError(""); empCNPJ.reset(); }}
+                      onBlur={e => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const r = validateCPF_CNPJ(val);
+                        setEmpDocError(r.valid ? "" : r.message);
+                        if (r.valid) {
+                          const digits = val.replace(/\D/g, "");
+                          if (digits.length === 14) {
+                            empCNPJ.lookup(val, (d) => {
+                              const filled: string[] = [];
+                              setEmpForm(prev => {
+                                const next = { ...prev };
+                                if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
+                                if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
+                                if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
+                                if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
+                                if (d.street) { next.street = d.street; filled.push("Rua"); }
+                                if (d.number) { next.number = d.number; filled.push("Número"); }
+                                if (d.complement) { next.complement = d.complement; }
+                                if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
+                                if (d.city) { next.city = d.city; filled.push("Cidade"); }
+                                if (d.uf) { next.uf = d.uf; filled.push("UF"); }
+                                return next;
+                              });
+                              return filled;
+                            });
+                          }
+                        }
+                      }}
+                      className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors pr-8 ${empDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
+                      placeholder="000.000.000-00"
+                      maxLength={18}
+                    />
+                    {empCNPJ.loading && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-500 animate-pulse">⏳</span>
+                    )}
+                  </div>
                   {empDocError && <p className="text-xs text-red-500 mt-1">{empDocError}</p>}
+                  {empCNPJ.error && <p className="text-xs text-amber-600 mt-1">{empCNPJ.error}</p>}
+                  {empCNPJ.filled.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">✓ Preenchido automaticamente: {empCNPJ.filled.join(", ")}
+                      {empCNPJ.data?.status && <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${empCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{empCNPJ.data.status}</span>}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">WhatsApp *</label>
@@ -1609,17 +1651,56 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">CPF/CNPJ *</label>
-                  <input
-                    data-testid="input-new-user-cpf"
-                    type="text"
-                    value={userForm.document}
-                    onChange={e => { setUserForm({ ...userForm, document: formatCPF_CNPJ(e.target.value) }); setUserDocError(""); }}
-                    onBlur={e => { if (e.target.value) { const r = validateCPF_CNPJ(e.target.value); setUserDocError(r.valid ? "" : r.message); } }}
-                    className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${userDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
-                    placeholder="000.000.000-00"
-                    maxLength={18}
-                  />
+                  <div className="relative">
+                    <input
+                      data-testid="input-new-user-cpf"
+                      type="text"
+                      value={userForm.document}
+                      onChange={e => { setUserForm({ ...userForm, document: formatCPF_CNPJ(e.target.value) }); setUserDocError(""); userCNPJ.reset(); }}
+                      onBlur={e => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const r = validateCPF_CNPJ(val);
+                        setUserDocError(r.valid ? "" : r.message);
+                        if (r.valid) {
+                          const digits = val.replace(/\D/g, "");
+                          if (digits.length === 14) {
+                            userCNPJ.lookup(val, (d) => {
+                              const filled: string[] = [];
+                              setUserForm(prev => {
+                                const next = { ...prev };
+                                if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
+                                if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
+                                if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
+                                if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
+                                if (d.street) { next.street = d.street; filled.push("Rua"); }
+                                if (d.number) { next.number = d.number; filled.push("Número"); }
+                                if (d.complement) { next.complement = d.complement; }
+                                if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
+                                if (d.city) { next.city = d.city; filled.push("Cidade"); }
+                                if (d.uf) { next.uf = d.uf; filled.push("UF"); }
+                                return next;
+                              });
+                              return filled;
+                            });
+                          }
+                        }
+                      }}
+                      className={`w-full bg-input border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors pr-8 ${userDocError ? "border-red-400 focus:ring-red-200" : "border-border focus:ring-primary/20"}`}
+                      placeholder="000.000.000-00"
+                      maxLength={18}
+                    />
+                    {userCNPJ.loading && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-500 animate-pulse">⏳</span>
+                    )}
+                  </div>
                   {userDocError && <p className="text-xs text-red-500 mt-1">{userDocError}</p>}
+                  {userCNPJ.error && <p className="text-xs text-amber-600 mt-1">{userCNPJ.error}</p>}
+                  {userCNPJ.filled.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">✓ Preenchido automaticamente: {userCNPJ.filled.join(", ")}
+                      {userCNPJ.data?.status && <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${userCNPJ.data.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{userCNPJ.data.status}</span>}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Data de Nascimento *</label>
