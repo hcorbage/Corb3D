@@ -599,6 +599,8 @@ export async function registerRoutes(
         targetUserId: targetUser.id,
         targetUsername: targetUser.username,
         details: `Reset de dados da empresa "${targetUser.username}" executado pelo super admin.`,
+        ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
       });
       res.json({ ok: true, message: `Dados da empresa "${targetUser.username}" apagados com sucesso.` });
     } catch (e: any) {
@@ -625,6 +627,8 @@ export async function registerRoutes(
         executedByUsername: req.session.username!,
         action: "reset_system",
         details: "Reset global do sistema executado pelo super admin — dados de todas as empresas apagados.",
+        ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
       });
       res.json({ ok: true, message: "Todos os dados de empresas foram apagados com sucesso." });
     } catch (e: any) {

@@ -289,6 +289,8 @@ export const auditLogs = pgTable("audit_logs", {
   targetUserId: text("target_user_id"),
   targetUsername: text("target_username"),
   details: text("details"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
   createdAt: text("created_at").notNull(),
 });
 

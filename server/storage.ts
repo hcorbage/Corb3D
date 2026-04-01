@@ -129,7 +129,7 @@ export interface IStorage {
   resetAllCompaniesData(masterAdminId: string): Promise<void>;
 
   // Audit
-  createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string }): Promise<AuditLog>;
+  createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog>;
   getAuditLogs(): Promise<AuditLog[]>;
 }
 
@@ -573,7 +573,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string }): Promise<AuditLog> {
+  async createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog> {
     const [row] = await db.insert(auditLogs).values({
       executedByUserId: entry.executedByUserId,
       executedByUsername: entry.executedByUsername,
@@ -581,6 +581,8 @@ export class DatabaseStorage implements IStorage {
       targetUserId: entry.targetUserId ?? null,
       targetUsername: entry.targetUsername ?? null,
       details: entry.details ?? null,
+      ipAddress: entry.ipAddress ?? null,
+      userAgent: entry.userAgent ?? null,
       createdAt: new Date().toISOString(),
     }).returning();
     return row;
