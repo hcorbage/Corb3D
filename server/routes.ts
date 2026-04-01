@@ -504,7 +504,7 @@ export async function registerRoutes(
 
   app.post("/api/stock-movements", async (req, res) => {
     try {
-      const { stockItemId, type, quantity, date, notes, triggeredBy, calculationId, generateCashEntry, purchaseValue, cashCategory } = req.body;
+      const { stockItemId, type, quantity, date, notes, triggeredBy, calculationId, generateCashEntry, purchaseValue, cashCategory, cashWasClosed } = req.body;
       if (!stockItemId || !type || !quantity || !date) {
         return res.status(400).json({ message: "Campos obrigatórios: stockItemId, type, quantity, date" });
       }
@@ -517,9 +517,26 @@ export async function registerRoutes(
       if (needsCashEntry && await isTodayCashClosed(req.session.userId!)) {
         return res.status(409).json({ cashClosed: true, message: "O caixa de hoje está fechado." });
       }
+
+      // Build audit note when user explicitly chose to proceed with cash closed
+      let finalNotes = notes || "";
+      if (cashWasClosed === true) {
+        const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const dd = String(nowBRT.getUTCDate()).padStart(2, "0");
+        const mm = String(nowBRT.getUTCMonth() + 1).padStart(2, "0");
+        const yyyy = nowBRT.getUTCFullYear();
+        const hh = String(nowBRT.getUTCHours()).padStart(2, "0");
+        const min = String(nowBRT.getUTCMinutes()).padStart(2, "0");
+        const valorFmt = purchaseValue && Number(purchaseValue) > 0
+          ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(purchaseValue))
+          : "";
+        const auditNote = `[CAIXA FECHADO] Movimentação confirmada com caixa fechado em ${dd}/${mm}/${yyyy} às ${hh}:${min} por ${req.session.username || "usuário"}.${valorFmt ? ` Lançamento financeiro de ${valorFmt} NÃO registrado no Livro Caixa.` : ""}`;
+        finalNotes = finalNotes ? `${finalNotes} | ${auditNote}` : auditNote;
+      }
+
       const result = await storage.createStockMovement(
         req.session.userId!, stockItemId, type, Number(quantity), date,
-        notes || "", triggeredBy || "manual", calculationId
+        finalNotes, triggeredBy || "manual", calculationId
       );
       if (needsCashEntry) {
         const stockItem = result.stockItem;

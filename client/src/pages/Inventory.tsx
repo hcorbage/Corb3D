@@ -74,7 +74,7 @@ function MovementModal({
   const [cashCategory, setCashCategory] = useState(CASH_CATEGORIES[0]);
   const [showCashClosedConfirm, setShowCashClosedConfirm] = useState(false);
 
-  const submitMovement = async (withCashEntry: boolean) => {
+  const submitMovement = async (withCashEntry: boolean, forceCashClosed = false) => {
     const qty = Number(quantity);
     setLoading(true);
     try {
@@ -91,6 +91,7 @@ function MovementModal({
           generateCashEntry: withCashEntry && cashEntry && type === "entrada",
           purchaseValue: cashEntry ? Number(purchaseValue) : 0,
           cashCategory,
+          cashWasClosed: forceCashClosed,
         }),
       });
       const data = await res.json();
@@ -102,8 +103,8 @@ function MovementModal({
       const { stockItem } = data;
       onSaved(stockItem);
       const typeLabel = type === "entrada" ? "Entrada" : type === "saida" ? "Saída" : "Ajuste";
-      if (!withCashEntry && cashEntry) {
-        toast({ title: `${typeLabel} registrada`, description: `Estoque atualizado. Lançamento financeiro não registrado (caixa fechado).`, variant: "destructive" });
+      if (forceCashClosed) {
+        toast({ title: `${typeLabel} registrada — caixa fechado`, description: `Estoque atualizado, mas o lançamento financeiro não foi registrado no Livro Caixa.`, variant: "destructive" });
       } else {
         toast({ title: `${typeLabel} registrada`, description: `${formatQty(qty)} ${type === "entrada" ? "adicionado(s) ao" : type === "saida" ? "removido(s) do" : "ajustado(s) no"} estoque.` });
       }
@@ -274,35 +275,61 @@ function MovementModal({
 
       {showCashClosedConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="bg-amber-50 border-b border-amber-200 px-5 py-4 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 text-sm">Caixa de hoje fechado</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  O lançamento de <strong>{cashEntry && purchaseValue ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(purchaseValue)) : ""}</strong> no Livro Caixa não poderá ser registrado.
-                </p>
-                <p className="text-sm text-gray-600 mt-2">Como deseja prosseguir?</p>
+                <h3 className="font-bold text-amber-900 text-sm">Caixa de hoje está fechado</h3>
+                <p className="text-amber-800 text-xs mt-0.5">Não é possível registrar lançamentos financeiros.</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <button
-                onClick={() => { setShowCashClosedConfirm(false); submitMovement(false); }}
-                disabled={loading}
-                className="w-full py-2.5 rounded-xl border-2 border-amber-400 text-amber-800 bg-amber-50 text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-60"
-              >
-                Atualizar estoque sem lançamento financeiro
-              </button>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm font-medium text-gray-800">O que acontece se você prosseguir:</p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-emerald-600 font-bold shrink-0 mt-0.5">✓</span>
+                  <span className="text-gray-700">A quantidade em estoque <strong>será atualizada</strong></span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-red-500 font-bold shrink-0 mt-0.5">✗</span>
+                  <span className="text-gray-700">
+                    O valor de{" "}
+                    <strong className="text-red-700">
+                      {cashEntry && purchaseValue && Number(purchaseValue) > 0
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(purchaseValue))
+                        : "compra"}
+                    </strong>{" "}
+                    <strong>NÃO será registrado</strong> no Livro Caixa
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-blue-500 font-bold shrink-0 mt-0.5">i</span>
+                  <span className="text-gray-600">A decisão ficará registrada no histórico de movimentações com data, hora e usuário responsável</span>
+                </div>
+              </div>
+              <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                Para registrar o valor financeiro, reabra o caixa antes de lançar a entrada de material.
+              </p>
+            </div>
+            <div className="px-5 pb-5 space-y-2">
               <button
                 onClick={() => setShowCashClosedConfirm(false)}
-                className="w-full py-2.5 rounded-xl border border-border text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors"
+                data-testid="button-cancel-cash-closed"
               >
-                Cancelar operação
+                Cancelar — não fazer nada
+              </button>
+              <button
+                onClick={() => { setShowCashClosedConfirm(false); submitMovement(false, true); }}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl border-2 border-amber-400 text-amber-800 bg-amber-50 text-xs font-medium hover:bg-amber-100 transition-colors disabled:opacity-60"
+                data-testid="button-proceed-without-cash"
+              >
+                {loading ? "Salvando..." : "Entendi o impacto — atualizar só o estoque"}
               </button>
             </div>
-            <p className="text-xs text-gray-400 text-center">Para registrar o valor financeiro, reabra o caixa antes de lançar a entrada de material.</p>
           </div>
         </div>
       )}
