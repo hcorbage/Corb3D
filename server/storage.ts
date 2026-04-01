@@ -1,6 +1,6 @@
 import { 
   clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
-  orderFinancials, orderPayments, dailyCash,
+  orderFinancials, orderPayments, dailyCash, userPermissions,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -115,6 +115,11 @@ export interface IStorage {
   getAnyOpenDailyCash(): Promise<{ id: string; userId: string; openingBalance: number; openedByName?: string | null } | undefined>;
   createDailyCash(dc: InsertDailyCash): Promise<DailyCash>;
   updateDailyCash(id: string, userId: string, data: Partial<InsertDailyCash>): Promise<DailyCash | undefined>;
+
+  // Permissions
+  getUserPermissions(userId: string): Promise<string[]>;
+  setUserPermissions(userId: string, modules: string[]): Promise<void>;
+  updateUserRoleAndCompany(id: string, role: string, companyId?: string | null): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -475,6 +480,24 @@ export class DatabaseStorage implements IStorage {
   async updateDailyCash(id: string, userId: string, data: Partial<InsertDailyCash>): Promise<DailyCash | undefined> {
     const [r] = await db.update(dailyCash).set(data).where(and(eq(dailyCash.id, id), eq(dailyCash.userId, userId))).returning();
     return r;
+  }
+
+  async getUserPermissions(userId: string): Promise<string[]> {
+    const perms = await db.select().from(userPermissions).where(eq(userPermissions.userId, userId));
+    return perms.map(p => p.module);
+  }
+
+  async setUserPermissions(userId: string, modules: string[]): Promise<void> {
+    await db.delete(userPermissions).where(eq(userPermissions.userId, userId));
+    if (modules.length > 0) {
+      await db.insert(userPermissions).values(modules.map(module => ({ userId, module })));
+    }
+  }
+
+  async updateUserRoleAndCompany(id: string, role: string, companyId?: string | null): Promise<void> {
+    const update: any = { role };
+    if (companyId !== undefined) update.companyId = companyId;
+    await db.update(users).set(update).where(eq(users.id, id));
   }
 }
 

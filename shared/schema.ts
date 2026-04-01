@@ -113,11 +113,23 @@ export const users = pgTable("users", {
   mustChangePassword: boolean("must_change_password").notNull().default(false),
   cpf: text("cpf"),
   birthdate: text("birthdate"),
+  role: text("role").notNull().default("company_admin"),
+  companyId: text("company_id"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export const userPermissions = pgTable("user_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  module: text("module").notNull(),
+});
+
+export const insertUserPermissionSchema = createInsertSchema(userPermissions).omit({ id: true });
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
 
 export const brands = pgTable("brands", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

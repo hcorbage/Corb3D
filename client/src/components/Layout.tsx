@@ -16,6 +16,7 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly: boolean;
+  module: string;
 };
 
 type NavGroup = {
@@ -23,6 +24,7 @@ type NavGroup = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly: boolean;
+  module: string;
   children: NavItem[];
 };
 
@@ -43,26 +45,27 @@ const FINANCIAL_HREFS = [
 ];
 
 const allNavEntries: NavEntry[] = [
-  { href: "/", label: "CALCULADORA", icon: Calculator, adminOnly: false },
-  { href: "/inventory", label: "ESTOQUE", icon: Package, adminOnly: true },
-  { href: "/clients", label: "CLIENTES", icon: Users, adminOnly: true },
-  { href: "/history", label: "HISTÓRICO", icon: History, adminOnly: false },
+  { href: "/", label: "CALCULADORA", icon: Calculator, adminOnly: false, module: "calculadora" },
+  { href: "/inventory", label: "ESTOQUE", icon: Package, adminOnly: true, module: "estoque" },
+  { href: "/clients", label: "CLIENTES", icon: Users, adminOnly: true, module: "clientes" },
+  { href: "/history", label: "HISTÓRICO", icon: History, adminOnly: false, module: "historico" },
   {
     id: "financeiro",
     label: "FINANCEIRO",
     icon: BarChart2,
     adminOnly: false,
+    module: "",
     children: [
-      { href: "/caixa-diario", label: "Caixa", icon: Wallet, adminOnly: true },
-      { href: "/financeiro", label: "Visão Geral", icon: LayoutDashboard, adminOnly: true },
-      { href: "/pedidos-financeiro", label: "Financeiro por Pedido", icon: DollarSign, adminOnly: true },
-      { href: "/commissions", label: "Comissões", icon: BadgeDollarSign, adminOnly: false },
-      { href: "/relatorio-clientes", label: "Rel. Clientes", icon: Users2, adminOnly: true },
-      { href: "/relatorios", label: "Relatórios", icon: FileText, adminOnly: true },
-      { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true },
+      { href: "/caixa-diario", label: "Caixa", icon: Wallet, adminOnly: true, module: "caixa_diario" },
+      { href: "/financeiro", label: "Visão Geral", icon: LayoutDashboard, adminOnly: true, module: "financeiro" },
+      { href: "/pedidos-financeiro", label: "Financeiro por Pedido", icon: DollarSign, adminOnly: true, module: "pedidos_financeiro" },
+      { href: "/commissions", label: "Comissões", icon: BadgeDollarSign, adminOnly: false, module: "comissoes" },
+      { href: "/relatorio-clientes", label: "Rel. Clientes", icon: Users2, adminOnly: true, module: "relatorio_clientes" },
+      { href: "/relatorios", label: "Relatórios", icon: FileText, adminOnly: true, module: "relatorios" },
+      { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true, module: "livro_caixa" },
     ],
   },
-  { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false },
+  { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false, module: "" },
 ];
 
 function NavLink({
@@ -101,14 +104,16 @@ function NavGroupItem({
   group,
   location,
   isAdmin,
+  hasPermission,
   onChildClick,
 }: {
   group: NavGroup;
   location: string;
   isAdmin: boolean;
+  hasPermission: (module: string) => boolean;
   onChildClick?: () => void;
 }) {
-  const visibleChildren = group.children.filter(c => !c.adminOnly || isAdmin);
+  const visibleChildren = group.children.filter(c => hasPermission(c.module));
   const isChildActive = visibleChildren.some(c => c.href === location);
   const [open, setOpen] = useState(isChildActive);
 
@@ -175,7 +180,7 @@ function ThemeToggleButton({ className = "" }: { className?: string }) {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { settings } = useAppState();
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasPermission } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -198,8 +203,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navEntries = useMemo(() =>
-    allNavEntries.filter(entry => !entry.adminOnly || isAdmin),
-    [isAdmin]
+    allNavEntries.filter(entry => {
+      if (isGroup(entry)) {
+        return entry.children.some(c => hasPermission(c.module));
+      }
+      return hasPermission(entry.module);
+    }),
+    [hasPermission]
   );
 
   const isFinancialActive = FINANCIAL_HREFS.includes(location);
@@ -207,22 +217,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const bottomNavItems: NavItem[] = useMemo(() => {
     const items: NavItem[] = [];
     for (const entry of allNavEntries) {
-      if (entry.adminOnly && !isAdmin) continue;
       if (isGroup(entry)) {
-        const visibleChildren = entry.children.filter(c => !c.adminOnly || isAdmin);
+        const visibleChildren = entry.children.filter(c => hasPermission(c.module));
         if (visibleChildren.length === 0) continue;
+        // Escolhe o primeiro filho visível como destino do ícone mobile
+        const firstVisibleHref = visibleChildren[0].href;
         items.push({
-          href: isAdmin ? "/financeiro" : "/commissions",
+          href: firstVisibleHref,
           label: "FINANCEIRO",
           icon: BarChart2,
           adminOnly: false,
+          module: "",
         });
       } else {
+        if (!hasPermission(entry.module)) continue;
         items.push(entry);
       }
     }
     return items;
-  }, [isAdmin]);
+  }, [hasPermission]);
 
   const renderSidebarNav = (closeFn?: () => void) => (
     <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
@@ -234,6 +247,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               group={entry}
               location={location}
               isAdmin={isAdmin}
+              hasPermission={hasPermission}
               onChildClick={closeFn}
             />
           );

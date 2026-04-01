@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield } from "lucide-react";
+import { PERMISSION_MODULES } from "@shared/modules";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -50,6 +51,39 @@ export default function Settings() {
   const [newUserCpf, setNewUserCpf] = useState("");
   const [newUserBirthdate, setNewUserBirthdate] = useState("");
   const [changePasswordHint, setChangePasswordHint] = useState("");
+  const [permissionsModal, setPermissionsModal] = useState<{ empName: string; linkedUserId: string; perms: string[] } | null>(null);
+  const [permsSaving, setPermsSaving] = useState(false);
+
+  const openPermissionsModal = async (emp: any) => {
+    if (!emp.linkedUserId) return;
+    try {
+      const r = await fetch(`/api/user-permissions/${emp.linkedUserId}`);
+      const d = await r.json();
+      setPermissionsModal({ empName: emp.name, linkedUserId: emp.linkedUserId, perms: d.permissions || [] });
+    } catch {
+      toast({ title: "Erro", description: "Não foi possível carregar permissões.", variant: "destructive" });
+    }
+  };
+
+  const savePermissions = async () => {
+    if (!permissionsModal) return;
+    setPermsSaving(true);
+    try {
+      const r = await fetch(`/api/user-permissions/${permissionsModal.linkedUserId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissions: permissionsModal.perms }),
+      });
+      if (!r.ok) throw new Error((await r.json()).message);
+      setPermissionsModal(null);
+      toast({ title: "Permissões salvas", description: `Permissões de ${permissionsModal.empName} atualizadas.` });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setPermsSaving(false);
+    }
+  };
+
   const [empModalOpen, setEmpModalOpen] = useState(false);
   const [empForm, setEmpForm] = useState({ name: "", document: "", email: "", whatsapp: "", commissionRate: "", birthdate: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "" });
   const [userModalOpen, setUserModalOpen] = useState(false);
@@ -861,6 +895,16 @@ export default function Settings() {
                           <Key className="w-4 h-4" />
                         </button>
                       )}
+                      {(emp as any).linkedUserId && (
+                        <button
+                          data-testid={`button-permissions-emp-${emp.id}`}
+                          onClick={() => openPermissionsModal(emp)}
+                          className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                          title="Gerenciar permissões"
+                        >
+                          <Shield className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         data-testid={`button-delete-emp-${emp.id}`}
                         onClick={() => {
@@ -1004,6 +1048,61 @@ export default function Settings() {
               >
                 <UserPlus className="w-5 h-5" />
                 Cadastrar Funcionário
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de permissões do funcionário */}
+        <Dialog open={!!permissionsModal} onOpenChange={(open) => { if (!open) setPermissionsModal(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                Permissões — {permissionsModal?.empName}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 mt-2">
+              <p className="text-xs text-muted-foreground mb-3">Selecione os módulos que este funcionário pode acessar:</p>
+              {PERMISSION_MODULES.map(mod => {
+                const checked = permissionsModal?.perms.includes(mod.key) ?? false;
+                return (
+                  <label
+                    key={mod.key}
+                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/40 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        if (!permissionsModal) return;
+                        const next = checked
+                          ? permissionsModal.perms.filter(p => p !== mod.key)
+                          : [...permissionsModal.perms, mod.key];
+                        setPermissionsModal({ ...permissionsModal, perms: next });
+                      }}
+                      className="w-4 h-4 accent-primary"
+                      data-testid={`checkbox-perm-${mod.key}`}
+                    />
+                    <span className="text-sm">{mod.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setPermissionsModal(null)}
+                className="px-4 py-2 rounded-xl border border-border text-sm hover:bg-secondary/40 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={savePermissions}
+                disabled={permsSaving}
+                data-testid="button-save-permissions"
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+              >
+                {permsSaving ? "Salvando..." : "Salvar"}
               </button>
             </div>
           </DialogContent>

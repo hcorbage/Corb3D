@@ -7,7 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 import { AppStateProvider } from "./context/AppState";
-import { AuthContext, useAuth, type AuthUser } from "./context/AuthContext";
+import { AuthContext, useAuth, buildAuthContext, type AuthUser } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Layout } from "./components/Layout";
 import Calculator from "./pages/Calculator";
@@ -174,7 +174,7 @@ function App() {
       .then(res => res.json().then(data => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
         if (ok) {
-          setUser({ id: data.id, username: data.username, isAdmin: data.isAdmin || false, isMasterAdmin: data.isMasterAdmin || false });
+          setUser({ id: data.id, username: data.username, isAdmin: data.isAdmin || false, isMasterAdmin: data.isMasterAdmin || false, role: data.role || "company_admin", companyId: data.companyId || data.id, permissions: data.permissions || [] });
         }
         setChecking(false);
       })
@@ -207,7 +207,7 @@ function App() {
             <Toaster />
             <Login
               onLogin={(u) => {
-                const authUser = { id: u.id, username: u.username, isAdmin: (u as any).isAdmin || false, isMasterAdmin: (u as any).isMasterAdmin || false };
+                const authUser = { id: u.id, username: u.username, isAdmin: (u as any).isAdmin || false, isMasterAdmin: (u as any).isMasterAdmin || false, role: (u as any).role || "company_admin", companyId: (u as any).companyId || u.id, permissions: (u as any).permissions || [] };
                 setUser(authUser);
                 if ((u as any).mustChangePassword) {
                   setMustChangePassword(true);
@@ -223,7 +223,7 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={user}>
+        <AuthContext.Provider value={buildAuthContext(user)}>
           <AppStateProvider>
             <TooltipProvider>
               <Toaster />

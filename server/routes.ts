@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import session from "express-session";
+import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/modules";
 
 declare module "express-session" {
   interface SessionData {
@@ -10,6 +11,9 @@ declare module "express-session" {
     username: string;
     isAdmin: boolean;
     isMasterAdmin: boolean;
+    role: string;
+    companyId: string;
+    permissions: string[];
   }
 }
 
@@ -20,6 +24,24 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   return res.status(401).json({ message: "Não autorizado" });
+}
+
+function requirePermission(module: string): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Não autorizado" });
+    if (req.session.isAdmin) return next();
+    let perms: string[] = req.session.permissions || [];
+    if (perms.length === 0) {
+      perms = await storage.getUserPermissions(req.session.userId);
+      req.session.permissions = perms;
+    }
+    if (perms.includes(module)) return next();
+    return res.status(403).json({ message: "Acesso não permitido para este módulo." });
+  };
+}
+
+function getScopeId(req: Request): string {
+  return req.session.companyId || req.session.userId!;
 }
 
 function stripUserId(body: any) {
@@ -204,11 +226,25 @@ export async function registerRoutes(
       }
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);
+
+      const role = user.role || (isAdmin ? (user.username === MASTER_ADMIN_USERNAME ? "super_admin" : "company_admin") : "employee");
+      let companyId = user.id;
+      let permissions: string[] = [];
+      if (!isAdmin) {
+        const empRecord = await storage.getEmployeeByLinkedUserId(user.id);
+        companyId = user.companyId || (empRecord ? empRecord.userId : user.id);
+        permissions = await storage.getUserPermissions(user.id);
+        if (permissions.length === 0) permissions = [...DEFAULT_EMPLOYEE_PERMISSIONS];
+      }
+
       req.session.userId = user.id;
       req.session.username = user.username;
       req.session.isAdmin = isAdmin;
       req.session.isMasterAdmin = user.username === MASTER_ADMIN_USERNAME;
-      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false });
+      req.session.role = role;
+      req.session.companyId = companyId;
+      req.session.permissions = permissions;
+      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -285,7 +321,7 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", async (req, res) => {
     if (req.session && req.session.userId) {
-      return res.json({ id: req.session.userId, username: req.session.username, isAdmin: req.session.isAdmin || false, isMasterAdmin: req.session.isMasterAdmin || false });
+      return res.json({ id: req.session.userId, username: req.session.username, isAdmin: req.session.isAdmin || false, isMasterAdmin: req.session.isMasterAdmin || false, role: req.session.role || "company_admin", companyId: req.session.companyId || req.session.userId, permissions: req.session.permissions || [] });
     }
     return res.status(401).json({ needsSetup: false });
   });
@@ -437,20 +473,20 @@ export async function registerRoutes(
   app.use("/api/backup", requireAuth);
 
   // ---- CLIENTS ----
-  app.get("/api/clients", async (req, res) => {
-    const data = await storage.getClients(req.session.userId!);
+  app.get("/api/clients", requirePermission("clientes"), async (req, res) => {
+    const data = await storage.getClients(getScopeId(req));
     res.json(data);
   });
-  app.post("/api/clients", async (req, res) => {
-    const client = await storage.createClient({ ...stripUserId(req.body), userId: req.session.userId! });
+  app.post("/api/clients", requirePermission("clientes"), async (req, res) => {
+    const client = await storage.createClient({ ...stripUserId(req.body), userId: getScopeId(req) });
     res.json(client);
   });
-  app.patch("/api/clients/:id", async (req, res) => {
-    const client = await storage.updateClient(req.params.id, req.session.userId!, stripUserId(req.body));
+  app.patch("/api/clients/:id", requirePermission("clientes"), async (req, res) => {
+    const client = await storage.updateClient(req.params.id, getScopeId(req), stripUserId(req.body));
     res.json(client);
   });
-  app.delete("/api/clients/:id", async (req, res) => {
-    await storage.deleteClient(req.params.id, req.session.userId!);
+  app.delete("/api/clients/:id", requirePermission("clientes"), async (req, res) => {
+    await storage.deleteClient(req.params.id, getScopeId(req));
     res.json({ ok: true });
   });
 
@@ -473,36 +509,34 @@ export async function registerRoutes(
   });
 
   // ---- STOCK ITEMS ----
-  app.get("/api/stock-items", async (req, res) => {
-    const data = await storage.getStockItems(req.session.userId!);
+  app.get("/api/stock-items", requirePermission("estoque"), async (req, res) => {
+    const data = await storage.getStockItems(getScopeId(req));
     res.json(data);
   });
-  app.post("/api/stock-items", async (req, res) => {
-    const item = await storage.createStockItem({ ...stripUserId(req.body), userId: req.session.userId! });
+  app.post("/api/stock-items", requirePermission("estoque"), async (req, res) => {
+    const item = await storage.createStockItem({ ...stripUserId(req.body), userId: getScopeId(req) });
     res.json(item);
   });
-  app.patch("/api/stock-items/:id", async (req, res) => {
-    const item = await storage.updateStockItem(req.params.id, req.session.userId!, stripUserId(req.body));
+  app.patch("/api/stock-items/:id", requirePermission("estoque"), async (req, res) => {
+    const item = await storage.updateStockItem(req.params.id, getScopeId(req), stripUserId(req.body));
     res.json(item);
   });
-  app.delete("/api/stock-items/:id", async (req, res) => {
-    await storage.deleteStockItem(req.params.id, req.session.userId!);
+  app.delete("/api/stock-items/:id", requirePermission("estoque"), async (req, res) => {
+    await storage.deleteStockItem(req.params.id, getScopeId(req));
     res.json({ ok: true });
   });
 
   // ---- STOCK MOVEMENTS ----
-  app.use("/api/stock-movements", requireAuth);
-
-  app.get("/api/stock-movements/:stockItemId", async (req, res) => {
+  app.get("/api/stock-movements/:stockItemId", requirePermission("estoque"), async (req, res) => {
     try {
-      const movements = await storage.getStockMovements(req.session.userId!, req.params.stockItemId);
+      const movements = await storage.getStockMovements(getScopeId(req), req.params.stockItemId);
       res.json(movements);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
   });
 
-  app.post("/api/stock-movements", async (req, res) => {
+  app.post("/api/stock-movements", requirePermission("estoque"), async (req, res) => {
     try {
       const { stockItemId, type, quantity, date, notes, triggeredBy, calculationId, generateCashEntry, purchaseValue, cashCategory, cashWasClosed } = req.body;
       if (!stockItemId || !type || !quantity || !date) {
@@ -514,7 +548,7 @@ export async function registerRoutes(
       }
       // Check cash status BEFORE saving anything — so user can decide without side effects
       const needsCashEntry = generateCashEntry && type === "entrada" && purchaseValue && Number(purchaseValue) > 0;
-      if (needsCashEntry && await isTodayCashClosed(req.session.userId!)) {
+      if (needsCashEntry && await isTodayCashClosed(getScopeId(req))) {
         return res.status(409).json({ cashClosed: true, message: "O caixa de hoje está fechado." });
       }
 
@@ -535,14 +569,14 @@ export async function registerRoutes(
       }
 
       const result = await storage.createStockMovement(
-        req.session.userId!, stockItemId, type, Number(quantity), date,
+        getScopeId(req), stockItemId, type, Number(quantity), date,
         finalNotes, triggeredBy || "manual", calculationId
       );
       if (needsCashEntry) {
         const stockItem = result.stockItem;
         const matDesc = `Compra de material: ${notes || stockItemId}`;
         await storage.createCashEntry({
-          userId: req.session.userId!,
+          userId: getScopeId(req),
           calculationId: null,
           clientName: "",
           projectName: "",
@@ -606,9 +640,10 @@ export async function registerRoutes(
         tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       const hashed = await bcrypt.hash(tempPassword, 10);
-      const user = await storage.createUser({ username, password: hashed, isAdmin: false, mustChangePassword: true });
+      const user = await storage.createUser({ username, password: hashed, isAdmin: false, mustChangePassword: true, role: "employee", companyId: req.session.userId! });
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);
+      await storage.setUserPermissions(user.id, [...DEFAULT_EMPLOYEE_PERMISSIONS]);
       
       await storage.updateEmployee(emp.id, req.session.userId!, { linkedUserId: user.id });
       
@@ -797,8 +832,8 @@ export async function registerRoutes(
   });
 
   // Financial Dashboard Summary
-  app.get("/api/financial/summary", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+  app.get("/api/financial/summary", requirePermission("financeiro"), async (req, res) => {
+    const userId = getScopeId(req);
     const [entries, ofs, dcs] = await Promise.all([
       storage.getCashEntries(userId),
       storage.getOrderFinancials(userId),
@@ -830,26 +865,23 @@ export async function registerRoutes(
   });
 
   // Order Financials
-  app.get("/api/client-financials", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const data = await storage.getClientFinancialsSummary(userId);
+  app.get("/api/client-financials", requirePermission("relatorio_clientes"), async (req, res) => {
+    const data = await storage.getClientFinancialsSummary(getScopeId(req));
     res.json(data);
   });
 
-  app.get("/api/order-financials", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const data = await storage.getOrderFinancials(userId);
+  app.get("/api/order-financials", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const data = await storage.getOrderFinancials(getScopeId(req));
     res.json(data);
   });
 
-  app.get("/api/order-financials/by-calc/:calcId", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const data = await storage.getOrderFinancialByCalculationId(req.params.calcId, userId);
+  app.get("/api/order-financials/by-calc/:calcId", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const data = await storage.getOrderFinancialByCalculationId(req.params.calcId, getScopeId(req));
     res.json(data || null);
   });
 
-  app.post("/api/order-financials", requireAuth, async (req, res) => {
-    const sellerUserId = req.session.userId!;
+  app.post("/api/order-financials", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const sellerUserId = getScopeId(req);
     const sellerName = req.session.username || "";
     const body = stripUserId(req.body);
     // Idempotent: don't create duplicate for same calculationId (global search)
@@ -869,8 +901,8 @@ export async function registerRoutes(
     res.json(of);
   });
 
-  app.patch("/api/order-financials/:id", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+  app.patch("/api/order-financials/:id", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const userId = getScopeId(req);
     const body = stripUserId(req.body);
     if ("dueDate" in body) body.dueDate = body.dueDate && body.dueDate.trim() ? body.dueDate.trim() : null;
     const updated = await storage.updateOrderFinancial(req.params.id, userId, body);
@@ -879,14 +911,13 @@ export async function registerRoutes(
   });
 
   // Order Payments
-  app.get("/api/order-payments/:orderFinancialId", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const data = await storage.getOrderPayments(userId, req.params.orderFinancialId);
+  app.get("/api/order-payments/:orderFinancialId", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const data = await storage.getOrderPayments(getScopeId(req), req.params.orderFinancialId);
     res.json(data);
   });
 
-  app.post("/api/order-payments", requireAuth, async (req, res) => {
-    const sellerUserId = req.session.userId!;
+  app.post("/api/order-payments", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const sellerUserId = getScopeId(req);
     if (await isTodayCashClosed(sellerUserId)) {
       return res.status(409).json({ message: "O caixa de hoje está fechado. Reabra o caixa para registrar recebimentos." });
     }
@@ -929,8 +960,8 @@ export async function registerRoutes(
     res.json(op);
   });
 
-  app.delete("/api/order-payments/:id", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+  app.delete("/api/order-payments/:id", requirePermission("pedidos_financeiro"), async (req, res) => {
+    const userId = getScopeId(req);
     // Fetch payment first so we can cascade-delete related records
     const payment = await storage.getOrderPaymentById(req.params.id);
     if (payment) {
@@ -957,15 +988,14 @@ export async function registerRoutes(
   });
 
   // Daily Cash
-  app.get("/api/daily-cash", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const data = await storage.getDailyCashList(userId);
+  app.get("/api/daily-cash", requirePermission("caixa_diario"), async (req, res) => {
+    const data = await storage.getDailyCashList(getScopeId(req));
     res.json(data);
   });
 
   // Lightweight status endpoint — accessible to all authenticated users (e.g. Calculator indicator)
   app.get("/api/daily-cash/status", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const userId = getScopeId(req);
     const BRAZIL_OFFSET_MS = -3 * 60 * 60 * 1000;
     const brazilNow = new Date(Date.now() + BRAZIL_OFFSET_MS);
     const today = brazilNow.toISOString().slice(0, 10);
@@ -980,7 +1010,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/daily-cash/today", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const userId = getScopeId(req);
     const today = new Date().toISOString().slice(0, 10);
     let data = await storage.getTodayDailyCash(userId, today);
     // Auto-open logic: only for admin users
@@ -1006,9 +1036,9 @@ export async function registerRoutes(
     res.json(data || null);
   });
 
-  app.post("/api/daily-cash/open", requireAuth, async (req, res) => {
+  app.post("/api/daily-cash/open", requirePermission("caixa_diario"), async (req, res) => {
     if (!req.session.isAdmin) return res.status(403).json({ message: "Apenas administradores podem abrir o caixa." });
-    const userId = req.session.userId!;
+    const userId = getScopeId(req);
     const today = new Date().toISOString().slice(0, 10);
     const existing = await storage.getTodayDailyCash(userId, today);
     if (existing) return res.status(400).json({ message: "Caixa já aberto para hoje." });
@@ -1024,9 +1054,9 @@ export async function registerRoutes(
     res.json(dc);
   });
 
-  app.post("/api/daily-cash/:id/reopen", requireAuth, async (req, res) => {
+  app.post("/api/daily-cash/:id/reopen", requirePermission("caixa_diario"), async (req, res) => {
     if (!req.session.isAdmin) return res.status(403).json({ message: "Apenas administradores podem reabrir o caixa." });
-    const userId = req.session.userId!;
+    const userId = getScopeId(req);
     const dc = await storage.getDailyCashList(userId).then(list => list.find(d => d.id === req.params.id));
     if (!dc) return res.status(404).json({ message: "Caixa não encontrado" });
     if (dc.status !== "fechado") return res.status(400).json({ message: "Caixa não está fechado." });
@@ -1039,9 +1069,9 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.patch("/api/daily-cash/:id/close", requireAuth, async (req, res) => {
+  app.patch("/api/daily-cash/:id/close", requirePermission("caixa_diario"), async (req, res) => {
     if (!req.session.isAdmin) return res.status(403).json({ message: "Apenas administradores podem fechar o caixa." });
-    const userId = req.session.userId!;
+    const userId = getScopeId(req);
     const closedByUserId = req.session.userId!;
     const closedByName = req.session.username || "";
     const { reportedBalance, notes } = req.body;
@@ -1069,15 +1099,14 @@ export async function registerRoutes(
   });
 
   // Cash Entries
-  app.get("/api/cash-entries", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const entries = await storage.getCashEntries(userId);
+  app.get("/api/cash-entries", requirePermission("livro_caixa"), async (req, res) => {
+    const entries = await storage.getCashEntries(getScopeId(req));
     res.json(entries);
   });
 
-  app.post("/api/cash-entries", requireAuth, async (req, res) => {
+  app.post("/api/cash-entries", requirePermission("livro_caixa"), async (req, res) => {
     try {
-      const sellerUserId = req.session.userId!;
+      const sellerUserId = getScopeId(req);
       const sellerName = req.session.username || "";
       const body = stripUserId(req.body);
       body.type = normalizeCashType(body.type);
@@ -1098,9 +1127,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/cash-entries/:id", requireAuth, async (req, res) => {
+  app.patch("/api/cash-entries/:id", requirePermission("livro_caixa"), async (req, res) => {
     try {
-      const userId = req.session.userId!;
+      const userId = getScopeId(req);
       const body = stripUserId(req.body);
       if (body.type !== undefined) body.type = normalizeCashType(body.type);
       const updated = await storage.updateCashEntry(req.params.id, userId, body);
@@ -1111,21 +1140,19 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/cash-entries/:id", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    await storage.deleteCashEntry(req.params.id, userId);
+  app.delete("/api/cash-entries/:id", requirePermission("livro_caixa"), async (req, res) => {
+    await storage.deleteCashEntry(req.params.id, getScopeId(req));
     res.json({ success: true });
   });
 
   // Cash Closings
-  app.get("/api/cash-closings", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const closings = await storage.getCashClosings(userId);
+  app.get("/api/cash-closings", requirePermission("livro_caixa"), async (req, res) => {
+    const closings = await storage.getCashClosings(getScopeId(req));
     res.json(closings);
   });
 
-  app.post("/api/cash-closings", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+  app.post("/api/cash-closings", requirePermission("livro_caixa"), async (req, res) => {
+    const userId = getScopeId(req);
     const { periodLabel, periodStart, periodEnd, totalAmount, entryCount, notes, entryIds } = req.body;
     const closing = await storage.createCashClosing({
       userId, periodLabel, periodStart, periodEnd,
@@ -1138,6 +1165,61 @@ export async function registerRoutes(
     }
     res.json(closing);
   });
+
+  // ---- USER PERMISSIONS ----
+  app.get("/api/user-permissions/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const perms = await storage.getUserPermissions(req.params.userId);
+      res.json({ userId: req.params.userId, permissions: perms });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.put("/api/user-permissions/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) return res.status(400).json({ message: "permissions deve ser um array" });
+      const validModules = PERMISSION_MODULES.map(m => m.key);
+      const filtered = permissions.filter((p: string) => validModules.includes(p as any));
+      await storage.setUserPermissions(req.params.userId, filtered);
+      // Update session permissions if the target user is currently logged in (best-effort)
+      res.json({ userId: req.params.userId, permissions: filtered });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // ─── Startup: migrate existing users to roles + permissions ──────────────
+  async function runRoleMigration() {
+    try {
+      const allUsers = await storage.getAllUsers() as any[];
+      for (const u of allUsers) {
+        const fullUser = await storage.getUserById(u.id);
+        if (!fullUser) continue;
+        if (fullUser.username === MASTER_ADMIN_USERNAME && (fullUser as any).role !== "super_admin") {
+          await storage.updateUserRoleAndCompany(fullUser.id, "super_admin");
+        } else if (fullUser.isAdmin && (fullUser as any).role === "company_admin") {
+          // Already correct, nothing to do
+        } else if (!fullUser.isAdmin && (fullUser as any).role === "company_admin") {
+          // Legacy employee account — look up their company
+          const empRecord = await storage.getEmployeeByLinkedUserId(fullUser.id);
+          if (empRecord) {
+            const cid = (fullUser as any).companyId || empRecord.userId;
+            await storage.updateUserRoleAndCompany(fullUser.id, "employee", cid);
+            const existing = await storage.getUserPermissions(fullUser.id);
+            if (existing.length === 0) {
+              await storage.setUserPermissions(fullUser.id, [...DEFAULT_EMPLOYEE_PERMISSIONS]);
+            }
+          }
+        }
+      }
+      console.log("[RoleMigration] Completed.");
+    } catch (e) {
+      console.error("[RoleMigration] Error:", e);
+    }
+  }
+  runRoleMigration().catch(console.error);
 
   // ─── Auto-open / Auto-close scheduler (runs every 60s) ────────────────────
   async function runCashScheduler() {
