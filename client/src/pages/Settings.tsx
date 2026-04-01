@@ -56,11 +56,14 @@ export default function Settings() {
     trialEndsAt: string | null;
     accessStatus: string;
     mustChangePassword: boolean;
+    email: string | null;
   };
   const [usersList, setUsersList] = useState<UserAccount[]>([]);
   const [accessStatusEditing, setAccessStatusEditing] = useState<string | null>(null);
   const [accessStatusSaving, setAccessStatusSaving] = useState(false);
   const [trialEndDateEdit, setTrialEndDateEdit] = useState<string>("");
+  const [emailEditValues, setEmailEditValues] = useState<Record<string, string>>({});
+  const [emailSavingId, setEmailSavingId] = useState<string | null>(null);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [changingPasswordId, setChangingPasswordId] = useState<string | null>(null);
@@ -240,7 +243,7 @@ export default function Settings() {
       toast({ title: "Erro", description: data.message, variant: "destructive" });
       return;
     }
-    setUsersList([...usersList, { id: data.id, username: data.username }]);
+    setUsersList([...usersList, { id: data.id, username: data.username, role: "company_admin", trial: true, trialStartedAt: null, trialEndsAt: null, accessStatus: "trial", mustChangePassword: true, email: null }]);
     setUserModalOpen(false);
     setCredentialsModal({ username: data.generatedLogin || data.username, password: data.tempPassword, whatsapp: userForm.whatsapp || "", name: userForm.name.trim(), type: 'user' });
     setUserForm({ name: "", document: "", email: "", whatsapp: "", cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", uf: "", birthdate: "", password: "", passwordHint: "" });
@@ -284,6 +287,26 @@ export default function Settings() {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
       setAccessStatusSaving(false);
+    }
+  };
+
+  const handleSaveEmail = async (userId: string) => {
+    const email = emailEditValues[userId] ?? "";
+    setEmailSavingId(userId);
+    try {
+      const res = await fetch(`/api/users/${userId}/email`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao salvar email.");
+      setUsersList(usersList.map(u => u.id === userId ? { ...u, email: data.email || null } : u));
+      toast({ title: "Email salvo", description: email.trim() ? `Email atualizado: ${email.trim()}` : "Email removido da conta." });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setEmailSavingId(null);
     }
   };
 
@@ -1492,6 +1515,20 @@ export default function Settings() {
                             </span>
                           )}
                         </div>
+                        {/* Email row */}
+                        <div className="mt-1 flex items-center gap-1.5 text-xs">
+                          {u.email ? (
+                            <span className="text-gray-500 flex items-center gap-1">
+                              <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                              <span className="font-mono text-gray-600">{u.email}</span>
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                              Sem email — recuperação de senha indisponível
+                            </span>
+                          )}
+                        </div>
                         {/* Trial info row */}
                         {status === "trial" && u.trialEndsAt && (
                           <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
@@ -1600,6 +1637,33 @@ export default function Settings() {
                         <p className="text-xs text-gray-400 mt-2">
                           A data de vencimento é usada mesmo quando o status é alterado para outro valor e depois volta para Trial.
                         </p>
+                        {/* Email edit */}
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            Email para recuperação de senha:
+                          </p>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              data-testid={`input-email-${u.id}`}
+                              type="email"
+                              value={emailEditValues[u.id] ?? (u.email || "")}
+                              onChange={e => setEmailEditValues({ ...emailEditValues, [u.id]: e.target.value })}
+                              placeholder="email@empresa.com"
+                              className="flex-1 border border-gray-200 bg-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+                            />
+                            <button
+                              data-testid={`button-save-email-${u.id}`}
+                              onClick={() => handleSaveEmail(u.id)}
+                              disabled={emailSavingId === u.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
+                            >
+                              <Check className="w-3 h-3" />
+                              {emailSavingId === u.id ? "Salvando..." : "Salvar email"}
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">O email é usado exclusivamente para recuperação de senha.</p>
+                        </div>
                       </div>
                     )}
                   </div>

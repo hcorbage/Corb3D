@@ -410,7 +410,7 @@ export class DatabaseStorage implements IStorage {
   async promoteToAdmin(id: string): Promise<void> {
     await db.update(users).set({ isAdmin: true }).where(eq(users.id, id));
   }
-  async getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean }[]> {
+  async getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean; email: string | null }[]> {
     return db.select({
       id: users.id,
       username: users.username,
@@ -420,6 +420,7 @@ export class DatabaseStorage implements IStorage {
       trialEndsAt: users.trialEndsAt,
       accessStatus: users.accessStatus,
       mustChangePassword: users.mustChangePassword,
+      email: users.email,
     }).from(users).where(and(eq(users.isAdmin, true), ne(users.role, "super_admin" as any)));
   }
 

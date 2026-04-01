@@ -390,38 +390,55 @@ export async function registerRoutes(
   });
 
   app.post("/api/auth/forgot-password", async (req, res) => {
+    console.log("[ForgotPassword] Rota chamada — body:", JSON.stringify(req.body));
     try {
       const { identifier } = req.body;
       if (!identifier || typeof identifier !== "string" || identifier.trim().length < 2) {
+        console.log("[ForgotPassword] Identifier inválido:", identifier);
         return res.status(400).json({ message: "Informe seu usuário ou email." });
       }
       const id = identifier.trim().toLowerCase();
+      console.log("[ForgotPassword] Buscando usuário por:", id.includes("@") ? "email" : "username", "=>", id);
+
       const user = id.includes("@")
         ? await storage.getUserByEmail(id)
         : await storage.getUserByUsername(id);
 
       const NEUTRAL_MSG = "Se existir uma conta com esses dados, enviamos um código de recuperação para o email cadastrado.";
 
-      if (!user || !user.email) {
+      if (!user) {
+        console.log("[ForgotPassword] Usuário não encontrado para:", id);
+        return res.json({ ok: true, message: NEUTRAL_MSG });
+      }
+      if (!user.email) {
+        console.log("[ForgotPassword] Usuário encontrado (id:", user.id, ") mas SEM email cadastrado. Cadastre um email no painel do super_admin.");
         return res.json({ ok: true, message: NEUTRAL_MSG });
       }
 
+      console.log("[ForgotPassword] Usuário encontrado (id:", user.id, ") com email:", user.email);
       await storage.deleteExpiredResetTokens();
 
       const code = Math.random().toString(36).slice(2, 8).toUpperCase();
       const tokenHash = crypto.createHash("sha256").update(code).digest("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
+      console.log("[ForgotPassword] Token gerado — código:", code, "| expira:", expiresAt);
       await storage.createResetToken(user.id, tokenHash, expiresAt);
+      console.log("[ForgotPassword] Token salvo no banco. Tentando enviar email...");
+
       await sendPasswordResetEmail(user.email, code);
+      console.log("[ForgotPassword] Email processado com sucesso.");
 
       return res.json({ ok: true, message: NEUTRAL_MSG });
     } catch (e: any) {
-      return res.status(500).json({ message: "Erro ao processar a solicitação." });
+      console.error("[ForgotPassword] ERRO:", e?.message || e);
+      console.error("[ForgotPassword] Stack:", e?.stack);
+      return res.status(500).json({ message: "Erro ao processar a solicitação.", detail: e?.message });
     }
   });
 
   app.post("/api/auth/confirm-reset-password", async (req, res) => {
+    console.log("[ConfirmReset] Rota chamada — identifier:", req.body?.identifier, "| code length:", req.body?.code?.length);
     try {
       const { identifier, code, newPassword } = req.body;
       if (!identifier || !code || !newPassword) {
@@ -431,24 +448,32 @@ export async function registerRoutes(
         return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
       }
 
-      const tokenHash = crypto.createHash("sha256").update(code.trim().toUpperCase()).digest("hex");
+      const normalizedCode = code.trim().toUpperCase();
+      const tokenHash = crypto.createHash("sha256").update(normalizedCode).digest("hex");
+      console.log("[ConfirmReset] Buscando token para código normalizado:", normalizedCode);
       const tokenRow = await storage.getValidResetToken(tokenHash);
 
       if (!tokenRow) {
+        console.log("[ConfirmReset] Token não encontrado ou já utilizado.");
         return res.status(400).json({ field: "code", message: "Código inválido ou já utilizado." });
       }
       if (new Date(tokenRow.expiresAt) < new Date()) {
+        console.log("[ConfirmReset] Token expirado em:", tokenRow.expiresAt);
         return res.status(400).json({ field: "code", message: "Código expirado. Solicite um novo." });
       }
 
+      console.log("[ConfirmReset] Token válido — redefinindo senha para userId:", tokenRow.userId);
       const hashed = await bcrypt.hash(newPassword, 10);
       await storage.updateUserPassword(tokenRow.userId, hashed);
       await storage.setMustChangePassword(tokenRow.userId, false);
       await storage.markResetTokenUsed(tokenRow.id);
+      console.log("[ConfirmReset] Senha redefinida com sucesso.");
 
       return res.json({ ok: true });
     } catch (e: any) {
-      return res.status(500).json({ message: "Erro ao redefinir a senha." });
+      console.error("[ConfirmReset] ERRO:", e?.message || e);
+      console.error("[ConfirmReset] Stack:", e?.stack);
+      return res.status(500).json({ message: "Erro ao redefinir a senha.", detail: e?.message });
     }
   });
 
@@ -644,7 +669,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id/access-status", requireAuth, requireMasterAdmin, async (req, res) => {
     try {
       const userId = req.params.id as string;
-      const { accessStatus, trialEndsAt } = req.body;
+      const { accessStatus, trialEndsAt, email } = req.body;
       const valid = ["trial", "full", "blocked"];
       if (!accessStatus || !valid.includes(accessStatus)) {
         return res.status(400).json({ message: "Status inválido. Use: trial, full ou blocked." });
@@ -662,9 +687,25 @@ export async function registerRoutes(
         }
       }
       await storage.updateUserAccessStatus(userId, accessStatus, finalTrialEndsAt);
+      if (email !== undefined) {
+        const normalized = email ? email.trim().toLowerCase() : null;
+        await storage.updateUserEmail(userId, normalized || "");
+      }
       const updated = await storage.getUserById(userId);
       const access = computeAccessData(updated || {});
-      res.json({ ok: true, ...access });
+      res.json({ ok: true, ...access, email: updated?.email ?? null });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/users/:id/email", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id as string;
+      const { email } = req.body;
+      const normalized = email ? String(email).trim().toLowerCase() : null;
+      await storage.updateUserEmail(userId, normalized || "");
+      res.json({ ok: true, email: normalized });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

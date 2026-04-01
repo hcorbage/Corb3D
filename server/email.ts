@@ -6,7 +6,12 @@ function createTransport() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
-  if (!host || !user || !pass) return null;
+  console.log("[EMAIL] Config SMTP — host:", host || "(não definido)", "| port:", port, "| user:", user || "(não definido)");
+
+  if (!host || !user || !pass) {
+    console.log("[EMAIL] SMTP não configurado — SMTP_HOST, SMTP_USER ou SMTP_PASS ausentes.");
+    return null;
+  }
 
   return nodemailer.createTransport({
     host,
@@ -18,6 +23,8 @@ function createTransport() {
 
 export async function sendPasswordResetEmail(toEmail: string, code: string): Promise<void> {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@c3dmanager.com";
+  console.log("[EMAIL] sendPasswordResetEmail chamado — para:", toEmail);
+
   const transport = createTransport();
 
   const subject = "Recuperação de senha — C3D Manager";
@@ -37,13 +44,23 @@ Atenciosamente,
 Equipe C3D Manager`;
 
   if (!transport) {
-    console.log("=== [EMAIL] Sem SMTP configurado — exibindo código no console ===");
-    console.log(`Para: ${toEmail}`);
-    console.log(`Assunto: ${subject}`);
-    console.log(`Código de recuperação: ${code}`);
-    console.log("=================================================================");
+    console.log("╔══════════════════════════════════════════════════════╗");
+    console.log("║  [EMAIL] SMTP não configurado — CÓDIGO NO CONSOLE    ║");
+    console.log("╠══════════════════════════════════════════════════════╣");
+    console.log(`║  Para:    ${toEmail}`);
+    console.log(`║  Assunto: ${subject}`);
+    console.log(`║  CÓDIGO:  ${code}`);
+    console.log("╚══════════════════════════════════════════════════════╝");
     return;
   }
 
-  await transport.sendMail({ from, to: toEmail, subject, text: body });
+  try {
+    console.log("[EMAIL] Tentando enviar via SMTP para:", toEmail);
+    const info = await transport.sendMail({ from, to: toEmail, subject, text: body });
+    console.log("[EMAIL] Email enviado com sucesso. MessageId:", info.messageId);
+  } catch (e: any) {
+    console.error("[EMAIL] ERRO ao enviar email via SMTP:", e?.message || e);
+    console.error("[EMAIL] Stack:", e?.stack);
+    throw e;
+  }
 }
