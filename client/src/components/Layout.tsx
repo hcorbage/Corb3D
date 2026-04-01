@@ -172,7 +172,7 @@ function ThemeToggleButton({ className = "" }: { className?: string }) {
       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors text-xs font-medium ${className}`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" />
-      <span className="hidden xl:inline">{label}</span>
+      <span>{label}</span>
     </button>
   );
 }

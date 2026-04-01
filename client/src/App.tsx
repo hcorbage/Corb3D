@@ -181,14 +181,6 @@ function App() {
       .catch(() => setChecking(false));
   }, []);
 
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      navigator.sendBeacon("/api/auth/logout");
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
-
   if (checking) {
     return (
       <ThemeProvider>

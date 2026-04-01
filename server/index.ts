@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
+import { DEFAULT_EMPLOYEE_PERMISSIONS } from "@shared/modules";
 
 const app = express();
 const httpServer = createServer(app);
@@ -77,16 +78,80 @@ async function ensureMasterAdmin() {
         passwordHint: null,
         cpf: null,
         birthdate: null,
+        role: "super_admin",
+        companyId: null,
       });
       console.log(`[SEED] Admin master "${MASTER_USERNAME}" criado automaticamente.`);
+    } else if (existing.role !== "super_admin") {
+      await storage.updateUserRoleAndCompany(existing.id, "super_admin", null);
+      console.log(`[SEED] Role do master admin atualizada para super_admin.`);
     }
   } catch (err) {
     console.error("[SEED] Erro ao garantir admin master:", err);
   }
 }
 
+async function seedTestAccounts() {
+  try {
+    const mt1990 = await storage.getUserByUsername("mt1990");
+    let companyAdminId: string;
+
+    if (!mt1990) {
+      const hashed = await bcrypt.hash("teste123", 10);
+      const newUser = await storage.createUser({
+        username: "mt1990",
+        password: hashed,
+        isAdmin: true,
+        mustChangePassword: false,
+        passwordHint: "teste123",
+        cpf: null,
+        birthdate: "1990-01-01",
+        role: "company_admin",
+        companyId: null,
+      });
+      companyAdminId = newUser.id;
+      console.log(`[SEED] Conta de teste company_admin "mt1990" criada.`);
+    } else {
+      companyAdminId = mt1990.id;
+      if (mt1990.mustChangePassword) {
+        await storage.setMustChangePassword(mt1990.id, false);
+      }
+    }
+
+    const as1995 = await storage.getUserByUsername("as1995");
+    if (!as1995) {
+      const hashed = await bcrypt.hash("funcionario123", 10);
+      const empUser = await storage.createUser({
+        username: "as1995",
+        password: hashed,
+        isAdmin: false,
+        mustChangePassword: false,
+        passwordHint: "funcionario123",
+        cpf: null,
+        birthdate: "1995-01-01",
+        role: "employee",
+        companyId: companyAdminId,
+      });
+      await storage.setUserPermissions(empUser.id, [...DEFAULT_EMPLOYEE_PERMISSIONS]);
+      console.log(`[SEED] Conta de teste employee "as1995" criada.`);
+    } else {
+      if (as1995.mustChangePassword) {
+        await storage.setMustChangePassword(as1995.id, false);
+        console.log(`[SEED] mustChangePassword de "as1995" removido.`);
+      }
+      if (!as1995.companyId) {
+        await storage.updateUserRoleAndCompany(as1995.id, "employee", companyAdminId);
+        console.log(`[SEED] companyId de "as1995" atualizado para ${companyAdminId}.`);
+      }
+    }
+  } catch (err) {
+    console.error("[SEED] Erro ao criar contas de teste:", err);
+  }
+}
+
 (async () => {
   await ensureMasterAdmin();
+  await seedTestAccounts();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -102,9 +167,6 @@ async function ensureMasterAdmin() {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -112,10 +174,6 @@ async function ensureMasterAdmin() {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
