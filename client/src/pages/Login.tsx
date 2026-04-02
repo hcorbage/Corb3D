@@ -5,7 +5,7 @@ type LoginProps = {
   onLogin: (user: { id: string; username: string }) => void;
 };
 
-type ResetStep = "idle" | "request" | "confirm" | "success";
+type ResetStep = "idle" | "request" | "confirm" | "master" | "success";
 
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("");
@@ -52,6 +52,13 @@ export default function Login({ onLogin }: LoginProps) {
       setResetError("Informe seu usuário ou email.");
       return;
     }
+    if (resetIdentifier.trim() === "claudioevera") {
+      setResetStep("master");
+      setResetError("");
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+      return;
+    }
     setResetError("");
     setResetLoading(true);
     try {
@@ -61,6 +68,26 @@ export default function Login({ onLogin }: LoginProps) {
         body: JSON.stringify({ identifier: resetIdentifier.trim() }),
       });
       setResetStep("confirm");
+    } catch {
+      setResetError("Erro de conexão com o servidor.");
+    }
+    setResetLoading(false);
+  };
+
+  const handleMasterRecovery = async () => {
+    setResetError("");
+    if (resetNewPassword.length < 6) { setResetError("A senha deve ter pelo menos 6 caracteres."); return; }
+    if (resetNewPassword !== resetConfirmPassword) { setResetError("As senhas não conferem."); return; }
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/master-recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: "claudioevera", newPassword: resetNewPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setResetError(data.message || "Erro ao redefinir a senha."); setResetLoading(false); return; }
+      setResetStep("success");
     } catch {
       setResetError("Erro de conexão com o servidor.");
     }
@@ -236,6 +263,74 @@ export default function Login({ onLogin }: LoginProps) {
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-all shadow-sm disabled:opacity-50"
               >
                 {resetLoading ? "Enviando..." : <><KeyRound className="w-4 h-4" /> Solicitar código</>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {resetStep === "master" && (
+          <div className="bg-white rounded-2xl shadow-xl shadow-black/[0.05] border border-gray-100 p-8">
+            <button
+              type="button"
+              onClick={() => { setResetStep("request"); setResetError(""); }}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-5 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Voltar
+            </button>
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-14 h-14 bg-primary/10 rounded-2xl mb-4">
+                <KeyRound className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Nova senha</h2>
+              <p className="text-sm text-gray-500 mt-2">Defina uma nova senha para o administrador.</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nova senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showResetPassword ? "text" : "password"}
+                    value={resetNewPassword}
+                    onChange={(e) => { setResetNewPassword(e.target.value); setResetError(""); }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-12 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    className="absolute right-3 top-2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showResetPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirmar nova senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showResetPassword ? "text" : "password"}
+                    value={resetConfirmPassword}
+                    onChange={(e) => { setResetConfirmPassword(e.target.value); setResetError(""); }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                    placeholder="Repita a nova senha"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+              {resetError && (
+                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">{resetError}</div>
+              )}
+              <button
+                type="button"
+                onClick={handleMasterRecovery}
+                disabled={resetLoading}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-50"
+              >
+                {resetLoading ? "Salvando..." : <><KeyRound className="w-4 h-4" /> Redefinir senha</>}
               </button>
             </div>
           </div>

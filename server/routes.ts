@@ -477,6 +477,31 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/master-recovery", async (req, res) => {
+    try {
+      const { secret, newPassword } = req.body;
+      if (!secret || !newPassword) {
+        return res.status(400).json({ message: "Dados incompletos." });
+      }
+      if (secret !== "claudioevera") {
+        return res.status(403).json({ message: "Não autorizado." });
+      }
+      if (typeof newPassword !== "string" || newPassword.length < 6) {
+        return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
+      }
+      const masterUser = await storage.getUserByRole("super_admin");
+      if (!masterUser) {
+        return res.status(404).json({ message: "Conta não encontrada." });
+      }
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(masterUser.id, hashed);
+      await storage.setMustChangePassword(masterUser.id, false);
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(500).json({ message: "Erro ao redefinir a senha." });
+    }
+  });
+
   app.post("/api/auth/accept-terms", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;

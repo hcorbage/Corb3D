@@ -84,6 +84,7 @@ export interface IStorage {
   markResetTokenUsed(id: string): Promise<void>;
   deleteExpiredResetTokens(): Promise<void>;
   getUserById(id: string): Promise<User | undefined>;
+  getUserByRole(role: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUserCount(): Promise<number>;
   getAllUsers(): Promise<{ id: string; username: string }[]>;
@@ -325,6 +326,10 @@ export class DatabaseStorage implements IStorage {
   }
   async getUserById(id: string): Promise<User | undefined> {
     const [u] = await db.select().from(users).where(eq(users.id, id));
+    return u;
+  }
+  async getUserByRole(role: string): Promise<User | undefined> {
+    const [u] = await db.select().from(users).where(eq(users.role as any, role));
     return u;
   }
   async createUser(user: InsertUser): Promise<User> {
