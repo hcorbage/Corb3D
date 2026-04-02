@@ -808,6 +808,34 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/reset-selective", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const { modules, password, confirmText } = req.body;
+      if (!modules || !Array.isArray(modules) || modules.length === 0 || !password || !confirmText) {
+        return res.status(400).json({ message: "Dados incompletos." });
+      }
+      if (confirmText !== "RESETAR SISTEMA") {
+        return res.status(400).json({ message: "Texto de confirmação incorreto." });
+      }
+      const masterUser = await storage.getUserById(req.session.userId!);
+      if (!masterUser) return res.status(403).json({ message: "Não autorizado." });
+      const passwordMatch = await bcrypt.compare(password, masterUser.password);
+      if (!passwordMatch) return res.status(403).json({ message: "Senha incorreta." });
+      await storage.resetSelectiveData(modules, req.session.userId!);
+      await storage.createAuditLog({
+        executedByUserId: req.session.userId!,
+        executedByUsername: req.session.username!,
+        action: "reset_selective",
+        details: `Reset seletivo executado. Módulos: ${modules.join(", ")}.`,
+        ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      });
+      res.json({ ok: true, message: `Reset seletivo concluído com sucesso.` });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ---- PROTECTED ROUTES ----
   app.use("/api/clients", requireAuth, requireActiveAccount);
   app.use("/api/materials", requireAuth, requireActiveAccount);

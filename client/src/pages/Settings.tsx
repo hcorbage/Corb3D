@@ -122,6 +122,75 @@ export default function Settings() {
   const userCNPJ = useCNPJLookup();
   const [credentialsModal, setCredentialsModal] = useState<{ username: string; password: string; whatsapp: string; name: string; type?: 'employee' | 'user' } | null>(null);
   type ResetModalType = 'system' | 'company' | null;
+  const SELECTIVE_MODULES = [
+    { id: "clients",        label: "Clientes",                                        tables: "clients" },
+    { id: "orders",         label: "Pedidos / Vendas",                                tables: "calculations" },
+    { id: "orderFinancials",label: "Financeiro por pedido",                           tables: "order_financials" },
+    { id: "payments",       label: "Pagamentos",                                      tables: "order_payments" },
+    { id: "dailyCash",      label: "Caixa diário",                                    tables: "daily_cash" },
+    { id: "cashEntries",    label: "Livro Caixa / Cash Entries",                      tables: "cash_entries" },
+    { id: "cashClosings",   label: "Fechamentos de caixa",                            tables: "cash_closings" },
+    { id: "stock",          label: "Estoque / Materiais / Movimentações",             tables: "stock_items, stock_movements, materials, brands" },
+    { id: "employees",      label: "Funcionários / Usuários operacionais",            tables: "employees + user accounts vinculados" },
+    { id: "adminAccounts",  label: "Contas de admins/usuários de teste (exceto super admin)", tables: "users (company_admin)" },
+    { id: "permissions",    label: "Permissões de usuários",                          tables: "user_permissions" },
+  ] as const;
+
+  const [selectiveOpen, setSelectiveOpen] = useState(false);
+  const [selectiveModules, setSelectiveModules] = useState<Set<string>>(new Set());
+  const [selectiveAll, setSelectiveAll] = useState(false);
+  const [selectivePassword, setSelectivePassword] = useState("");
+  const [selectiveShowPassword, setSelectiveShowPassword] = useState(false);
+  const [selectiveConfirmText, setSelectiveConfirmText] = useState("");
+  const [selectiveLoading, setSelectiveLoading] = useState(false);
+  const [selectiveError, setSelectiveError] = useState("");
+
+  const toggleSelectiveModule = (id: string) => {
+    setSelectiveModules(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setSelectiveAll(false);
+  };
+  const toggleSelectiveAll = () => {
+    if (selectiveAll) {
+      setSelectiveAll(false);
+      setSelectiveModules(new Set());
+    } else {
+      setSelectiveAll(true);
+      setSelectiveModules(new Set(SELECTIVE_MODULES.map(m => m.id)));
+    }
+  };
+  const closeSelectiveModal = () => {
+    setSelectiveOpen(false);
+    setSelectivePassword("");
+    setSelectiveConfirmText("");
+    setSelectiveError("");
+  };
+  const handleSelectiveReset = async () => {
+    if (selectiveConfirmText !== "RESETAR SISTEMA") {
+      setSelectiveError("Digite exatamente: RESETAR SISTEMA");
+      return;
+    }
+    if (!selectivePassword) { setSelectiveError("Senha obrigatória."); return; }
+    const chosen = selectiveAll ? ["all"] : Array.from(selectiveModules);
+    if (chosen.length === 0) { setSelectiveError("Selecione ao menos um módulo."); return; }
+    setSelectiveLoading(true);
+    setSelectiveError("");
+    try {
+      const res = await fetch("/api/admin/reset-selective", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modules: chosen, password: selectivePassword, confirmText: selectiveConfirmText }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSelectiveError(data.message || "Erro ao executar reset."); }
+      else { closeSelectiveModal(); setSelectiveModules(new Set()); setSelectiveAll(false); toast({ title: "Reset concluído", description: data.message }); }
+    } catch { setSelectiveError("Erro de conexão."); }
+    finally { setSelectiveLoading(false); }
+  };
+
   const [resetModalType, setResetModalType] = useState<ResetModalType>(null);
   const [resetTargetUserId, setResetTargetUserId] = useState("");
   const [resetLockedCompany, setResetLockedCompany] = useState<{id: string, name: string} | null>(null);
@@ -2101,6 +2170,23 @@ export default function Settings() {
                   <AlertTriangle className="w-4 h-4" /> Resetar Todas as Empresas
                 </button>
               </div>
+
+              {/* Reset seletivo */}
+              <div className="p-4 border-t border-amber-100">
+                <h3 className="text-sm font-bold text-amber-800 mb-1 flex items-center gap-1.5">
+                  <Shield className="w-4 h-4" /> Reset Seletivo por Módulo
+                </h3>
+                <p className="text-xs text-amber-600 mb-3">
+                  Escolha exatamente quais dados deseja zerar. Super admin nunca é afetado.
+                </p>
+                <button
+                  data-testid="button-open-selective-reset"
+                  onClick={() => setSelectiveOpen(true)}
+                  className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <Shield className="w-4 h-4" /> Configurar Reset Seletivo
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2198,6 +2284,117 @@ export default function Settings() {
                     </svg>
                   ) : <AlertTriangle className="w-4 h-4" />}
                   {resetLoading ? 'Executando...' : 'Confirmar Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL DE RESET SELETIVO ── */}
+        {selectiveOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+              <h2 className="text-base font-bold text-amber-800 flex items-center gap-2 mb-1">
+                <Shield className="w-5 h-5" /> Reset Seletivo por Módulo
+              </h2>
+              <p className="text-xs text-amber-600 mb-4">
+                Selecione os módulos que deseja zerar em <strong>todas as empresas</strong>. O super admin nunca é afetado.
+              </p>
+
+              {/* Toggle todos */}
+              <label className="flex items-center gap-2 mb-3 cursor-pointer select-none p-2 rounded-lg bg-amber-50 border border-amber-200">
+                <input
+                  type="checkbox"
+                  data-testid="checkbox-selective-all"
+                  checked={selectiveAll}
+                  onChange={toggleSelectiveAll}
+                  className="w-4 h-4 accent-amber-600"
+                />
+                <span className="text-sm font-bold text-amber-800">Selecionar tudo</span>
+              </label>
+
+              {/* Módulos */}
+              <div className="space-y-1.5 mb-4">
+                {SELECTIVE_MODULES.map(m => (
+                  <label key={m.id} className="flex items-start gap-2 cursor-pointer select-none p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
+                    <input
+                      type="checkbox"
+                      data-testid={`checkbox-selective-${m.id}`}
+                      checked={selectiveModules.has(m.id)}
+                      onChange={() => toggleSelectiveModule(m.id)}
+                      className="mt-0.5 w-4 h-4 accent-amber-600"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{m.label}</p>
+                      <p className="text-xs text-gray-400">{m.tables}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              {/* Senha */}
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Sua senha de super admin</label>
+                <div className="relative">
+                  <input
+                    data-testid="input-selective-password"
+                    type={selectiveShowPassword ? "text" : "password"}
+                    value={selectivePassword}
+                    onChange={e => setSelectivePassword(e.target.value)}
+                    placeholder="Senha"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectiveShowPassword(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {selectiveShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirmação por texto */}
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Digite <span className="font-mono font-bold text-amber-700">RESETAR SISTEMA</span> para confirmar
+                </label>
+                <input
+                  data-testid="input-selective-confirm-text"
+                  type="text"
+                  value={selectiveConfirmText}
+                  onChange={e => setSelectiveConfirmText(e.target.value)}
+                  placeholder="RESETAR SISTEMA"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+              </div>
+
+              {selectiveError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{selectiveError}</p>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  data-testid="button-selective-cancel"
+                  onClick={closeSelectiveModal}
+                  disabled={selectiveLoading}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  data-testid="button-selective-confirm"
+                  onClick={handleSelectiveReset}
+                  disabled={selectiveLoading || (selectiveModules.size === 0 && !selectiveAll)}
+                  className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  {selectiveLoading ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                  ) : <Shield className="w-4 h-4" />}
+                  {selectiveLoading ? 'Executando...' : 'Executar Reset Seletivo'}
                 </button>
               </div>
             </div>

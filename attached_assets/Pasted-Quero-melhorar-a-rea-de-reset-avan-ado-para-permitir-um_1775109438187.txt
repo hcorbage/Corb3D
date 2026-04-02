@@ -1,0 +1,72 @@
+Quero melhorar a área de reset avançado para permitir um RESET GERAL DOS DADOS com opções selecionáveis por checkbox, mantendo o super admin intacto.
+
+OBJETIVO:
+Permitir que eu escolha exatamente quais módulos/dados quero zerar, sem apagar minha conta super admin e sem destruir a estrutura do sistema.
+
+IMPORTANTE:
+- essa função deve estar disponível apenas para o super_admin
+- não apagar minha conta master/super admin
+- não apagar a estrutura do banco
+- não fazer drop de tabelas
+- não quebrar o sistema
+
+LOCAL:
+Ajustes → Avançado
+
+INTERFACE:
+Criar uma seção de reset com checkboxes para eu escolher o que quero limpar.
+
+CHECKBOXES:
+[ ] Clientes
+[ ] Pedidos / Vendas
+[ ] Financeiro por pedido
+[ ] Pagamentos
+[ ] Caixa diário
+[ ] Livro Caixa / Cash Entries
+[ ] Fechamentos de caixa
+[ ] Estoque / Materiais / Movimentações
+[ ] Comissões
+[ ] Funcionários / Usuários operacionais
+[ ] Contas de admins/usuários de teste (exceto super admin)
+[ ] Permissões específicas / dados auxiliares operacionais
+[ ] Tudo
+
+REGRAS DA INTERFACE:
+1. Se marcar “Tudo”, os demais podem ser automaticamente considerados selecionados
+2. Exibir um resumo claro do que será apagado antes de confirmar
+3. Mostrar aviso forte:
+   "Esta ação não pode ser desfeita"
+4. Exigir:
+   - senha do super admin
+   - digitação exata do texto:
+     RESETAR SISTEMA
+
+REGRAS DE BACKEND:
+- apenas super_admin pode executar
+- validar no backend:
+  if (!user || user.role !== "super_admin") return 403
+- limpar os dados na ordem correta para evitar erros de relacionamento
+- não deixar dados órfãos
+- não apagar a conta super_admin
+- não apagar login, senha e acesso do super_admin
+- não apagar tabelas nem estrutura do banco
+- manter o sistema funcional após o reset
+
+PRESERVAR SEMPRE:
+- conta super_admin
+- estrutura do banco
+- configurações essenciais da plataforma
+- logs de auditoria, se fizer sentido manter
+- qualquer seed/base necessária para o sistema continuar funcionando
+
+COMPORTAMENTO:
+- o reset deve apagar apenas os módulos selecionados
+- se “Tudo” for usado, o sistema deve voltar ao estado inicial operacional, mantendo apenas o super admin e a base estrutural
+
+VALIDAÇÃO FINAL:
+Quero que você confirme ao final:
+1. quais módulos/tabelas cada checkbox afeta
+2. o que é preservado
+3. como foi garantido que o super_admin não será apagado
+4. como foi tratada a ordem de exclusão para evitar erros
+5. que o sistema continua funcionando normalmente após o reset

@@ -135,6 +135,7 @@ export interface IStorage {
   // Reset
   resetCompanyData(userId: string): Promise<void>;
   resetAllCompaniesData(masterAdminId: string): Promise<void>;
+  resetSelectiveData(modules: string[], masterAdminId: string): Promise<void>;
 
   // Audit
   createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog>;
@@ -622,6 +623,66 @@ export class DatabaseStorage implements IStorage {
     );
     for (const u of allAdminUsers) {
       await this.resetCompanyData(u.id);
+    }
+  }
+
+  async resetSelectiveData(modules: string[], masterAdminId: string): Promise<void> {
+    const all = modules.includes("all");
+
+    // All company_admin IDs (never touches super_admin)
+    const adminUsers = await db.select({ id: users.id }).from(users).where(
+      and(ne(users.id, masterAdminId), eq(users.role, "company_admin"))
+    );
+    const adminIds = adminUsers.map(u => u.id);
+
+    // Deletion order: dependents first to avoid FK issues
+    if ((all || modules.includes("payments")) && adminIds.length > 0)
+      await db.delete(orderPayments).where(inArray(orderPayments.userId, adminIds));
+
+    if ((all || modules.includes("orderFinancials")) && adminIds.length > 0)
+      await db.delete(orderFinancials).where(inArray(orderFinancials.userId, adminIds));
+
+    if ((all || modules.includes("cashEntries")) && adminIds.length > 0)
+      await db.delete(cashEntries).where(inArray(cashEntries.userId, adminIds));
+
+    if ((all || modules.includes("cashClosings")) && adminIds.length > 0)
+      await db.delete(cashClosings).where(inArray(cashClosings.userId, adminIds));
+
+    if ((all || modules.includes("dailyCash")) && adminIds.length > 0)
+      await db.delete(dailyCash).where(inArray(dailyCash.userId, adminIds));
+
+    if ((all || modules.includes("stock")) && adminIds.length > 0) {
+      await db.delete(stockMovements).where(inArray(stockMovements.userId, adminIds));
+      await db.delete(stockItems).where(inArray(stockItems.userId, adminIds));
+      await db.delete(materials).where(inArray(materials.userId, adminIds));
+      await db.delete(brands).where(inArray(brands.userId, adminIds));
+    }
+
+    if ((all || modules.includes("orders")) && adminIds.length > 0)
+      await db.delete(calculations).where(inArray(calculations.userId, adminIds));
+
+    if ((all || modules.includes("clients")) && adminIds.length > 0)
+      await db.delete(clients).where(inArray(clients.userId, adminIds));
+
+    if ((all || modules.includes("employees")) && adminIds.length > 0) {
+      const emps = await db.select({ linkedUserId: employees.linkedUserId })
+        .from(employees)
+        .where(inArray(employees.userId, adminIds));
+      const linkedUserIds = emps.map(e => e.linkedUserId).filter(Boolean) as string[];
+      await db.delete(employees).where(inArray(employees.userId, adminIds));
+      if (linkedUserIds.length > 0) {
+        await db.delete(userPermissions).where(inArray(userPermissions.userId, linkedUserIds));
+        await db.delete(users).where(inArray(users.id, linkedUserIds));
+      }
+    }
+
+    if ((all || modules.includes("permissions")) && adminIds.length > 0)
+      await db.delete(userPermissions).where(inArray(userPermissions.userId, adminIds));
+
+    // Delete company_admin accounts (NEVER super_admin)
+    if ((all || modules.includes("adminAccounts")) && adminIds.length > 0) {
+      await db.delete(userPermissions).where(inArray(userPermissions.userId, adminIds));
+      await db.delete(users).where(inArray(users.id, adminIds));
     }
   }
 
