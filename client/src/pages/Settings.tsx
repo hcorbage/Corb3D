@@ -487,7 +487,7 @@ export default function Settings() {
     <div className="flex-1 overflow-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="max-w-4xl mx-auto space-y-6">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-xl border border-white/20 p-6 rounded-2xl shadow-xl shadow-black/[0.03]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">{isAdmin ? "Ajustes do Sistema" : "Minha Conta"}</h1>
             <p className="text-muted-foreground text-sm mt-1">{isAdmin ? "Configure suas preferências, custos e logotipo" : "Selecione sua impressora e gerencie sua senha"}</p>
