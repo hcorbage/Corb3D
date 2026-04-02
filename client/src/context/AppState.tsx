@@ -356,26 +356,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateSettings = useCallback(async (newSettings: Partial<AppSettings>) => {
-    try {
-      const updated = await api('/api/settings', { method: 'PATCH', body: JSON.stringify(newSettings) });
-      setSettings({
-        logoUrl: updated.logoUrl || null,
-        profitMargin: updated.profitMargin ?? 100,
-        laborCostPerHour: updated.laborCostPerHour ?? 5,
-        kwhCost: updated.kwhCost ?? 0.9,
-        printerPurchasePrice: updated.printerPurchasePrice ?? 1200,
-        printerLifespanHours: updated.printerLifespanHours ?? 6000,
-        printerPowerWatts: updated.printerPowerWatts ?? 150,
-        selectedPrinterId: updated.selectedPrinterId || 'c2',
-        adminWhatsapp: updated.adminWhatsapp || null,
-        maxDiscount: updated.maxDiscount ?? 10,
-        caixaAutoOpenEnabled: updated.caixaAutoOpenEnabled ?? false,
-        caixaAutoOpenTime: updated.caixaAutoOpenTime || "08:00",
-        caixaAutoCloseEnabled: updated.caixaAutoCloseEnabled ?? false,
-        caixaAutoCloseTime: updated.caixaAutoCloseTime || "19:00",
-        whatsappNumber: updated.whatsappNumber || null,
-      });
-    } catch (e) { console.error(e); }
+    const updated = await api('/api/settings', { method: 'PATCH', body: JSON.stringify(newSettings) });
+    setSettings({
+      logoUrl: updated.logoUrl || null,
+      profitMargin: updated.profitMargin ?? 100,
+      laborCostPerHour: updated.laborCostPerHour ?? 5,
+      kwhCost: updated.kwhCost ?? 0.9,
+      printerPurchasePrice: updated.printerPurchasePrice ?? 1200,
+      printerLifespanHours: updated.printerLifespanHours ?? 6000,
+      printerPowerWatts: updated.printerPowerWatts ?? 150,
+      selectedPrinterId: updated.selectedPrinterId || 'c2',
+      adminWhatsapp: updated.adminWhatsapp || null,
+      maxDiscount: updated.maxDiscount ?? 10,
+      caixaAutoOpenEnabled: updated.caixaAutoOpenEnabled ?? false,
+      caixaAutoOpenTime: updated.caixaAutoOpenTime || "08:00",
+      caixaAutoCloseEnabled: updated.caixaAutoCloseEnabled ?? false,
+      caixaAutoCloseTime: updated.caixaAutoCloseTime || "19:00",
+      whatsappNumber: updated.whatsappNumber || null,
+    });
   }, []);
 
   const loadBackup = useCallback(async (data: { clients?: Client[], inventory?: Material[], stockItems?: StockItem[], history?: Calculation[], settings?: Partial<AppSettings> }) => {

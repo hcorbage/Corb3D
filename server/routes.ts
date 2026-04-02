@@ -1186,8 +1186,13 @@ export async function registerRoutes(
     res.json(data);
   });
   app.patch("/api/settings", async (req, res) => {
-    const data = await storage.updateSettings(req.session.userId!, stripUserId(req.body));
-    res.json(data);
+    try {
+      const data = await storage.updateSettings(req.session.userId!, stripUserId(req.body));
+      res.json(data);
+    } catch (e: any) {
+      console.error("[PATCH /api/settings] Error:", e.message);
+      res.status(500).json({ message: "Erro ao salvar ajustes: " + e.message });
+    }
   });
 
   // ---- BACKUP (bulk import) ----
