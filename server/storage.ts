@@ -607,7 +607,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(materials).where(eq(materials.userId, userId));
     await db.delete(brands).where(eq(brands.userId, userId));
     await db.delete(employees).where(eq(employees.userId, userId));
-    await db.delete(settings).where(eq(settings.userId, userId));
+    // NOTE: settings are preserved — reset is NOT account deletion
 
     // Delete linked employee user accounts and their permissions
     if (linkedUserIds.length > 0) {

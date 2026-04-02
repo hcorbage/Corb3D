@@ -179,13 +179,9 @@ export default function Settings() {
       if (!res.ok) {
         setResetError(data.message || "Erro ao executar reset.");
       } else {
-        const lockedId = resetLockedCompany?.id;
         closeResetModal();
         setResetTargetUserId("");
         toast({ title: "Reset concluído", description: data.message });
-        if (resetModalType === 'company' && lockedId) {
-          setUsersList(prev => prev.filter(u => String(u.id) !== lockedId));
-        }
       }
     } catch {
       setResetError("Erro de conexão.");
