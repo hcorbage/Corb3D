@@ -2048,7 +2048,7 @@ export default function Settings() {
 
             <div className="space-y-4">
               {/* Reset por empresa */}
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="p-4">
                 <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
                   <Trash2 className="w-4 h-4" /> Resetar Empresa
                 </h3>
@@ -2079,7 +2079,7 @@ export default function Settings() {
               </div>
 
               {/* Reset global */}
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="p-4">
                 <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4" /> Resetar Sistema Completo
                 </h3>
