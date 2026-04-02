@@ -2035,9 +2035,9 @@ export default function Settings() {
 
         {/* ── AVANÇADO (somente super_admin) ── */}
         {isMasterAdmin && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-100 mt-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-100 mt-6">
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-red-700 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-amber-700 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5" />
                 Avançado — Reset do Sistema
               </h2>
@@ -2049,10 +2049,10 @@ export default function Settings() {
             <div className="space-y-4">
               {/* Reset por empresa */}
               <div className="p-4">
-                <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-amber-800 mb-1 flex items-center gap-1.5">
                   <Trash2 className="w-4 h-4" /> Resetar Empresa
                 </h3>
-                <p className="text-xs text-red-600 mb-3">
+                <p className="text-xs text-amber-600 mb-3">
                   Apaga todos os dados operacionais de uma empresa específica (clientes, orçamentos, estoque, financeiro, funcionários). A conta permanece ativa.
                 </p>
                 <div className="flex gap-2 items-center">
@@ -2060,7 +2060,7 @@ export default function Settings() {
                     data-testid="select-reset-company"
                     value={resetTargetUserId}
                     onChange={e => setResetTargetUserId(e.target.value)}
-                    className="flex-1 bg-white border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                    className="flex-1 bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
                   >
                     <option value="">Selecione a empresa...</option>
                     {usersList.map(u => (
@@ -2071,7 +2071,7 @@ export default function Settings() {
                     data-testid="button-open-reset-company"
                     disabled={!resetTargetUserId}
                     onClick={() => openResetModal('company')}
-                    className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                    className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                   >
                     <Trash2 className="w-4 h-4" /> Resetar
                   </button>
@@ -2080,16 +2080,16 @@ export default function Settings() {
 
               {/* Reset global */}
               <div className="p-4">
-                <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-amber-800 mb-1 flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4" /> Resetar Sistema Completo
                 </h3>
-                <p className="text-xs text-red-600 mb-3">
+                <p className="text-xs text-amber-600 mb-3">
                   Apaga os dados operacionais de <strong>todas as empresas</strong> cadastradas na plataforma. As contas permanecem ativas.
                 </p>
                 <button
                   data-testid="button-open-reset-system"
                   onClick={() => openResetModal('system')}
-                  className="flex items-center gap-1.5 bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                 >
                   <AlertTriangle className="w-4 h-4" /> Resetar Todas as Empresas
                 </button>
