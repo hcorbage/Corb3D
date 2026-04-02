@@ -498,13 +498,22 @@ export async function registerRoutes(
     if (req.session && req.session.userId) {
       const dbUser = await storage.getUserById(req.session.userId);
       const access = computeAccessData(dbUser || {});
-      const role = req.session.role || "company_admin";
+      // Always use fresh role from DB to pick up any role corrections without requiring re-login
+      const role = (dbUser as any)?.role || req.session.role || "company_admin";
+      const isMasterAdmin = role === "super_admin";
+      const isAdmin = isMasterAdmin || role === "company_admin";
+      // Keep session in sync so middleware (requireMasterAdmin etc.) stays accurate
+      if (isMasterAdmin !== req.session.isMasterAdmin) {
+        req.session.isMasterAdmin = isMasterAdmin;
+        req.session.role = role;
+        req.session.isAdmin = isAdmin;
+      }
       const mustAcceptTerms = role === "company_admin" && (!dbUser || dbUser.acceptedTermsVersion !== TERMS_VERSION);
       return res.json({
         id: req.session.userId,
         username: req.session.username,
-        isAdmin: req.session.isAdmin || false,
-        isMasterAdmin: req.session.isMasterAdmin || false,
+        isAdmin,
+        isMasterAdmin,
         role,
         companyId: req.session.companyId || req.session.userId,
         permissions: req.session.permissions || [],
