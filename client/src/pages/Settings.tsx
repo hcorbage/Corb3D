@@ -191,6 +191,40 @@ export default function Settings() {
     finally { setSelectiveLoading(false); }
   };
 
+  const [financialResetOpen, setFinancialResetOpen] = useState(false);
+  const [financialResetPassword, setFinancialResetPassword] = useState("");
+  const [financialResetShowPassword, setFinancialResetShowPassword] = useState(false);
+  const [financialResetConfirmText, setFinancialResetConfirmText] = useState("");
+  const [financialResetLoading, setFinancialResetLoading] = useState(false);
+  const [financialResetError, setFinancialResetError] = useState("");
+
+  const closeFinancialResetModal = () => {
+    setFinancialResetOpen(false);
+    setFinancialResetPassword("");
+    setFinancialResetConfirmText("");
+    setFinancialResetError("");
+  };
+  const handleFinancialReset = async () => {
+    if (financialResetConfirmText !== "ZERAR FINANCEIRO") {
+      setFinancialResetError("Digite exatamente: ZERAR FINANCEIRO");
+      return;
+    }
+    if (!financialResetPassword) { setFinancialResetError("Senha obrigatória."); return; }
+    setFinancialResetLoading(true);
+    setFinancialResetError("");
+    try {
+      const res = await fetch("/api/admin/reset-financial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: financialResetPassword, confirmText: financialResetConfirmText }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setFinancialResetError(data.message || "Erro ao zerar financeiro."); }
+      else { closeFinancialResetModal(); toast({ title: "Financeiro zerado", description: data.message }); }
+    } catch { setFinancialResetError("Erro de conexão."); }
+    finally { setFinancialResetLoading(false); }
+  };
+
   const [resetModalType, setResetModalType] = useState<ResetModalType>(null);
   const [resetTargetUserId, setResetTargetUserId] = useState("");
   const [resetLockedCompany, setResetLockedCompany] = useState<{id: string, name: string} | null>(null);
@@ -2109,6 +2143,34 @@ export default function Settings() {
         </div>
         )}
 
+        {/* ── ZERAR FINANCEIRO (todos os usuários) ── */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-orange-100 mt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-orange-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Avançado — Financeiro
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Operações de manutenção para os dados financeiros da sua conta.
+            </p>
+          </div>
+          <div className="p-4">
+            <h3 className="text-sm font-bold text-orange-800 mb-1 flex items-center gap-1.5">
+              <Trash2 className="w-4 h-4" /> Zerar Financeiro
+            </h3>
+            <p className="text-xs text-orange-600 mb-3">
+              Apaga todos os dados financeiros da sua conta: pagamentos, financeiro por pedido, livro caixa, fechamentos e caixa diário. Clientes, pedidos, estoque e configurações <strong>não são alterados</strong>.
+            </p>
+            <button
+              data-testid="button-open-financial-reset"
+              onClick={() => setFinancialResetOpen(true)}
+              className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            >
+              <Trash2 className="w-4 h-4" /> Zerar Financeiro
+            </button>
+          </div>
+        </div>
+
         {/* ── AVANÇADO (somente super_admin) ── */}
         {isMasterAdmin && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-100 mt-6">
@@ -2284,6 +2346,96 @@ export default function Settings() {
                     </svg>
                   ) : <AlertTriangle className="w-4 h-4" />}
                   {resetLoading ? 'Executando...' : 'Confirmar Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL ZERAR FINANCEIRO ── */}
+        {financialResetOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <h2 className="text-base font-bold text-orange-700 flex items-center gap-2 mb-1">
+                <Trash2 className="w-5 h-5" /> Zerar Financeiro
+              </h2>
+              <p className="text-xs text-orange-600 mb-4">
+                Esta ação <strong>não pode ser desfeita</strong>. As seguintes tabelas serão zeradas apenas para a sua conta:
+              </p>
+              <ul className="text-xs text-gray-600 mb-4 space-y-1 bg-orange-50 rounded-lg p-3 border border-orange-100">
+                <li>• <span className="font-mono">order_payments</span> — Pagamentos</li>
+                <li>• <span className="font-mono">order_financials</span> — Financeiro por pedido</li>
+                <li>• <span className="font-mono">cash_entries</span> — Livro Caixa</li>
+                <li>• <span className="font-mono">cash_closings</span> — Fechamentos de caixa</li>
+                <li>• <span className="font-mono">daily_cash</span> — Caixa diário</li>
+              </ul>
+              <p className="text-xs text-gray-500 mb-4">
+                Clientes, pedidos, estoque, materiais, funcionários, permissões e configurações <strong>não são alterados</strong>.
+              </p>
+
+              {/* Senha */}
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Sua senha</label>
+                <div className="relative">
+                  <input
+                    data-testid="input-financial-reset-password"
+                    type={financialResetShowPassword ? "text" : "password"}
+                    value={financialResetPassword}
+                    onChange={e => setFinancialResetPassword(e.target.value)}
+                    placeholder="Senha"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFinancialResetShowPassword(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {financialResetShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirmação */}
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Digite <span className="font-mono font-bold text-orange-700">ZERAR FINANCEIRO</span> para confirmar
+                </label>
+                <input
+                  data-testid="input-financial-reset-confirm"
+                  type="text"
+                  value={financialResetConfirmText}
+                  onChange={e => setFinancialResetConfirmText(e.target.value)}
+                  placeholder="ZERAR FINANCEIRO"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              </div>
+
+              {financialResetError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{financialResetError}</p>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  data-testid="button-financial-reset-cancel"
+                  onClick={closeFinancialResetModal}
+                  disabled={financialResetLoading}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  data-testid="button-financial-reset-confirm"
+                  onClick={handleFinancialReset}
+                  disabled={financialResetLoading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  {financialResetLoading ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                  ) : <Trash2 className="w-4 h-4" />}
+                  {financialResetLoading ? 'Zerando...' : 'Confirmar — Zerar Financeiro'}
                 </button>
               </div>
             </div>

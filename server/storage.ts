@@ -136,6 +136,7 @@ export interface IStorage {
   resetCompanyData(userId: string): Promise<void>;
   resetAllCompaniesData(masterAdminId: string): Promise<void>;
   resetSelectiveData(modules: string[], masterAdminId: string): Promise<void>;
+  resetFinancialData(userId: string): Promise<void>;
 
   // Audit
   createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog>;
@@ -684,6 +685,15 @@ export class DatabaseStorage implements IStorage {
       await db.delete(userPermissions).where(inArray(userPermissions.userId, adminIds));
       await db.delete(users).where(inArray(users.id, adminIds));
     }
+  }
+
+  async resetFinancialData(userId: string): Promise<void> {
+    // Delete in dependency order (payments/entries before parents)
+    await db.delete(orderPayments).where(eq(orderPayments.userId, userId));
+    await db.delete(orderFinancials).where(eq(orderFinancials.userId, userId));
+    await db.delete(cashEntries).where(eq(cashEntries.userId, userId));
+    await db.delete(cashClosings).where(eq(cashClosings.userId, userId));
+    await db.delete(dailyCash).where(eq(dailyCash.userId, userId));
   }
 
   async createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog> {
