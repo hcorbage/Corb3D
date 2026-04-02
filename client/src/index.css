@@ -106,7 +106,7 @@
   --secondary-foreground: 210 40% 90%;
 
   --muted: 217 33% 16%;
-  --muted-foreground: 215 20% 60%;
+  --muted-foreground: 215 20% 75%;
 
   --accent: 217 33% 20%;
   --accent-foreground: 210 40% 96%;
@@ -136,12 +136,12 @@ html.dark .bg-gray-200        { background-color: hsl(217 33% 20%) !important; }
 html.dark .bg-slate-50        { background-color: hsl(222.2 47.4% 10%) !important; }
 html.dark .bg-slate-100       { background-color: hsl(217 33% 16%) !important; }
 
-html.dark .text-gray-900      { color: hsl(210 40% 94%) !important; }
-html.dark .text-gray-800      { color: hsl(210 40% 88%) !important; }
-html.dark .text-gray-700      { color: hsl(215 20% 78%) !important; }
-html.dark .text-gray-600      { color: hsl(215 20% 65%) !important; }
-html.dark .text-gray-500      { color: hsl(215 16% 54%) !important; }
-html.dark .text-gray-400      { color: hsl(215 16% 46%) !important; }
+html.dark .text-gray-900      { color: hsl(210 40% 96%) !important; }
+html.dark .text-gray-800      { color: hsl(210 40% 92%) !important; }
+html.dark .text-gray-700      { color: hsl(215 20% 86%) !important; }
+html.dark .text-gray-600      { color: hsl(215 20% 78%) !important; }
+html.dark .text-gray-500      { color: hsl(215 16% 70%) !important; }
+html.dark .text-gray-400      { color: hsl(215 16% 62%) !important; }
 
 html.dark .border-gray-50     { border-color: hsl(217 33% 16%) !important; }
 html.dark .border-gray-100    { border-color: hsl(217 33% 18%) !important; }
@@ -175,8 +175,8 @@ html.dark .shadow-lg  { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px 
 html.dark .shadow-xl  { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.6), 0 8px 10px -6px rgba(0,0,0,0.6) !important; }
 
 /* Gradient text needs to be lightened */
-html.dark .bg-gradient-to-r.from-gray-900 { --tw-gradient-from: hsl(210 40% 88%) !important; }
-html.dark .to-gray-600 { --tw-gradient-to: hsl(215 20% 65%) !important; }
+html.dark .bg-gradient-to-r.from-gray-900 { --tw-gradient-from: hsl(210 40% 96%) !important; }
+html.dark .to-gray-600 { --tw-gradient-to: hsl(215 20% 80%) !important; }
 
 @layer base {
   * {
