@@ -570,6 +570,32 @@ export async function registerRoutes(
     next();
   };
 
+  // ─── ROTA TEMPORÁRIA DE DIAGNÓSTICO/CORREÇÃO (remover após uso) ───
+  app.get("/api/admin/fix-master", async (req, res) => {
+    if (req.query.secret !== "CORB3D2026FIX") {
+      return res.status(403).json({ error: "Proibido." });
+    }
+    try {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      const before = await db.execute(sql`SELECT id, username, role, is_admin, company_id FROM users WHERE username = 'hcorbage'`);
+      const row = (before as any).rows?.[0] ?? (before as any[])[0];
+      if (!row) {
+        return res.json({ found: false, message: "Usuário hcorbage NÃO encontrado no banco." });
+      }
+      let fixed = false;
+      if (row.role !== "super_admin") {
+        await db.execute(sql`UPDATE users SET role = 'super_admin', is_admin = true, company_id = NULL WHERE username = 'hcorbage'`);
+        fixed = true;
+      }
+      const after = await db.execute(sql`SELECT id, username, role, is_admin, company_id FROM users WHERE username = 'hcorbage'`);
+      const rowAfter = (after as any).rows?.[0] ?? (after as any[])[0];
+      return res.json({ found: true, fixed, before: row, after: rowAfter });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message, stack: err.stack });
+    }
+  });
+
   const requireMasterAdmin: RequestHandler = (req, res, next) => {
     if (!req.session || !req.session.isMasterAdmin) {
       return res.status(403).json({ message: "Acesso restrito ao administrador master." });
