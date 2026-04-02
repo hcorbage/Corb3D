@@ -1175,6 +1175,14 @@ export async function registerRoutes(
         }
       }
     }
+    // Always expose master admin's whatsappNumber so all users can see it
+    if (!data.whatsappNumber) {
+      const masterUser = await storage.getUserByUsername("hcorbage");
+      if (masterUser) {
+        const masterSettings = await storage.getSettings(masterUser.id);
+        if (masterSettings.whatsappNumber) data.whatsappNumber = masterSettings.whatsappNumber;
+      }
+    }
     res.json(data);
   });
   app.patch("/api/settings", async (req, res) => {

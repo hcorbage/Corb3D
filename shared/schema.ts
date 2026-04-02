@@ -102,6 +102,7 @@ export const settings = pgTable("settings", {
   caixaAutoOpenTime: text("caixa_auto_open_time").default("08:00"),
   caixaAutoCloseEnabled: boolean("caixa_auto_close_enabled").notNull().default(false),
   caixaAutoCloseTime: text("caixa_auto_close_time").default("19:00"),
+  whatsappNumber: text("whatsapp_number"),
 });
 
 export const users = pgTable("users", {

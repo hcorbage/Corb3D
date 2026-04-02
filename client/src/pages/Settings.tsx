@@ -1494,6 +1494,39 @@ export default function Settings() {
           />
         </div>
 
+        {isMasterAdmin && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-green-100 mt-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+              WhatsApp do Sistema — "Contratar plano"
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Número exibido nos botões <strong>"Contratar plano"</strong> e <strong>"Falar com suporte"</strong> que aparecem para clientes em período de trial ou com acesso bloqueado. Apenas números (código do país + DDD + número). Ex: <code className="bg-gray-100 px-1 rounded">5585988887777</code>
+            </p>
+            <input
+              data-testid="input-system-whatsapp-number"
+              type="text"
+              inputMode="numeric"
+              placeholder="Ex: 5585988887777"
+              value={localSettings.whatsappNumber || ""}
+              onChange={(e) => setLocalSettings({ ...localSettings, whatsappNumber: e.target.value.replace(/\D/g, "") || null })}
+              className="w-full bg-white border border-green-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
+            />
+            {localSettings.whatsappNumber && (
+              <p className="text-xs text-green-600 mt-2">
+                Link de teste:{" "}
+                <a
+                  href={`https://wa.me/${localSettings.whatsappNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:opacity-80"
+                >
+                  https://wa.me/{localSettings.whatsappNumber}
+                </a>
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Backup Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">

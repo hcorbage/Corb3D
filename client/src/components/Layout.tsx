@@ -388,15 +388,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         : `Período de teste: ${trialDaysRemaining} dias restantes`}
                   </span>
                 </div>
-                <a
-                  href="https://wa.me/5500000000000"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 underline underline-offset-2 hover:opacity-80 transition-opacity flex-shrink-0"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  Contratar plano
-                </a>
+                {settings.whatsappNumber ? (
+                  <a
+                    href={`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent("Olá, quero contratar um plano do sistema.")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 underline underline-offset-2 hover:opacity-80 transition-opacity flex-shrink-0"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Contratar plano
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-1.5 opacity-50 flex-shrink-0">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Contratar plano
+                  </span>
+                )}
               </div>
             )}
             <CashStatusAlert />

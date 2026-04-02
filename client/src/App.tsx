@@ -67,7 +67,7 @@ function TrialBadge({ days }: { days: number }) {
   );
 }
 
-function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" | "runtime" }) {
+function AccessBlockedScreen({ variant, whatsappNumber }: { variant: "trialExpired" | "blocked" | "runtime"; whatsappNumber?: string | null }) {
   const config = {
     trialExpired: {
       bg: "bg-red-50",
@@ -97,15 +97,22 @@ function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" 
         </div>
         <h2 className="text-xl font-bold text-gray-800 mb-3">{config.title}</h2>
         <p className="text-sm text-gray-600 mb-6">{config.message}</p>
-        <a
-          href="https://wa.me/5500000000000"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm"
-        >
-          <MessageCircle className="w-5 h-5" />
-          Falar com suporte
-        </a>
+        {whatsappNumber ? (
+          <a
+            href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Olá, quero contratar um plano do sistema.")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Falar com suporte
+          </a>
+        ) : (
+          <span className="inline-flex items-center gap-2 bg-gray-200 text-gray-500 px-6 py-3 rounded-xl font-semibold cursor-not-allowed">
+            <MessageCircle className="w-5 h-5" />
+            Falar com suporte
+          </span>
+        )}
         <div className="mt-4">
           <button
             onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload())}
@@ -119,8 +126,8 @@ function AccessBlockedScreen({ variant }: { variant: "trialExpired" | "blocked" 
   );
 }
 
-function TrialExpiredScreen() {
-  return <AccessBlockedScreen variant="trialExpired" />;
+function TrialExpiredScreen({ whatsappNumber }: { whatsappNumber?: string | null }) {
+  return <AccessBlockedScreen variant="trialExpired" whatsappNumber={whatsappNumber} />;
 }
 
 function ForceChangePassword({ onChanged, showTrialMessage, trialDaysRemaining, currentUsername }: {
@@ -465,12 +472,22 @@ function App() {
   const [isNewCompanyAdmin, setIsNewCompanyAdmin] = useState(false);
   const [needsTerms, setNeedsTerms] = useState(false);
   const [runtimeBlocked, setRuntimeBlocked] = useState(false);
+  const [systemWhatsappNumber, setSystemWhatsappNumber] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setRuntimeBlocked(true);
     window.addEventListener("accountBlocked", handler);
     return () => window.removeEventListener("accountBlocked", handler);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetch("/api/settings")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.whatsappNumber) setSystemWhatsappNumber(d.whatsappNumber); })
+        .catch(() => {});
+    }
+  }, [user]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -528,7 +545,7 @@ function App() {
   if (!user.isMasterAdmin && runtimeBlocked) {
     return (
       <ThemeProvider>
-        <AccessBlockedScreen variant="runtime" />
+        <AccessBlockedScreen variant="runtime" whatsappNumber={systemWhatsappNumber} />
       </ThemeProvider>
     );
   }
@@ -536,7 +553,7 @@ function App() {
   if (!user.isMasterAdmin && user.blocked) {
     return (
       <ThemeProvider>
-        <AccessBlockedScreen variant="blocked" />
+        <AccessBlockedScreen variant="blocked" whatsappNumber={systemWhatsappNumber} />
       </ThemeProvider>
     );
   }
@@ -544,7 +561,7 @@ function App() {
   if (!user.isMasterAdmin && user.trialExpired) {
     return (
       <ThemeProvider>
-        <TrialExpiredScreen />
+        <TrialExpiredScreen whatsappNumber={systemWhatsappNumber} />
       </ThemeProvider>
     );
   }

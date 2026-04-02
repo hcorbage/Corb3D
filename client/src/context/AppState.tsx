@@ -79,6 +79,7 @@ export type AppSettings = {
   caixaAutoOpenTime: string;
   caixaAutoCloseEnabled: boolean;
   caixaAutoCloseTime: string;
+  whatsappNumber: string | null;
 };
 
 type AppStateContextType = {
@@ -129,6 +130,7 @@ const defaultSettings: AppSettings = {
   caixaAutoOpenTime: "08:00",
   caixaAutoCloseEnabled: false,
   caixaAutoCloseTime: "19:00",
+  whatsappNumber: null,
 };
 
 async function api(path: string, options?: RequestInit) {
@@ -215,6 +217,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
           caixaAutoCloseEnabled: set.caixaAutoCloseEnabled ?? false,
           caixaAutoCloseTime: set.caixaAutoCloseTime || "19:00",
+          whatsappNumber: set.whatsappNumber || null,
         });
       }
       setLoading(false);
@@ -370,6 +373,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         caixaAutoOpenTime: updated.caixaAutoOpenTime || "08:00",
         caixaAutoCloseEnabled: updated.caixaAutoCloseEnabled ?? false,
         caixaAutoCloseTime: updated.caixaAutoCloseTime || "19:00",
+        whatsappNumber: updated.whatsappNumber || null,
       });
     } catch (e) { console.error(e); }
   }, []);
@@ -404,6 +408,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           caixaAutoOpenTime: set.caixaAutoOpenTime || "08:00",
           caixaAutoCloseEnabled: set.caixaAutoCloseEnabled ?? false,
           caixaAutoCloseTime: set.caixaAutoCloseTime || "19:00",
+          whatsappNumber: set.whatsappNumber || null,
         });
       }
     } catch (e) { console.error(e); }
