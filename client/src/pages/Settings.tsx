@@ -124,6 +124,7 @@ export default function Settings() {
   type ResetModalType = 'system' | 'company' | null;
   const [resetModalType, setResetModalType] = useState<ResetModalType>(null);
   const [resetTargetUserId, setResetTargetUserId] = useState("");
+  const [resetLockedCompany, setResetLockedCompany] = useState<{id: string, name: string} | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [resetShowPassword, setResetShowPassword] = useState(false);
@@ -131,18 +132,26 @@ export default function Settings() {
   const [resetError, setResetError] = useState("");
 
   const openResetModal = (type: 'system' | 'company') => {
+    if (type === 'company') {
+      if (!resetTargetUserId) {
+        toast({ title: "Selecione uma empresa", description: "Escolha uma empresa na lista antes de resetar.", variant: "destructive" });
+        return;
+      }
+      const company = usersList.find(u => String(u.id) === String(resetTargetUserId));
+      setResetLockedCompany(company ? { id: String(company.id), name: company.username } : { id: resetTargetUserId, name: resetTargetUserId });
+    }
     setResetModalType(type);
     setResetPassword("");
     setResetConfirmText("");
     setResetShowPassword(false);
     setResetError("");
-    setResetTargetUserId("");
   };
   const closeResetModal = () => {
     setResetModalType(null);
     setResetPassword("");
     setResetConfirmText("");
     setResetError("");
+    setResetLockedCompany(null);
   };
 
   const handleReset = async () => {
@@ -155,8 +164,8 @@ export default function Settings() {
       setResetError("Senha obrigatória.");
       return;
     }
-    if (resetModalType === 'company' && !resetTargetUserId) {
-      setResetError("Selecione a empresa.");
+    if (resetModalType === 'company' && !resetLockedCompany) {
+      setResetError("Empresa não identificada. Feche e selecione novamente.");
       return;
     }
     setResetLoading(true);
@@ -164,16 +173,18 @@ export default function Settings() {
     try {
       const endpoint = resetModalType === 'system' ? "/api/admin/reset-system" : "/api/admin/reset-company";
       const body: any = { password: resetPassword, confirmText: resetConfirmText };
-      if (resetModalType === 'company') body.targetUserId = resetTargetUserId;
+      if (resetModalType === 'company') body.targetUserId = resetLockedCompany!.id;
       const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) {
         setResetError(data.message || "Erro ao executar reset.");
       } else {
+        const lockedId = resetLockedCompany?.id;
         closeResetModal();
+        setResetTargetUserId("");
         toast({ title: "Reset concluído", description: data.message });
-        if (resetModalType === 'company') {
-          setUsersList(prev => prev.filter(u => u.id !== resetTargetUserId));
+        if (resetModalType === 'company' && lockedId) {
+          setUsersList(prev => prev.filter(u => String(u.id) !== lockedId));
         }
       }
     } catch {
@@ -2113,8 +2124,14 @@ export default function Settings() {
                   <p className="text-xs text-gray-500 mt-0.5">
                     {resetModalType === 'system'
                       ? 'Esta ação apagará os dados operacionais de todas as empresas. Irreversível.'
-                      : `Esta ação apagará todos os dados da empresa selecionada. Irreversível.`}
+                      : 'Esta ação apagará todos os dados operacionais da empresa abaixo. Irreversível.'}
                   </p>
+                  {resetModalType === 'company' && resetLockedCompany && (
+                    <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <span className="text-xs text-amber-700 font-semibold">Empresa selecionada: </span>
+                      <span className="text-xs text-amber-900 font-bold">{resetLockedCompany.name}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
