@@ -164,11 +164,75 @@ export function extractCompanyIdFromFilename(filename: string): string | null {
   return match ? match[1] : null;
 }
 
+async function executeRestoreFromData(
+  companyId: string,
+  data: Record<string, any[]>,
+  performedBy: string,
+  source: string
+): Promise<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> }> {
+  console.log(`[Restore] INÍCIO — empresa: ${companyId} | por: ${performedBy} | fonte: ${source}`);
+
+  const preBackup = await generateCompanyBackup(companyId, `pre-restore:${performedBy}`);
+  console.log(`[Restore] Pré-backup criado: ${preBackup.filename}`);
+
+  const stats: Record<string, { deleted: number; inserted: number }> = {};
+
+  await db.transaction(async (tx) => {
+    const del = async (table: any, col: any, label: string) => {
+      const rows = await tx.delete(table).where(eq(col, companyId)).returning();
+      stats[label] = { deleted: rows.length, inserted: 0 };
+      console.log(`[Restore] DELETE ${label}: ${rows.length} registros`);
+    };
+
+    await del(stockMovements, stockMovements.userId, "stock_movements");
+    await del(orderPayments, orderPayments.userId, "order_payments");
+    await del(cashEntries, cashEntries.userId, "cash_entries");
+    await del(cashClosings, cashClosings.userId, "cash_closings");
+    await del(dailyCash, dailyCash.userId, "daily_cash");
+    await del(orderFinancials, orderFinancials.userId, "order_financials");
+    await del(calculations, calculations.userId, "calculations");
+    await del(stockItems, stockItems.userId, "stock_items");
+    await del(employees, employees.userId, "employees");
+    await del(clients, clients.userId, "clients");
+    await del(materials, materials.userId, "materials");
+    await del(brands, brands.userId, "brands");
+    await del(settings, settings.userId, "settings");
+
+    const ins = async (table: any, rows: any[], label: string) => {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        stats[label] = { ...stats[label], inserted: 0 };
+        console.log(`[Restore] INSERT ${label}: 0 registros (backup vazio)`);
+        return;
+      }
+      await tx.insert(table).values(rows);
+      stats[label] = { ...stats[label], inserted: rows.length };
+      console.log(`[Restore] INSERT ${label}: ${rows.length} registros`);
+    };
+
+    await ins(settings,       data.settings        ?? [], "settings");
+    await ins(brands,         data.brands           ?? [], "brands");
+    await ins(materials,      data.materials        ?? [], "materials");
+    await ins(clients,        data.clients          ?? [], "clients");
+    await ins(employees,      data.employees        ?? [], "employees");
+    await ins(stockItems,     data.stock_items      ?? [], "stock_items");
+    await ins(calculations,   data.calculations     ?? [], "calculations");
+    await ins(orderFinancials,data.order_financials ?? [], "order_financials");
+    await ins(orderPayments,  data.order_payments   ?? [], "order_payments");
+    await ins(cashEntries,    data.cash_entries     ?? [], "cash_entries");
+    await ins(cashClosings,   data.cash_closings    ?? [], "cash_closings");
+    await ins(dailyCash,      data.daily_cash       ?? [], "daily_cash");
+    await ins(stockMovements, data.stock_movements  ?? [], "stock_movements");
+  });
+
+  console.log(`[Restore] CONCLUÍDO — empresa: ${companyId}`);
+  return { preBackupFilename: preBackup.filename, stats };
+}
+
 export async function restoreCompanyBackup(
   companyId: string,
   filename: string,
   performedBy: string
-): Promise<{ preBackupFilename: string; tablesRestored: string[] }> {
+): Promise<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> }> {
   const safeFilename = path.basename(filename);
 
   const fileCompanyId = extractCompanyIdFromFilename(safeFilename);
@@ -181,8 +245,6 @@ export async function restoreCompanyBackup(
     throw new Error("Arquivo de backup não encontrado.");
   }
 
-  const preBackup = await generateCompanyBackup(companyId, `pre-restore:${performedBy}`);
-
   const compressed = fs.readFileSync(fullPath);
   const jsonBuffer = zlib.gunzipSync(compressed);
   const payload = JSON.parse(jsonBuffer.toString("utf-8"));
@@ -192,55 +254,39 @@ export async function restoreCompanyBackup(
     throw new Error("Arquivo de backup inválido ou corrompido.");
   }
 
-  await db.transaction(async (tx) => {
-    await tx.delete(stockMovements).where(eq(stockMovements.userId, companyId));
-    await tx.delete(orderPayments).where(eq(orderPayments.userId, companyId));
-    await tx.delete(cashEntries).where(eq(cashEntries.userId, companyId));
-    await tx.delete(cashClosings).where(eq(cashClosings.userId, companyId));
-    await tx.delete(dailyCash).where(eq(dailyCash.userId, companyId));
-    await tx.delete(orderFinancials).where(eq(orderFinancials.userId, companyId));
-    await tx.delete(calculations).where(eq(calculations.userId, companyId));
-    await tx.delete(stockItems).where(eq(stockItems.userId, companyId));
-    await tx.delete(employees).where(eq(employees.userId, companyId));
-    await tx.delete(clients).where(eq(clients.userId, companyId));
-    await tx.delete(materials).where(eq(materials.userId, companyId));
-    await tx.delete(brands).where(eq(brands.userId, companyId));
-    await tx.delete(settings).where(eq(settings.userId, companyId));
+  return executeRestoreFromData(companyId, data, performedBy, safeFilename);
+}
 
-    if (Array.isArray(data.settings) && data.settings.length > 0)
-      await tx.insert(settings).values(data.settings);
-    if (Array.isArray(data.brands) && data.brands.length > 0)
-      await tx.insert(brands).values(data.brands);
-    if (Array.isArray(data.materials) && data.materials.length > 0)
-      await tx.insert(materials).values(data.materials);
-    if (Array.isArray(data.clients) && data.clients.length > 0)
-      await tx.insert(clients).values(data.clients);
-    if (Array.isArray(data.employees) && data.employees.length > 0)
-      await tx.insert(employees).values(data.employees);
-    if (Array.isArray(data.stock_items) && data.stock_items.length > 0)
-      await tx.insert(stockItems).values(data.stock_items);
-    if (Array.isArray(data.calculations) && data.calculations.length > 0)
-      await tx.insert(calculations).values(data.calculations);
-    if (Array.isArray(data.order_financials) && data.order_financials.length > 0)
-      await tx.insert(orderFinancials).values(data.order_financials);
-    if (Array.isArray(data.order_payments) && data.order_payments.length > 0)
-      await tx.insert(orderPayments).values(data.order_payments);
-    if (Array.isArray(data.cash_entries) && data.cash_entries.length > 0)
-      await tx.insert(cashEntries).values(data.cash_entries);
-    if (Array.isArray(data.cash_closings) && data.cash_closings.length > 0)
-      await tx.insert(cashClosings).values(data.cash_closings);
-    if (Array.isArray(data.daily_cash) && data.daily_cash.length > 0)
-      await tx.insert(dailyCash).values(data.daily_cash);
-    if (Array.isArray(data.stock_movements) && data.stock_movements.length > 0)
-      await tx.insert(stockMovements).values(data.stock_movements);
-  });
+export async function restoreCompanyBackupFromBuffer(
+  companyId: string,
+  gzipBuffer: Buffer,
+  performedBy: string
+): Promise<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> }> {
+  let jsonBuffer: Buffer;
+  try {
+    jsonBuffer = zlib.gunzipSync(gzipBuffer);
+  } catch {
+    throw new Error("Arquivo inválido: não foi possível descompactar o .gz.");
+  }
 
-  return {
-    preBackupFilename: preBackup.filename,
-    tablesRestored: [
-      "settings", "brands", "materials", "clients", "employees",
-      "stock_items", "calculations", "order_financials", "order_payments",
-      "cash_entries", "cash_closings", "daily_cash", "stock_movements",
-    ],
-  };
+  let payload: any;
+  try {
+    payload = JSON.parse(jsonBuffer.toString("utf-8"));
+  } catch {
+    throw new Error("Arquivo inválido: JSON corrompido.");
+  }
+
+  const data = payload?.data;
+  const meta = payload?.meta;
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Arquivo de backup inválido: estrutura inesperada.");
+  }
+
+  const fileCompanyId: string | undefined = meta?.companyId;
+  if (fileCompanyId && fileCompanyId !== companyId) {
+    throw new Error("Arquivo de backup pertence a outra empresa.");
+  }
+
+  return executeRestoreFromData(companyId, data, performedBy, "upload");
 }

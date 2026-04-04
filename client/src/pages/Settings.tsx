@@ -90,6 +90,9 @@ export default function Settings() {
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
   const [restoreConfirmText, setRestoreConfirmText] = useState("");
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [showAllBackups, setShowAllBackups] = useState(false);
+  const [uploadRestoreLoading, setUploadRestoreLoading] = useState(false);
+  const uploadRestoreRef = useRef<HTMLInputElement>(null);
 
   const openPermissionsModal = async (emp: any) => {
     if (!emp.linkedUserId) return;
@@ -680,15 +683,52 @@ export default function Settings() {
       if (!r.ok) throw new Error(data.message);
       toast({
         title: "Restauração concluída!",
-        description: `Dados restaurados. Pré-backup salvo: ${data.preBackupFilename}`,
+        description: `Dados restaurados com sucesso. Recarregando...`,
       });
       setRestoreTarget(null);
       setRestoreConfirmText("");
-      handleRefreshBackupList();
+      setTimeout(() => window.location.reload(), 1500);
     } catch (e: any) {
       toast({ title: "Erro ao restaurar", description: e.message, variant: "destructive" });
-    } finally {
       setRestoreLoading(false);
+    }
+  };
+
+  const handleUploadRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".json.gz")) {
+      toast({ title: "Arquivo inválido", description: "Selecione um arquivo .json.gz", variant: "destructive" });
+      if (uploadRestoreRef.current) uploadRestoreRef.current.value = "";
+      return;
+    }
+    if (!window.confirm(`Restaurar a partir do arquivo "${file.name}"?\n\nTodos os dados atuais serão substituídos. Um pré-backup será criado automaticamente.\n\nDigite OK para confirmar.`)) {
+      if (uploadRestoreRef.current) uploadRestoreRef.current.value = "";
+      return;
+    }
+    setUploadRestoreLoading(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const base64 = btoa(binary);
+      const body: Record<string, string> = { fileBase64: base64 };
+      if (isMasterAdmin && backupSelectedCompany) body.companyId = backupSelectedCompany;
+      const r = await fetch("/api/backup/restore-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message);
+      toast({ title: "Restauração concluída!", description: `Dados restaurados a partir de "${file.name}". Recarregando...` });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      toast({ title: "Erro ao restaurar arquivo", description: err.message, variant: "destructive" });
+      setUploadRestoreLoading(false);
+    } finally {
+      if (uploadRestoreRef.current) uploadRestoreRef.current.value = "";
     }
   };
 
@@ -1784,10 +1824,13 @@ export default function Settings() {
               </div>
             ) : (
               <div className="space-y-2">
-                {backupList.map(b => (
+                {(showAllBackups ? backupList : backupList.slice(0, 1)).map((b, idx) => (
                   <div key={b.filename} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-mono text-gray-700 truncate">{b.filename}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-mono text-gray-700 truncate">{b.filename}</p>
+                        {idx === 0 && <span className="shrink-0 text-[10px] bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">mais recente</span>}
+                      </div>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {new Date(b.createdAt).toLocaleString("pt-BR")} · {(b.size / 1024).toFixed(1)} KB
                       </p>
@@ -1811,11 +1854,49 @@ export default function Settings() {
                     </div>
                   </div>
                 ))}
+                {backupList.length > 1 && (
+                  <button
+                    onClick={() => setShowAllBackups(v => !v)}
+                    className="text-xs text-blue-600 hover:text-blue-800 mt-1 transition-colors"
+                  >
+                    {showAllBackups ? "Ocultar backups anteriores" : `Ver ${backupList.length - 1} backup(s) anterior(es)`}
+                  </button>
+                )}
               </div>
             )}
             <p className="text-xs text-gray-400 mt-3">
               Os 5 backups mais recentes são mantidos. Backups anteriores são removidos automaticamente.
             </p>
+          </div>
+
+          {/* Restaurar de arquivo */}
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Restaurar de arquivo local</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Escolha um arquivo <span className="font-mono">.json.gz</span> baixado anteriormente para restaurar os dados.
+            </p>
+            <input
+              ref={uploadRestoreRef}
+              type="file"
+              accept=".json.gz"
+              className="hidden"
+              onChange={handleUploadRestore}
+              data-testid="input-restore-upload-file"
+            />
+            <button
+              data-testid="button-restore-from-file"
+              onClick={() => uploadRestoreRef.current?.click()}
+              disabled={uploadRestoreLoading}
+              className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+            >
+              {uploadRestoreLoading ? (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              ) : <UploadCloud className="w-4 h-4" />}
+              {uploadRestoreLoading ? "Restaurando arquivo..." : "Restaurar de arquivo"}
+            </button>
           </div>
         </div>
         </>)}

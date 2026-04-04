@@ -14,6 +14,7 @@ import {
   resolveBackupPath,
   extractCompanyIdFromFilename,
   restoreCompanyBackup,
+  restoreCompanyBackupFromBuffer,
 } from "./backup";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
@@ -1953,13 +1954,39 @@ export async function registerRoutes(
       }
 
       const result = await restoreCompanyBackup(targetCompanyId, filename, req.session.username!);
-      console.log(`[Restore] ${req.session.username} restaurou empresa ${targetCompanyId} a partir de ${filename}. Pré-backup: ${result.preBackupFilename}`);
       return res.json({ success: true, ...result });
     } catch (err: any) {
       console.error("[Restore] Erro:", err);
       return res
-        .status(err.message?.includes("não pertence") || err.message?.includes("traversal") ? 400 : 500)
+        .status(err.message?.includes("não pertence") || err.message?.includes("traversal") || err.message?.includes("pertence") ? 400 : 500)
         .json({ message: err.message || "Erro ao restaurar backup." });
+    }
+  });
+
+  app.post("/api/backup/restore-upload", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
+      const isMaster = req.session.isMasterAdmin;
+      const { fileBase64, companyId: requestedCompanyId } = req.body ?? {};
+      if (!fileBase64) return res.status(400).json({ message: "fileBase64 é obrigatório." });
+
+      let targetCompanyId: string;
+      if (isMaster && requestedCompanyId) {
+        targetCompanyId = requestedCompanyId;
+      } else if (!isMaster && requestedCompanyId && requestedCompanyId !== getScopeId(req)) {
+        return res.status(403).json({ message: "Acesso negado." });
+      } else {
+        targetCompanyId = getScopeId(req);
+      }
+
+      const gzipBuffer = Buffer.from(fileBase64, "base64");
+      const result = await restoreCompanyBackupFromBuffer(targetCompanyId, gzipBuffer, req.session.username!);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      console.error("[RestoreUpload] Erro:", err);
+      return res
+        .status(err.message?.includes("outra empresa") || err.message?.includes("traversal") ? 400 : 500)
+        .json({ message: err.message || "Erro ao restaurar backup do arquivo." });
     }
   });
 

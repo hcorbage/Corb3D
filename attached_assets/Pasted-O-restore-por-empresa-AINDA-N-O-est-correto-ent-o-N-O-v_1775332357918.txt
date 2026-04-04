@@ -1,0 +1,74 @@
+O restore por empresa AINDA NÃO está correto, então NÃO vou subir pro GitHub ainda.
+
+Teste real que fiz:
+- botão Restaurar apareceu
+- modal funcionou
+- pré-backup automático foi criado
+- restore terminou sem erro
+- MAS um cliente novo criado depois do backup NÃO foi apagado
+
+Conclusão:
+o restore não está limpando/repondo os dados empresariais corretamente.
+
+Quero que você analise e corrija isso com foco em precisão, sem mexer em layout global e sem quebrar o resto.
+
+PROBLEMA A CORRIGIR
+Durante o restore, os dados atuais da empresa deveriam ser removidos e substituídos pelo conteúdo do backup.
+Isso não aconteceu com clients.
+
+Quero que você investigue especificamente:
+
+1. O delete de clients está realmente executando?
+2. Está usando a coluna correta de escopo (`userId`)?
+3. O `companyId` usado no restore está correto?
+4. O backup restaurado realmente não continha o cliente novo?
+5. Existe alguma tabela/cache/storage layer reaplicando os dados atuais depois da restauração?
+6. A transação está de fato commitando o delete e o insert?
+7. O restore está usando a ordem correta de delete/insert?
+8. Há alguma inconsistência entre o nome companyId e o campo real userId nas queries?
+
+QUERO QUE VOCÊ:
+- revise a implementação de restoreCompanyBackup
+- adicione logs claros no backend durante o restore:
+  - companyId alvo
+  - quantidade de registros deletados por tabela
+  - quantidade de registros inseridos por tabela
+- confirme exatamente o que está acontecendo com `clients`
+
+Além disso, quero 2 ajustes de UX:
+
+AJUSTE 1 — MOSTRAR SÓ O ÚLTIMO BACKUP NA TELA
+Hoje o sistema pode manter 5 backups no servidor, o que está OK.
+Mas na interface eu quero mostrar apenas o backup mais recente por padrão.
+Se quiser, pode ter um link pequeno tipo “Ver backups anteriores”, mas por padrão mostrar só o último.
+
+AJUSTE 2 — RESTORE A PARTIR DE ARQUIVO ESCOLHIDO
+Quero também uma opção de restaurar escolhendo um arquivo do meu computador, porque senão não faz sentido eu baixar backup e não conseguir reutilizar depois.
+
+Então quero adicionar:
+- botão “Restaurar de arquivo”
+- input type="file"
+- aceitar `.json.gz`
+- enviar o arquivo para o backend
+- backend processar esse arquivo da mesma forma que processa os backups salvos no servidor
+- manter as mesmas regras de permissão e segurança
+- também criar pré-backup automático antes de restaurar
+
+NOVAS ROTAS SE NECESSÁRIO
+Se fizer sentido, pode criar uma rota separada para upload/restore, algo como:
+POST /api/backup/restore-upload
+
+REQUISITOS IMPORTANTES
+- NÃO mexer no layout global
+- NÃO mexer em autenticação
+- NÃO subir nada pro GitHub ainda
+- corrigir primeiro a lógica do restore
+- depois ajustar UX de mostrar só o último backup e permitir restore por arquivo
+
+ENTREGA
+Quero que você me diga:
+1. causa exata do problema do client não ser removido
+2. correção aplicada
+3. logs adicionados
+4. arquivos alterados
+5. como testar novamente
