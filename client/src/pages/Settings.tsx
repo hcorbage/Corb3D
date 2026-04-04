@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF_CNPJ } from "@shared/validators";
 import { useCNPJLookup } from "@/hooks/useCNPJLookup";
@@ -81,6 +81,12 @@ export default function Settings() {
   const [changePasswordHint, setChangePasswordHint] = useState("");
   const [permissionsModal, setPermissionsModal] = useState<{ empName: string; linkedUserId: string; perms: string[] } | null>(null);
   const [permsSaving, setPermsSaving] = useState(false);
+
+  type BackupEntry = { filename: string; size: number; createdAt: string };
+  const [backupList, setBackupList] = useState<BackupEntry[]>([]);
+  const [backupGenerating, setBackupGenerating] = useState(false);
+  const [backupListLoading, setBackupListLoading] = useState(false);
+  const [backupSelectedCompany, setBackupSelectedCompany] = useState<string>("");
 
   const openPermissionsModal = async (emp: any) => {
     if (!emp.linkedUserId) return;
@@ -314,6 +320,17 @@ export default function Settings() {
       fetch("/api/users").then(r => r.json()).then(setUsersList).catch(() => {});
     }
   }, [isMasterAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    setBackupListLoading(true);
+    const query = isMasterAdmin && backupSelectedCompany ? `?companyId=${backupSelectedCompany}` : "";
+    fetch(`/api/backup/list${query}`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setBackupList(data); })
+      .catch(() => {})
+      .finally(() => setBackupListLoading(false));
+  }, [isAdmin, isMasterAdmin, backupSelectedCompany]);
 
   const handleAddUser = async () => {
     if (!userForm.name.trim()) {
@@ -589,6 +606,44 @@ export default function Settings() {
       if (backupInputRef.current) backupInputRef.current.value = "";
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const handleGenerateBackup = async () => {
+    setBackupGenerating(true);
+    try {
+      const body: Record<string, string> = {};
+      if (isMasterAdmin && backupSelectedCompany) body.companyId = backupSelectedCompany;
+      const r = await fetch("/api/backup/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message);
+      toast({ title: "Backup gerado!", description: `Arquivo: ${data.filename}` });
+      const query = isMasterAdmin && backupSelectedCompany ? `?companyId=${backupSelectedCompany}` : "";
+      const listRes = await fetch(`/api/backup/list${query}`);
+      const listData = await listRes.json();
+      if (Array.isArray(listData)) setBackupList(listData);
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar backup", description: e.message, variant: "destructive" });
+    } finally {
+      setBackupGenerating(false);
+    }
+  };
+
+  const handleDownloadBackup = (filename: string) => {
+    window.location.href = `/api/backup/download/${encodeURIComponent(filename)}`;
+  };
+
+  const handleRefreshBackupList = () => {
+    setBackupListLoading(true);
+    const query = isMasterAdmin && backupSelectedCompany ? `?companyId=${backupSelectedCompany}` : "";
+    fetch(`/api/backup/list${query}`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setBackupList(data); })
+      .catch(() => {})
+      .finally(() => setBackupListLoading(false));
   };
 
   const selectedPrinter = printers.find(p => p.id === localSettings.selectedPrinterId);
@@ -1557,6 +1612,100 @@ export default function Settings() {
               className="hidden"
               onChange={handleImportBackup}
             />
+          </div>
+        </div>
+
+        {/* ── BACKUP & RESTAURAÇÃO (server-side) ── */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <HardDrive className="w-5 h-5 text-blue-600" />
+              Backup & Restauração
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Gere backups completos e seguros de todos os dados da empresa no servidor. Os últimos 5 backups são mantidos automaticamente.
+            </p>
+          </div>
+
+          {isMasterAdmin && (
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Empresa para backup</label>
+              <select
+                data-testid="select-backup-company"
+                value={backupSelectedCompany}
+                onChange={e => setBackupSelectedCompany(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="">— Minha conta (super admin) —</option>
+                {usersList.map(u => (
+                  <option key={u.id} value={String(u.id)}>{u.username}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <button
+            data-testid="button-generate-backup"
+            onClick={handleGenerateBackup}
+            disabled={backupGenerating}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            {backupGenerating ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+            ) : <HardDrive className="w-4 h-4" />}
+            {backupGenerating ? "Gerando backup..." : "Gerar Backup Agora"}
+          </button>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Backups disponíveis no servidor</h3>
+              <button
+                data-testid="button-refresh-backups"
+                onClick={handleRefreshBackupList}
+                disabled={backupListLoading}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 ${backupListLoading ? "animate-spin" : ""}`} />
+                Atualizar
+              </button>
+            </div>
+
+            {backupListLoading ? (
+              <p className="text-xs text-gray-400 py-6 text-center">Carregando backups...</p>
+            ) : backupList.length === 0 ? (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-6 text-center">
+                <HardDrive className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">Nenhum backup encontrado.</p>
+                <p className="text-xs text-gray-400 mt-1">Clique em "Gerar Backup Agora" para criar o primeiro backup.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {backupList.map(b => (
+                  <div key={b.filename} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-mono text-gray-700 truncate">{b.filename}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(b.createdAt).toLocaleString("pt-BR")} · {(b.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <button
+                      data-testid={`button-download-backup-${b.filename}`}
+                      onClick={() => handleDownloadBackup(b.filename)}
+                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0"
+                    >
+                      <Download className="w-3 h-3" />
+                      Baixar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mt-3">
+              Os 5 backups mais recentes são mantidos. Backups anteriores são removidos automaticamente.
+            </p>
           </div>
         </div>
         </>)}

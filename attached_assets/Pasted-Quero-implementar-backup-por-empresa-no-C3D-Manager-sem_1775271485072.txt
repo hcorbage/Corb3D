@@ -1,0 +1,73 @@
+Quero implementar backup por empresa no C3D Manager, sem misturar nada com o site.
+
+Use a pasta de armazenamento:
+`/var/backups/corb3dapp/companies/`
+
+IMPORTANTE:
+- Não usar nada em `/var/backups/corb3d/`
+- Tudo do app deve ficar separado do site
+
+Quero implementar somente as FASES 1 e 2 agora:
+1. gerar backup por empresa
+2. listar e baixar backups por empresa
+
+NÃO implementar restore por empresa ainda.
+
+Requisitos técnicos:
+
+1. Criar arquivo novo `server/backup.ts`
+- Colocar nele a lógica de geração de backup por empresa
+- Usar o isolamento já existente via `getScopeId(req)` / `userId`
+- Formato do backup: JSON compactado `.json.gz`
+- Estrutura do payload:
+  - meta: version, schemaVersion, companyId, generatedAt, generatedBy
+  - data: settings, materials, brands, clients, employees, calculations, stock_items, stock_movements, order_financials, order_payments, cash_entries, cash_closings, daily_cash
+
+2. A geração deve salvar em:
+`/var/backups/corb3dapp/companies/<companyId>/`
+
+3. Nome do arquivo:
+`backup_<companyId>_<timestamp>.json.gz`
+
+4. Implementar função para manter só os últimos 5 backups por empresa
+
+5. Criar rotas no backend:
+- `POST /api/backup/generate`
+- `GET /api/backup/list`
+- `GET /api/backup/download/:filename`
+
+6. Regras de permissão:
+- `company_admin` gera/lista/baixa apenas os próprios backups
+- `super_admin` pode gerar/listar/baixar de qualquer empresa
+- `employee` não pode ver nem usar backup
+
+7. Segurança obrigatória:
+- Nunca expor `/var/backups/...` no Nginx
+- Download sempre autenticado pelo Express
+- Sanitizar filename com `path.basename()`
+- Validar que o arquivo pertence à empresa correta
+- Proteger contra path traversal
+- Extrair `companyId` do nome do arquivo para validar acesso
+
+8. Frontend:
+- Adicionar seção “Backup & Restauração” em `Settings.tsx`
+- FASE 1 e 2 apenas:
+  - botão “Gerar Backup”
+  - lista de backups
+  - botão “Baixar”
+- `employee` não vê a seção
+- `company_admin` vê só backups próprios
+- `super_admin` vê tudo
+
+9. Não quebrar nada existente
+- Não alterar a lógica atual de login
+- Não alterar a lógica atual de multiempresa
+- Não alterar o schema do banco sem necessidade
+- Não implementar restore ainda
+
+10. Quero que você me entregue:
+- os arquivos alterados
+- resumo do que foi implementado
+- como testar no servidor
+- quais endpoints foram criados
+- qualquer comando necessário de build/restart

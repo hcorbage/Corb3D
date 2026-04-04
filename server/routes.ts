@@ -7,6 +7,13 @@ import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/module
 import { validateCPF, validateCNPJ } from "@shared/validators";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "./email";
+import fs from "fs";
+import {
+  generateCompanyBackup,
+  listCompanyBackups,
+  resolveBackupPath,
+  extractCompanyIdFromFilename,
+} from "./backup";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
   const digits = raw.replace(/\D/g, "");
@@ -1824,6 +1831,71 @@ export async function registerRoutes(
   // Run immediately on startup, then every 60s
   runCashScheduler().catch(err => console.error("[Scheduler] Erro na inicialização:", err));
   setInterval(runCashScheduler, 60000);
+
+  // ── BACKUP ROUTES ────────────────────────────────────────────────────────────
+  app.post("/api/backup/generate", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
+      const isMaster = req.session.isMasterAdmin;
+      const requestedCompanyId: string | undefined = req.body?.companyId;
+      let targetCompanyId: string;
+      if (isMaster && requestedCompanyId) {
+        targetCompanyId = requestedCompanyId;
+      } else if (!isMaster && requestedCompanyId && requestedCompanyId !== getScopeId(req)) {
+        return res.status(403).json({ message: "Acesso negado." });
+      } else {
+        targetCompanyId = getScopeId(req);
+      }
+      const { filename, size } = await generateCompanyBackup(targetCompanyId, req.session.username!);
+      return res.json({ filename, size, createdAt: new Date().toISOString() });
+    } catch (err: any) {
+      console.error("[Backup] Erro ao gerar:", err);
+      return res.status(500).json({ message: err.message || "Erro ao gerar backup." });
+    }
+  });
+
+  app.get("/api/backup/list", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
+      const isMaster = req.session.isMasterAdmin;
+      const requestedCompanyId = req.query.companyId as string | undefined;
+      let targetCompanyId: string;
+      if (isMaster && requestedCompanyId) {
+        targetCompanyId = requestedCompanyId;
+      } else if (!isMaster && requestedCompanyId && requestedCompanyId !== getScopeId(req)) {
+        return res.status(403).json({ message: "Acesso negado." });
+      } else {
+        targetCompanyId = getScopeId(req);
+      }
+      const backups = listCompanyBackups(targetCompanyId);
+      return res.json(backups);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Erro ao listar backups." });
+    }
+  });
+
+  app.get("/api/backup/download/:filename", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
+      const { filename } = req.params;
+      const isMaster = req.session.isMasterAdmin;
+      const fileCompanyId = extractCompanyIdFromFilename(filename);
+      if (!fileCompanyId) return res.status(400).json({ message: "Nome de arquivo inválido." });
+      if (!isMaster && fileCompanyId !== getScopeId(req)) {
+        return res.status(403).json({ message: "Acesso negado." });
+      }
+      const fullPath = resolveBackupPath(fileCompanyId, filename);
+      if (!fs.existsSync(fullPath)) return res.status(404).json({ message: "Arquivo não encontrado." });
+      res.setHeader("Content-Type", "application/gzip");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      fs.createReadStream(fullPath).pipe(res);
+    } catch (err: any) {
+      console.error("[Backup] Erro ao baixar:", err);
+      return res
+        .status(err.message?.includes("traversal") ? 400 : 500)
+        .json({ message: err.message || "Erro ao baixar backup." });
+    }
+  });
 
   return httpServer;
 }
