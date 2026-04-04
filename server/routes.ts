@@ -39,10 +39,40 @@ declare module "express-session" {
 const MASTER_ADMIN_USERNAME = "hcorbage";
 const TERMS_VERSION = "1.0";
 
-function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (req.session && req.session.userId) {
-    return next();
+type TokenData = {
+  userId: string;
+  username: string;
+  isAdmin: boolean;
+  isMasterAdmin: boolean;
+  role: string;
+  companyId: string;
+  permissions: string[];
+  expiresAt: number;
+};
+const authTokenStore = new Map<string, TokenData>();
+
+function populateSessionFromBearer(req: Request): boolean {
+  if (req.session?.userId) return true;
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const data = authTokenStore.get(token);
+    if (data && data.expiresAt > Date.now()) {
+      req.session.userId = data.userId;
+      req.session.username = data.username;
+      req.session.isAdmin = data.isAdmin;
+      req.session.isMasterAdmin = data.isMasterAdmin;
+      req.session.role = data.role as any;
+      req.session.companyId = data.companyId;
+      req.session.permissions = data.permissions;
+      return true;
+    }
   }
+  return false;
+}
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (populateSessionFromBearer(req)) return next();
   return res.status(401).json({ message: "Não autorizado" });
 }
 
@@ -309,7 +339,14 @@ export async function registerRoutes(
       const access = computeAccessData(user);
       const mustAcceptTerms = role === "company_admin" && (user.acceptedTermsVersion !== TERMS_VERSION);
 
-      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, ...access, mustAcceptTerms });
+      const authToken = crypto.randomUUID();
+      authTokenStore.set(authToken, {
+        userId: user.id, username: user.username, isAdmin,
+        isMasterAdmin: role === "super_admin", role, companyId, permissions,
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.json({ id: user.id, username: user.username, isAdmin, isMasterAdmin: req.session.isMasterAdmin, mustChangePassword: user.mustChangePassword || false, role, companyId, permissions, ...access, mustAcceptTerms, authToken });
     } catch (e: any) {
       return res.status(500).json({ message: e.message });
     }
@@ -527,6 +564,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", async (req, res) => {
+    populateSessionFromBearer(req);
     if (req.session && req.session.userId) {
       const dbUser = await storage.getUserById(req.session.userId);
       const access = computeAccessData(dbUser || {});

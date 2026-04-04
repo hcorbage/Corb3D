@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { clearAuthToken } from "@/lib/auth";
 import { Link, useLocation } from "wouter";
 import {
   Calculator, Package, Users, Users2, History, Settings, LogOut,
@@ -285,6 +286,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             data-testid="button-logout"
             onClick={() => {
+              clearAuthToken();
               fetch('/api/auth/logout', { method: 'POST' }).then(() => {
                 window.location.reload();
               });
@@ -325,6 +327,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ThemeToggleButton className="w-full justify-start" />
               <button
                 onClick={() => {
+                  clearAuthToken();
                   fetch('/api/auth/logout', { method: 'POST' }).then(() => {
                     window.location.reload();
                   });

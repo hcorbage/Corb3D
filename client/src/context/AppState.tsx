@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiFetch } from "@/lib/auth";
 
 export type Client = {
   id: string;
@@ -134,10 +135,7 @@ const defaultSettings: AppSettings = {
 };
 
 async function api(path: string, options?: RequestInit) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
+  const res = await apiFetch(path, options || {});
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }

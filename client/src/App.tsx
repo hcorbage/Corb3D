@@ -24,6 +24,7 @@ import Relatorios from "./pages/Relatorios";
 import RelatorioClientes from "./pages/RelatorioClientes";
 import Login from "./pages/Login";
 import { Lock, Eye, EyeOff, KeyRound, Clock, MessageCircle, AlertTriangle, FileText, ShieldCheck, ExternalLink } from "lucide-react";
+import { setAuthToken, clearAuthToken } from "@/lib/auth";
 import { useLocation } from "wouter";
 import TermsOfUse from "@/pages/TermsOfUse";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
@@ -115,7 +116,7 @@ function AccessBlockedScreen({ variant, whatsappNumber }: { variant: "trialExpir
         )}
         <div className="mt-4">
           <button
-            onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload())}
+            onClick={() => { clearAuthToken(); fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload()); }}
             className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
           >
             Sair da conta
@@ -439,7 +440,7 @@ function TermsAcceptanceModal({ onAccepted }: { onAccepted: () => void }) {
               {loading ? "Registrando aceite..." : "Aceitar e Continuar"}
             </button>
             <button
-              onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload())}
+              onClick={() => { clearAuthToken(); fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload()); }}
               className="w-full text-sm text-gray-400 hover:text-gray-600 py-2 transition-colors"
             >
               Não aceito — Sair da conta
@@ -527,6 +528,7 @@ function App() {
             <Toaster />
             <Login
               onLogin={(u) => {
+                if ((u as any).authToken) setAuthToken((u as any).authToken);
                 const authUser = buildAuthUser(u as any);
                 setUser(authUser);
                 setNeedsTerms((u as any).mustAcceptTerms || false);

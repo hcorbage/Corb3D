@@ -40,7 +40,7 @@ export default function RelatorioClientes() {
     try {
       const res = await fetch("/api/client-financials");
       const json = await res.json();
-      setData(json);
+      if (Array.isArray(json)) setData(json);
     } catch { } finally { setLoading(false); }
   };
 
