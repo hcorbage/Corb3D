@@ -1,0 +1,90 @@
+Quero validar a arquitetura do Corb3D Manager para implementar backup por empresa em nível SaaS completo, sem quebrar o sistema atual.
+
+Me responda de forma técnica, clara e por tópicos.
+
+1. MULTIEMPRESA / ISOLAMENTO
+- O sistema já é realmente multiempresa?
+- Existe companyId nas tabelas principais?
+- Quais tabelas já possuem companyId?
+- Quais tabelas ainda NÃO possuem companyId e precisariam ter?
+- O login já limita os dados automaticamente à empresa do usuário?
+- Onde no código isso é feito (backend)?
+- Existe risco de um usuário conseguir acessar dados de outra empresa hoje?
+
+2. TABELAS E DADOS
+- Liste todas as tabelas do sistema.
+- Diga quais dados pertencem à empresa e devem entrar no backup por empresa.
+- Diga quais dados são globais do sistema e NÃO devem entrar.
+- Diga quais tabelas dependem de outras por foreign key e em que ordem ideal devem ser exportadas/importadas.
+
+3. BACKUP POR EMPRESA
+- Qual formato você recomenda para backup por empresa: JSON, ZIP com múltiplos JSONs, SQL filtrado, ou outro?
+- Explique qual formato é mais seguro e mais fácil de restaurar sem misturar dados de outras empresas.
+- Quero que o backup contenha somente os dados da empresa logada/selecionada.
+- Quero saber exatamente como filtrar tudo por companyId.
+
+4. RESTORE POR EMPRESA
+- É possível restaurar dados de uma empresa sem apagar o banco inteiro?
+- Qual seria a forma correta e segura de fazer isso?
+- O restore por empresa deve recriar registros vinculados àquela empresa sem afetar outras?
+- Quais cuidados precisam existir para não duplicar IDs, não quebrar foreign keys e não sobrescrever dados de outra empresa?
+
+5. PERMISSÕES
+- Quem deve poder gerar backup por empresa? super_admin, company_admin, ambos?
+- Quem deve poder restaurar? só super_admin no começo?
+- Como validar permissão no backend?
+
+6. BACKEND
+- Quais rotas/backend endpoints você recomenda criar para:
+  - gerar backup da empresa
+  - baixar backup da empresa
+  - listar backups da empresa
+  - restaurar backup da empresa
+- Onde no código essas rotas deveriam ficar?
+- Quero a sugestão exata de estrutura de arquivos e funções.
+
+7. FRONTEND
+- Em qual tela/menu do sistema você recomenda colocar:
+  - botão “Gerar backup”
+  - lista de backups
+  - botão “Baixar”
+- Quais perfis de usuário devem ver essa área?
+- Como deixar isso claro e profissional no app?
+
+8. ARMAZENAMENTO
+- Onde é melhor salvar os backups por empresa no servidor?
+- Sugira uma estrutura de pastas exemplo.
+- Exemplo: /var/backups/corb3dapp/companies/<companyId>/
+- Como nomear os arquivos?
+- Como evitar conflito de nomes?
+- Como fazer limpeza automática mantendo só os últimos X backups por empresa?
+
+9. SEGURANÇA
+- Como impedir que uma empresa baixe backup de outra?
+- Como impedir path traversal, enumeração de arquivos e acesso direto por URL?
+- O download deve sempre passar por autenticação no backend?
+- O ideal é nunca expor a pasta diretamente no Nginx para backups por empresa?
+
+10. IMPLEMENTAÇÃO
+- Quero um plano de implementação em etapas, em ordem correta, para fazer isso sem quebrar o sistema.
+- Separe em:
+  - fase 1: backup por empresa
+  - fase 2: listagem e download
+  - fase 3: restore por empresa
+- Diga o que precisa ser feito primeiro.
+- Diga o que já existe no sistema que pode ser reaproveitado.
+
+11. RISCOS
+- Quais são os maiores riscos técnicos para implementar backup/restore por empresa nesse sistema?
+- O que pode quebrar?
+- O que precisa ser testado obrigatoriamente antes de colocar em produção?
+
+12. ENTREGA FINAL
+No fim, quero que você me entregue:
+- diagnóstico se o sistema já está pronto ou não para backup por empresa
+- o melhor formato de backup
+- a melhor estratégia de restore
+- a arquitetura recomendada
+- e um checklist técnico para implementação segura
+
+Se possível, inclua exemplos práticos com nomes de tabelas e locais reais do código.
