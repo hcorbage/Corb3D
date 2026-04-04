@@ -87,6 +87,9 @@ export default function Settings() {
   const [backupGenerating, setBackupGenerating] = useState(false);
   const [backupListLoading, setBackupListLoading] = useState(false);
   const [backupSelectedCompany, setBackupSelectedCompany] = useState<string>("");
+  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [restoreConfirmText, setRestoreConfirmText] = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   const openPermissionsModal = async (emp: any) => {
     if (!emp.linkedUserId) return;
@@ -660,6 +663,33 @@ export default function Settings() {
       .then(data => { if (Array.isArray(data)) setBackupList(data); })
       .catch(() => {})
       .finally(() => setBackupListLoading(false));
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreTarget || restoreConfirmText !== "RESTORE") return;
+    setRestoreLoading(true);
+    try {
+      const body: Record<string, string> = { filename: restoreTarget };
+      if (isMasterAdmin && backupSelectedCompany) body.companyId = backupSelectedCompany;
+      const r = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message);
+      toast({
+        title: "Restauração concluída!",
+        description: `Dados restaurados. Pré-backup salvo: ${data.preBackupFilename}`,
+      });
+      setRestoreTarget(null);
+      setRestoreConfirmText("");
+      handleRefreshBackupList();
+    } catch (e: any) {
+      toast({ title: "Erro ao restaurar", description: e.message, variant: "destructive" });
+    } finally {
+      setRestoreLoading(false);
+    }
   };
 
   const selectedPrinter = printers.find(p => p.id === localSettings.selectedPrinterId);
@@ -1499,6 +1529,61 @@ export default function Settings() {
           </DialogContent>
         </Dialog>
 
+        {/* Modal de confirmação de restauração */}
+        <Dialog open={!!restoreTarget} onOpenChange={(open) => { if (!open) { setRestoreTarget(null); setRestoreConfirmText(""); } }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-amber-700 flex items-center gap-2">
+                Confirmar Restauração
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm font-semibold text-amber-800 mb-1">Atenção — operação irreversível</p>
+                <p className="text-xs text-amber-700">
+                  Todos os dados atuais desta empresa serão substituídos pelo conteúdo do backup selecionado. Um backup automático será gerado antes da restauração.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1 font-medium">Arquivo:</p>
+                <p className="text-xs font-mono text-gray-700 bg-gray-50 rounded-lg px-3 py-2 break-all">{restoreTarget}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Digite <span className="text-amber-600 font-bold">RESTORE</span> para confirmar:
+                </label>
+                <input
+                  data-testid="input-restore-confirm"
+                  type="text"
+                  value={restoreConfirmText}
+                  onChange={e => setRestoreConfirmText(e.target.value)}
+                  placeholder="RESTORE"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  disabled={restoreLoading}
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  data-testid="button-restore-cancel"
+                  onClick={() => { setRestoreTarget(null); setRestoreConfirmText(""); }}
+                  disabled={restoreLoading}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  data-testid="button-restore-confirm"
+                  onClick={handleConfirmRestore}
+                  disabled={restoreConfirmText !== "RESTORE" || restoreLoading}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+                >
+                  {restoreLoading ? "Restaurando..." : "Confirmar Restauração"}
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={!!credentialsModal} onOpenChange={() => setCredentialsModal(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1707,14 +1792,23 @@ export default function Settings() {
                         {new Date(b.createdAt).toLocaleString("pt-BR")} · {(b.size / 1024).toFixed(1)} KB
                       </p>
                     </div>
-                    <button
-                      data-testid={`button-download-backup-${b.filename}`}
-                      onClick={() => handleDownloadBackup(b.filename)}
-                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0"
-                    >
-                      <Download className="w-3 h-3" />
-                      Baixar
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        data-testid={`button-download-backup-${b.filename}`}
+                        onClick={() => handleDownloadBackup(b.filename)}
+                        className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        Baixar
+                      </button>
+                      <button
+                        data-testid={`button-restore-backup-${b.filename}`}
+                        onClick={() => { setRestoreTarget(b.filename); setRestoreConfirmText(""); }}
+                        className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Restaurar
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

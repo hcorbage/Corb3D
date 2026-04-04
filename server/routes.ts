@@ -13,6 +13,7 @@ import {
   listCompanyBackups,
   resolveBackupPath,
   extractCompanyIdFromFilename,
+  restoreCompanyBackup,
 } from "./backup";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
@@ -1932,6 +1933,33 @@ export async function registerRoutes(
       return res
         .status(err.message?.includes("traversal") ? 400 : 500)
         .json({ message: err.message || "Erro ao baixar backup." });
+    }
+  });
+
+  app.post("/api/backup/restore", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
+      const isMaster = req.session.isMasterAdmin;
+      const { filename, companyId: requestedCompanyId } = req.body ?? {};
+      if (!filename) return res.status(400).json({ message: "filename é obrigatório." });
+
+      let targetCompanyId: string;
+      if (isMaster && requestedCompanyId) {
+        targetCompanyId = requestedCompanyId;
+      } else if (!isMaster && requestedCompanyId && requestedCompanyId !== getScopeId(req)) {
+        return res.status(403).json({ message: "Acesso negado." });
+      } else {
+        targetCompanyId = getScopeId(req);
+      }
+
+      const result = await restoreCompanyBackup(targetCompanyId, filename, req.session.username!);
+      console.log(`[Restore] ${req.session.username} restaurou empresa ${targetCompanyId} a partir de ${filename}. Pré-backup: ${result.preBackupFilename}`);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      console.error("[Restore] Erro:", err);
+      return res
+        .status(err.message?.includes("não pertence") || err.message?.includes("traversal") ? 400 : 500)
+        .json({ message: err.message || "Erro ao restaurar backup." });
     }
   });
 
