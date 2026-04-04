@@ -1,0 +1,101 @@
+Quero implementar primeiro o BACKUP POR EMPRESA no C3D Manager, sem mexer no layout global e sem alterar a aparência atual do sistema.
+
+IMPORTANTE:
+- NÃO mudar layout global
+- NÃO reorganizar Settings ainda
+- NÃO criar submenu agora
+- NÃO mexer em componentes visuais fora do necessário
+- NÃO quebrar nada que já está funcionando
+- Quero só a funcionalidade de backup por empresa, de forma segura e cirúrgica
+
+OBJETIVO
+Implementar backup por empresa (tenant/company), para que cada empresa tenha seu backup isolado.
+
+ESSE BACKUP POR EMPRESA DEVE:
+- exportar somente os dados da empresa atual/selecionada
+- não incluir dados de outras empresas
+- não incluir dados globais indevidos
+- não alterar o banco
+- não restaurar ainda (restore por empresa fica para depois)
+- só gerar, listar e permitir download
+
+ARMAZENAMENTO
+Salvar em:
+`/var/backups/corb3dapp/companies/<companyId>/`
+
+Formato:
+`backup_<companyId>_<timestamp>.json.gz`
+
+REQUISITOS TÉCNICOS
+
+1. BACKEND
+Criar a lógica em arquivo separado, por exemplo:
+- `server/backup.ts`
+
+Implementar função para gerar backup por empresa usando a estrutura real do sistema e o isolamento já existente via `getScopeId(req)` / `userId`.
+
+Quero que o backup inclua somente os dados empresariais relevantes:
+- settings
+- materials
+- brands
+- clients
+- employees
+- calculations
+- stock_items
+- stock_movements
+- order_financials
+- order_payments
+- cash_entries
+- cash_closings
+- daily_cash
+
+Quero que você use os nomes reais das tabelas do projeto e a estrutura real já existente.
+
+2. ROTAS
+Implementar somente estas rotas:
+- `POST /api/backup/generate`
+- `GET /api/backup/list`
+- `GET /api/backup/download/:filename`
+
+3. PERMISSÕES
+- company_admin: gera/lista/baixa apenas os backups da própria empresa
+- super_admin: pode gerar/listar/baixar backup de qualquer empresa
+- employee: não pode usar backup
+
+4. SEGURANÇA
+Obrigatório:
+- não expor pasta de backup via Nginx
+- download sempre autenticado pelo backend
+- sanitizar filename com `path.basename()`
+- proteger contra path traversal
+- validar que o arquivo pertence à empresa correta
+- se super_admin passar companyId, validar corretamente
+- company_admin não pode informar companyId de outra empresa
+
+5. RETENÇÃO
+Após gerar novo backup, manter apenas os últimos 5 backups por empresa.
+
+6. FRONTEND
+Mexer o mínimo possível.
+Só adicionar, da forma mais discreta e segura possível, dentro da tela atual de Settings:
+- botão “Gerar Backup”
+- lista de backups
+- botão “Baixar”
+
+SEM reorganizar o layout inteiro.
+SEM criar submenu ainda.
+SEM alterar a aparência geral da página.
+Só acrescentar o bloco necessário.
+
+7. ENTREGA
+Quero que você me entregue:
+- arquivos alterados
+- resumo do que foi implementado
+- endpoints criados
+- como testar
+- comandos necessários se houver
+- e qualquer risco técnico observado
+
+IMPORTANTE FINAL
+Se em algum momento você perceber que a mudança vai mexer em layout global, componentes compartilhados ou estrutura ampla de Settings, pare e proponha uma alternativa mais segura.
+Quero implementação incremental, pequena e estável.

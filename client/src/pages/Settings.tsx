@@ -632,8 +632,24 @@ export default function Settings() {
     }
   };
 
-  const handleDownloadBackup = (filename: string) => {
-    window.location.href = `/api/backup/download/${encodeURIComponent(filename)}`;
+  const handleDownloadBackup = async (filename: string) => {
+    try {
+      const r = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
+      if (!r.ok) {
+        toast({ title: "Erro ao baixar backup", description: "Arquivo não encontrado ou acesso negado.", variant: "destructive" });
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    } catch {
+      toast({ title: "Erro ao baixar backup", description: "Falha na conexão.", variant: "destructive" });
+    }
   };
 
   const handleRefreshBackupList = () => {
