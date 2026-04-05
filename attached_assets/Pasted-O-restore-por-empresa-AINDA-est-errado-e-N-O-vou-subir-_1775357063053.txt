@@ -1,0 +1,87 @@
+O restore por empresa AINDA está errado e NÃO vou subir para o GitHub ainda.
+
+Teste real que fiz:
+
+1. Gere ium backup
+2. Depois criei um cliente novo
+3. Rodei restore do backup anterior
+4. O cliente novo CONTINUOU EXISTINDO
+
+Isso está errado.
+Se o backup foi feito antes de criar o cliente, esse cliente deve desaparecer no restore.
+
+Além disso:
+- quando apago usuários/empresas globais e restauro, eles não voltam
+- isso pode estar correto se users estiver fora do escopo do restore por empresa
+- mas eu quero que você me explique claramente a diferença entre:
+  - users globais
+  - employees da empresa
+  - company_admin
+  - super_admin
+  - employee
+
+Quero que você investigue o restore com precisão e sem mexer em layout global.
+
+INVESTIGAR E CORRIGIR
+
+1. O restore está realmente deletando clients?
+2. Está usando a coluna correta de escopo (`userId`)?
+3. O `companyId` alvo do restore está correto?
+4. O backup restaurado realmente não continha esse cliente novo?
+5. O restore está deletando mas depois reinserindo dados errados?
+6. Existe bug na forma de ler o arquivo `.json.gz`?
+7. A transação realmente faz commit?
+8. O problema acontece só com clients ou com outras tabelas empresariais também?
+9. O restore está usando `userId` real da empresa e não outro escopo incorreto?
+10. Existe alguma confusão entre `getScopeId(req)`, `companyId` lógico e `userId` real das tabelas?
+
+QUERO LOGS NO BACKEND
+Adicione logs claros durante o restore, no backend, mostrando:
+
+- companyId alvo
+- nome do arquivo
+- quantos registros encontrou no backup por tabela
+- quantos registros deletou por tabela
+- quantos registros inseriu por tabela
+
+Quero log pelo menos para:
+- clients
+- employees
+- materials
+- stock_items
+- calculations
+- order_financials
+- order_payments
+- cash_entries
+- cash_closings
+- daily_cash
+- brands
+- settings
+
+QUERO EXPLICAÇÃO CLARA SOBRE USERS VS EMPLOYEES
+
+Explique explicitamente:
+
+1. Quais dados pertencem ao restore por empresa
+2. Quais dados NÃO pertencem
+3. Se `users` globais devem ou não voltar
+4. Se `employees` da empresa devem voltar
+5. Se company_admin faz parte do escopo do backup por empresa ou não
+
+AJUSTE DE UX TAMBÉM
+Quero também:
+- mostrar por padrão só o backup mais recente na tela
+- opção pequena “ver backups anteriores” para expandir a lista
+- opção “Restaurar de arquivo” escolhendo um `.json.gz` do computador
+- isso sem mexer no layout global
+
+MAS O FOCO AGORA É:
+corrigir primeiro o restore para que os clientes criados depois do backup desapareçam de verdade.
+
+NÃO subir nada pro GitHub ainda.
+Quero primeiro:
+1. causa exata do problema
+2. correção aplicada
+3. logs adicionados
+4. arquivos alterados
+5. como testar novamente
