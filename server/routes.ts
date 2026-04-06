@@ -743,6 +743,16 @@ export async function registerRoutes(
     if (req.session.userId === userId) {
       return res.status(400).json({ message: "Você não pode excluir sua própria conta." });
     }
+    const targetUser = await storage.getUserById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+    if (targetUser.role === "company_admin") {
+      return res.status(403).json({
+        message: "A conta principal da empresa não pode ser excluída. Esta conta é o identificador único de todos os dados desta empresa. Para revogar o acesso, use 'Bloqueado' no Controle de Acesso.",
+        code: "COMPANY_ADMIN_PROTECTED",
+      });
+    }
     await storage.deleteUser(userId);
     res.json({ ok: true });
   });

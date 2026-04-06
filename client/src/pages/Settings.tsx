@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw, Lock } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF_CNPJ } from "@shared/validators";
 import { useCNPJLookup } from "@/hooks/useCNPJLookup";
@@ -2254,14 +2254,24 @@ export default function Settings() {
                       <span className="hidden sm:inline">Senha</span>
                     </button>
                     {u.id !== currentUserId && (
-                      <button
-                        data-testid={`button-delete-user-${u.id}`}
-                        onClick={() => handleDeleteUser(u.id)}
-                        className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Excluir usuário"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      u.role === "company_admin" ? (
+                        <span
+                          data-testid={`button-delete-user-${u.id}`}
+                          title="Conta principal da empresa — não pode ser excluída. Use 'Bloqueado' para revogar o acesso."
+                          className="p-1.5 rounded-lg text-gray-300 cursor-not-allowed"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                        </span>
+                      ) : (
+                        <button
+                          data-testid={`button-delete-user-${u.id}`}
+                          onClick={() => handleDeleteUser(u.id)}
+                          className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Excluir usuário"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

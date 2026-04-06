@@ -393,6 +393,10 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${passwordResetTokens.expiresAt} < ${new Date().toISOString()}`);
   }
   async deleteUser(id: string): Promise<void> {
+    const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id));
+    if (target?.role === "company_admin") {
+      throw new Error("COMPANY_ADMIN_PROTECTED: conta principal da empresa não pode ser excluída.");
+    }
     const emps = await db.select().from(employees).where(eq(employees.userId, id));
     for (const emp of emps) {
       if (emp.linkedUserId) {
