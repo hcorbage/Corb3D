@@ -16,6 +16,7 @@ import {
   restoreCompanyBackup,
   restoreCompanyBackupFromBuffer,
 } from "./backup";
+import { generateAdminBackupForCompany } from "./adminBackup";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
   const digits = raw.replace(/\D/g, "");
@@ -862,6 +863,69 @@ export async function registerRoutes(
       res.json({ ok: true, message: "Todos os dados de empresas foram apagados com sucesso." });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
+    }
+  });
+
+  // ---- EXCLUSÃO DEFINITIVA DE EMPRESA ----
+  app.post("/api/admin/delete-company", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const { companyId, confirmText, password } = req.body;
+
+      if (!companyId || !confirmText || !password) {
+        return res.status(400).json({ message: "Dados incompletos: companyId, confirmText e password são obrigatórios." });
+      }
+      if (confirmText !== "EXCLUIR EMPRESA") {
+        return res.status(400).json({ message: "Texto de confirmação incorreto. Digite exatamente: EXCLUIR EMPRESA" });
+      }
+
+      // Verificar senha do super_admin
+      const masterUser = await storage.getUserById(req.session.userId!);
+      if (!masterUser) return res.status(403).json({ message: "Não autorizado." });
+      const passwordMatch = await bcrypt.compare(password, masterUser.password);
+      if (!passwordMatch) return res.status(403).json({ message: "Senha do super_admin incorreta." });
+
+      // Verificar que o alvo existe e é company_admin
+      const targetUser = await storage.getUserById(companyId);
+      if (!targetUser) return res.status(404).json({ message: "Empresa não encontrada." });
+      if (targetUser.role === "super_admin") return res.status(403).json({ message: "Operação não permitida sobre o super_admin." });
+      if (targetUser.role !== "company_admin") return res.status(400).json({ message: "O ID fornecido não corresponde a uma conta de empresa." });
+
+      console.log(`[DeleteCompany] INÍCIO — empresa: ${companyId} (${targetUser.username}) | por: ${req.session.username}`);
+
+      // 1. Gerar backup por empresa (dados operacionais)
+      const companyBackup = await generateCompanyBackup(companyId, `delete-company:${req.session.username}`);
+      console.log(`[DeleteCompany] Backup por empresa: ${companyBackup.filename}`);
+
+      // 2. Gerar Backup Global Administrativo (camada de usuários/permissões)
+      const adminBackup = await generateAdminBackupForCompany(companyId, `delete-company:${req.session.username}`);
+      console.log(`[DeleteCompany] Backup Global Administrativo: ${adminBackup.filename}`);
+
+      // 3. Excluir definitivamente (dados + conta)
+      await storage.deleteCompanyPermanently(companyId);
+      console.log(`[DeleteCompany] Dados e conta removidos.`);
+
+      // 4. Registrar em audit_logs
+      await storage.createAuditLog({
+        executedByUserId: req.session.userId!,
+        executedByUsername: req.session.username!,
+        action: "delete_company",
+        targetUserId: targetUser.id,
+        targetUsername: targetUser.username,
+        details: `Empresa "${targetUser.username}" excluída definitivamente. Backups gerados: [empresa: ${companyBackup.filename}] [admin: ${adminBackup.filename}]`,
+        ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+      });
+
+      console.log(`[DeleteCompany] CONCLUÍDO — ${targetUser.username}`);
+      return res.json({
+        ok: true,
+        message: `Empresa "${targetUser.username}" excluída definitivamente.`,
+        companyBackupFilename: companyBackup.filename,
+        adminBackupFilename: adminBackup.filename,
+      });
+    } catch (e: any) {
+      console.error(`[DeleteCompany] ERRO:`, e.message);
+      return res.status(500).json({ message: e.message });
     }
   });
 

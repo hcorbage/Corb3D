@@ -1,0 +1,138 @@
+Quero implementar agora o fluxo de EXCLUSÃO DEFINITIVA DE EMPRESA COM BACKUP AUTOMÁTICO ANTES, sem refatorar a arquitetura atual do sistema.
+
+IMPORTANTE:
+- manter o modelo atual do sistema
+- não criar tabela nova de empresa agora
+- não mudar layout global
+- implementação incremental, segura e estável
+- foco total em segurança e recuperação
+
+MUDANÇA DE NOME
+Não quero mais chamar isso de “backup do super admin”.
+Quero chamar de:
+
+BACKUP GLOBAL ADMINISTRATIVO
+
+porque ele representa o backup da camada global do sistema, e não apenas do usuário super admin.
+
+Use esse nome:
+- no código
+- nas funções
+- nas rotas, se fizer sentido
+- na interface
+- na documentação/resumo
+
+OBJETIVO
+Permitir que o super_admin exclua uma empresa definitivamente, mas somente depois que o sistema gerar automaticamente:
+1. backup por empresa
+2. backup global administrativo
+
+Quero seguir a opção A:
+EXCLUIR EMPRESA COM BACKUP ANTES
+
+REGRAS
+- somente super_admin pode fazer isso
+- company_admin não pode
+- employee não pode
+- deve existir diferença clara entre:
+  - Bloquear empresa
+  - Excluir empresa definitivamente
+
+FLUXO OBRIGATÓRIO
+Ao excluir uma empresa, o sistema deve executar nesta ordem:
+
+1. Validar permissões (super_admin apenas)
+2. Validar confirmação forte no frontend e backend
+3. Gerar backup por empresa
+4. Gerar backup global administrativo
+5. Excluir os dados da empresa
+6. Excluir a conta principal da empresa (company_admin)
+7. Registrar tudo em audit_logs
+8. Responder com sucesso contendo os nomes dos backups gerados
+
+BACKUP POR EMPRESA
+Usar o sistema de backup por empresa já existente.
+
+BACKUP GLOBAL ADMINISTRATIVO
+Quero implementar um backup global administrativo separado, para permitir recuperar depois contas e estrutura global necessárias.
+
+Salvar em pasta separada:
+`/var/backups/corb3dapp/admin/`
+
+Formato:
+`admin_<timestamp>.json.gz`
+
+Esse backup global deve conter tudo o que for necessário para restaurar a identidade global da empresa excluída depois, incluindo:
+- users
+- user_permissions
+- password_reset_tokens (se fizer sentido)
+- audit_logs (avaliar se entra ou não)
+- e qualquer outro dado global essencial
+
+Quero que você analise com precisão quais tabelas globais precisam entrar nesse backup administrativo.
+
+EXCLUSÃO DA EMPRESA
+Quero que a exclusão definitiva remova:
+- dados empresariais da empresa
+- conta company_admin principal
+- employees vinculados à empresa
+- e tudo mais que pertença àquele tenant
+
+Mas sem afetar outras empresas.
+
+Como o sistema usa users.id do company_admin como chave de isolamento, quero que você trate isso com muito cuidado.
+
+SEGURANÇA
+- confirmação forte no frontend:
+  digitar exatamente `EXCLUIR EMPRESA`
+- confirmação forte no backend também
+- não confiar só no frontend
+- registrar em audit_logs:
+  - quem excluiu
+  - qual empresa
+  - quais backups foram gerados
+  - timestamp
+
+FRONTEND
+Não mexer no layout global.
+
+Apenas:
+- na área do super_admin onde hoje há gestão de usuários/empresas
+- adicionar uma ação separada para exclusão definitiva
+- manter “bloquear” como ação normal
+- deixar a exclusão definitiva bem destacada como perigosa
+
+Quero modal de confirmação com:
+- aviso claro
+- nome da empresa/usuário
+- texto obrigatório `EXCLUIR EMPRESA`
+
+BACKEND
+Quero que você primeiro implemente as funções em arquivo separado se fizer sentido, por exemplo:
+- `server/adminBackup.ts`
+- ou complementar o `backup.ts` atual, se ficar limpo
+
+Quero também uma rota específica, algo como:
+`POST /api/admin/delete-company`
+
+Body:
+{
+  "companyId": "...",
+  "confirmText": "EXCLUIR EMPRESA"
+}
+
+ENTREGA
+Quero que você me entregue:
+1. arquitetura adotada
+2. quais tabelas entram no backup global administrativo
+3. quais entram no backup por empresa
+4. arquivos alterados
+5. endpoints criados
+6. fluxo exato da exclusão
+7. como testar
+8. riscos
+9. o que NÃO ficou coberto ainda
+
+IMPORTANTE FINAL
+Não subir nada pro GitHub ainda.
+Quero primeiro revisar a implementação e validar o fluxo em teste.

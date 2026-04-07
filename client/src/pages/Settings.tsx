@@ -305,6 +305,81 @@ export default function Settings() {
     }
   };
 
+  // ── EXCLUSÃO DEFINITIVA DE EMPRESA ──
+  const [deleteCompanyTargetId, setDeleteCompanyTargetId] = useState("");
+  const [deleteCompanyModalOpen, setDeleteCompanyModalOpen] = useState(false);
+  const [deleteCompanyLockedTarget, setDeleteCompanyLockedTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteCompanyConfirmText, setDeleteCompanyConfirmText] = useState("");
+  const [deleteCompanyPassword, setDeleteCompanyPassword] = useState("");
+  const [deleteCompanyShowPassword, setDeleteCompanyShowPassword] = useState(false);
+  const [deleteCompanyLoading, setDeleteCompanyLoading] = useState(false);
+  const [deleteCompanyError, setDeleteCompanyError] = useState("");
+  const [deleteCompanySuccess, setDeleteCompanySuccess] = useState<{ companyBackupFilename: string; adminBackupFilename: string } | null>(null);
+
+  const openDeleteCompanyModal = () => {
+    if (!deleteCompanyTargetId) {
+      toast({ title: "Selecione uma empresa", description: "Escolha uma empresa antes de excluir.", variant: "destructive" });
+      return;
+    }
+    const company = usersList.find(u => String(u.id) === String(deleteCompanyTargetId));
+    setDeleteCompanyLockedTarget(company ? { id: String(company.id), name: company.username } : { id: deleteCompanyTargetId, name: deleteCompanyTargetId });
+    setDeleteCompanyConfirmText("");
+    setDeleteCompanyPassword("");
+    setDeleteCompanyShowPassword(false);
+    setDeleteCompanyError("");
+    setDeleteCompanySuccess(null);
+    setDeleteCompanyModalOpen(true);
+  };
+
+  const closeDeleteCompanyModal = () => {
+    setDeleteCompanyModalOpen(false);
+    setDeleteCompanyLockedTarget(null);
+    setDeleteCompanyConfirmText("");
+    setDeleteCompanyPassword("");
+    setDeleteCompanyError("");
+    setDeleteCompanySuccess(null);
+  };
+
+  const handleDeleteCompanyConfirm = async () => {
+    if (deleteCompanyConfirmText !== "EXCLUIR EMPRESA") {
+      setDeleteCompanyError('Digite exatamente: EXCLUIR EMPRESA');
+      return;
+    }
+    if (!deleteCompanyPassword) {
+      setDeleteCompanyError("Informe sua senha de super_admin.");
+      return;
+    }
+    if (!deleteCompanyLockedTarget) return;
+    setDeleteCompanyLoading(true);
+    setDeleteCompanyError("");
+    try {
+      const res = await fetch("/api/admin/delete-company", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: deleteCompanyLockedTarget.id,
+          confirmText: deleteCompanyConfirmText,
+          password: deleteCompanyPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteCompanyError(data.message || "Erro ao excluir empresa.");
+        return;
+      }
+      setDeleteCompanySuccess({
+        companyBackupFilename: data.companyBackupFilename,
+        adminBackupFilename: data.adminBackupFilename,
+      });
+      setUsersList(prev => prev.filter(u => u.id !== deleteCompanyLockedTarget.id));
+      setDeleteCompanyTargetId("");
+    } catch {
+      setDeleteCompanyError("Erro de conexão.");
+    } finally {
+      setDeleteCompanyLoading(false);
+    }
+  };
+
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [cropZoom, setCropZoom] = useState(1);
@@ -2632,6 +2707,41 @@ export default function Settings() {
                   <Shield className="w-4 h-4" /> Configurar Reset Seletivo
                 </button>
               </div>
+
+              {/* Excluir Empresa Definitivamente */}
+              <div className="p-4 border-t-2 border-red-200 bg-red-50 rounded-xl mx-2 mb-2">
+                <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4 text-red-700" /> Excluir Empresa Definitivamente
+                </h3>
+                <p className="text-xs text-red-700 mb-1">
+                  Remove permanentemente a conta da empresa e <strong>todos</strong> os seus dados operacionais.
+                  Diferente do reset, a conta de acesso também é removida.
+                </p>
+                <p className="text-xs text-red-600 mb-3 font-medium">
+                  Antes da exclusão, backups automáticos são gerados (por empresa + global administrativo).
+                </p>
+                <div className="flex gap-2 items-center">
+                  <select
+                    data-testid="select-delete-company"
+                    value={deleteCompanyTargetId}
+                    onChange={e => setDeleteCompanyTargetId(e.target.value)}
+                    className="flex-1 bg-white border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    <option value="">Selecione a empresa...</option>
+                    {usersList.map(u => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
+                    ))}
+                  </select>
+                  <button
+                    data-testid="button-open-delete-company"
+                    disabled={!deleteCompanyTargetId}
+                    onClick={openDeleteCompanyModal}
+                    className="flex items-center gap-1.5 bg-red-700 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
+                  >
+                    <Trash2 className="w-4 h-4" /> Excluir
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2731,6 +2841,136 @@ export default function Settings() {
                   {resetLoading ? 'Executando...' : 'Confirmar Reset'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL EXCLUSÃO DEFINITIVA DE EMPRESA ── */}
+        {deleteCompanyModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border-2 border-red-300">
+              {deleteCompanySuccess ? (
+                /* ── Tela de sucesso ── */
+                <div className="text-center">
+                  <div className="bg-green-100 rounded-full p-3 w-14 h-14 flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-7 h-7 text-green-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-green-800 mb-2">Empresa excluída com sucesso</h3>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Dois backups de segurança foram gerados automaticamente antes da exclusão:
+                  </p>
+                  <div className="space-y-2 text-left mb-5">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-0.5">Backup por empresa</p>
+                      <p className="text-xs font-mono text-gray-700 break-all">{deleteCompanySuccess.companyBackupFilename}</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <p className="text-[10px] text-purple-600 font-semibold uppercase tracking-wide mb-0.5">Backup Global Administrativo</p>
+                      <p className="text-xs font-mono text-purple-800 break-all">{deleteCompanySuccess.adminBackupFilename}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={closeDeleteCompanyModal}
+                    className="w-full bg-gray-800 hover:bg-gray-900 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              ) : (
+                /* ── Formulário de confirmação ── */
+                <>
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="bg-red-100 rounded-full p-2.5 flex-shrink-0">
+                      <Trash2 className="w-5 h-5 text-red-700" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-red-800">Excluir Empresa Definitivamente</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Esta ação é <strong>irreversível</strong>. Todos os dados e a conta de acesso serão removidos.
+                        Backups automáticos serão gerados antes da exclusão.
+                      </p>
+                      {deleteCompanyLockedTarget && (
+                        <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                          <span className="text-xs text-red-700 font-semibold">Empresa: </span>
+                          <span className="text-xs text-red-900 font-bold font-mono">{deleteCompanyLockedTarget.name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Sua senha (super_admin)
+                      </label>
+                      <div className="relative">
+                        <input
+                          data-testid="input-delete-company-password"
+                          type={deleteCompanyShowPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={deleteCompanyPassword}
+                          onChange={e => setDeleteCompanyPassword(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-red-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDeleteCompanyShowPassword(v => !v)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {deleteCompanyShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Digite <span className="font-bold text-red-700">EXCLUIR EMPRESA</span> para confirmar
+                      </label>
+                      <input
+                        data-testid="input-delete-company-confirm"
+                        type="text"
+                        placeholder="EXCLUIR EMPRESA"
+                        value={deleteCompanyConfirmText}
+                        onChange={e => setDeleteCompanyConfirmText(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    {deleteCompanyError && (
+                      <p className="text-xs text-red-600 font-semibold">{deleteCompanyError}</p>
+                    )}
+
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        onClick={closeDeleteCompanyModal}
+                        disabled={deleteCompanyLoading}
+                        className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        data-testid="button-confirm-delete-company"
+                        onClick={handleDeleteCompanyConfirm}
+                        disabled={
+                          deleteCompanyLoading ||
+                          deleteCompanyConfirmText !== "EXCLUIR EMPRESA" ||
+                          !deleteCompanyPassword
+                        }
+                        className="flex-1 flex items-center justify-center gap-2 bg-red-700 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-bold transition-colors"
+                      >
+                        {deleteCompanyLoading ? (
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                          </svg>
+                        ) : <Trash2 className="w-4 h-4" />}
+                        {deleteCompanyLoading ? "Excluindo..." : "Excluir Definitivamente"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

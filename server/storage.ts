@@ -138,6 +138,9 @@ export interface IStorage {
   resetSelectiveData(modules: string[], masterAdminId: string): Promise<void>;
   resetFinancialData(userId: string): Promise<void>;
 
+  // Permanent company deletion (super_admin only)
+  deleteCompanyPermanently(companyId: string): Promise<void>;
+
   // Audit
   createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog>;
   getAuditLogs(): Promise<AuditLog[]>;
@@ -629,6 +632,27 @@ export class DatabaseStorage implements IStorage {
     for (const u of allAdminUsers) {
       await this.resetCompanyData(u.id);
     }
+  }
+
+  /**
+   * Exclusão DEFINITIVA de empresa.
+   * Remove todos os dados operacionais + contas de acesso (company_admin + employees).
+   * Deve ser chamado APÓS gerar backups por empresa e global administrativo.
+   */
+  async deleteCompanyPermanently(companyId: string): Promise<void> {
+    // 1. resetCompanyData: apaga as 13 tabelas operacionais + users/permissions dos employees
+    await this.resetCompanyData(companyId);
+
+    // 2. Apaga permissões do company_admin
+    await db.delete(userPermissions).where(eq(userPermissions.userId, companyId));
+
+    // 3. Apaga password reset tokens do company_admin (se existirem)
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, companyId));
+
+    // 4. Apaga o próprio company_admin da tabela users
+    await db.delete(users).where(eq(users.id, companyId));
+
+    console.log(`[DeleteCompany] Empresa excluída definitivamente: ${companyId}`);
   }
 
   async resetSelectiveData(modules: string[], masterAdminId: string): Promise<void> {
