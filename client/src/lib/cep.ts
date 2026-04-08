@@ -5,39 +5,41 @@ export interface CepResult {
   uf: string;
 }
 
+function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 export async function fetchCEP(cep: string): Promise<CepResult | null> {
   const digits = cep.replace(/\D/g, '');
   if (digits.length !== 8) return null;
 
   try {
-    const res = await fetch(`https://brasilapi.com.br/api/cep/v1/${digits}`, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await fetchWithTimeout(`https://viacep.com.br/ws/${digits}/json/`, 8000);
     if (res.ok) {
       const data = await res.json();
-      if (data && data.street !== undefined) {
+      if (data && !data.erro) {
         return {
-          logradouro: data.street || '',
-          bairro: data.neighborhood || '',
-          localidade: data.city || '',
-          uf: data.state || '',
+          logradouro: data.logradouro || '',
+          bairro: data.bairro || '',
+          localidade: data.localidade || '',
+          uf: data.uf || '',
         };
       }
     }
   } catch {}
 
   try {
-    const res2 = await fetch(`https://viacep.com.br/ws/${digits}/json/`, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const res2 = await fetchWithTimeout(`https://brasilapi.com.br/api/cep/v1/${digits}`, 8000);
     if (res2.ok) {
       const data2 = await res2.json();
-      if (data2 && !data2.erro) {
+      if (data2 && data2.cep) {
         return {
-          logradouro: data2.logradouro || '',
-          bairro: data2.bairro || '',
-          localidade: data2.localidade || '',
-          uf: data2.uf || '',
+          logradouro: data2.street || '',
+          bairro: data2.neighborhood || '',
+          localidade: data2.city || '',
+          uf: data2.state || '',
         };
       }
     }
