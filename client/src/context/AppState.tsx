@@ -24,18 +24,33 @@ export type Material = {
 
 export type StockItem = {
   id: string;
+  userId?: string;
   materialId: string;
   brand: string;
   color: string;
   cost: number;
   quantity: number;
+  minQuantity?: number;
 };
 
 export type Employee = {
   id: string;
+  userId?: string;
   name: string;
   commissionRate: number;
+  whatsapp: string;
+  document: string;
+  email?: string | null;
+  cep?: string;
+  neighborhood?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  uf?: string;
   linkedUserId?: string | null;
+  birthdate?: string | null;
+  linkedUsername?: string | null;
 };
 
 export type Calculation = {

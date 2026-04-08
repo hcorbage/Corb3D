@@ -179,7 +179,7 @@ async function executeRestoreFromData(
 
   await db.transaction(async (tx) => {
     const del = async (table: any, col: any, label: string) => {
-      const rows = await tx.delete(table).where(eq(col, companyId)).returning();
+      const rows = (await tx.delete(table).where(eq(col, companyId)).returning()) as any[];
       stats[label] = { deleted: rows.length, inserted: 0 };
       console.log(`[Restore] DELETE ${label}: ${rows.length} registros`);
     };

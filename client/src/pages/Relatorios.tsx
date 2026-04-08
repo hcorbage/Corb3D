@@ -130,7 +130,7 @@ export default function Relatorios() {
     win.document.close();
   };
 
-  const allCategories = [...new Set(entries.map(e => e.category).filter(Boolean))];
+  const allCategories = Array.from(new Set(entries.map(e => e.category).filter(Boolean)));
 
   return (
     <div className="space-y-6">

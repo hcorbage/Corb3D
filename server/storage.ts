@@ -94,7 +94,7 @@ export interface IStorage {
   setMustChangePassword(id: string, value: boolean): Promise<void>;
   deleteUser(id: string): Promise<void>;
   promoteToAdmin(id: string): Promise<void>;
-  getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean }[]>;
+  getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string | null; mustChangePassword: boolean; email: string | null }[]>;
   updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void>;
   acceptTerms(id: string, version: string, ip: string): Promise<void>;
 
@@ -430,7 +430,7 @@ export class DatabaseStorage implements IStorage {
   async promoteToAdmin(id: string): Promise<void> {
     await db.update(users).set({ isAdmin: true }).where(eq(users.id, id));
   }
-  async getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string; mustChangePassword: boolean; email: string | null }[]> {
+  async getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string | null; mustChangePassword: boolean; email: string | null }[]> {
     return db.select({
       id: users.id,
       username: users.username,

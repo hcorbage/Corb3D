@@ -72,7 +72,7 @@ async function ensureMasterAdmin() {
     const { db } = await import("./db");
     const { sql } = await import("drizzle-orm");
     const rows = await db.execute(sql`SELECT id, role FROM users WHERE username = ${MASTER_USERNAME}`);
-    const row = (rows as any).rows?.[0] ?? rows?.[0];
+    const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
     if (row) {
       if (row.role !== "super_admin") {
         await db.execute(sql`UPDATE users SET role = 'super_admin', is_admin = true, company_id = NULL WHERE username = ${MASTER_USERNAME}`);

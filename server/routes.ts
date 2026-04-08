@@ -115,6 +115,10 @@ function stripUserId(body: any) {
   return rest;
 }
 
+function pStr(val: string | string[]): string {
+  return Array.isArray(val) ? val[0] : val;
+}
+
 const VALID_CASH_TYPES = ["entrada", "saida"] as const;
 type CashType = typeof VALID_CASH_TYPES[number];
 
@@ -1089,11 +1093,11 @@ export async function registerRoutes(
       const docCheck = validateDocumentBackend(body.document);
       if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
     }
-    const client = await storage.updateClient(req.params.id, getScopeId(req), body);
+    const client = await storage.updateClient(pStr(req.params.id), getScopeId(req), body);
     res.json(client);
   });
   app.delete("/api/clients/:id", requirePermission("clientes"), async (req, res) => {
-    await storage.deleteClient(req.params.id, getScopeId(req));
+    await storage.deleteClient(pStr(req.params.id), getScopeId(req));
     res.json({ ok: true });
   });
 
@@ -1125,18 +1129,18 @@ export async function registerRoutes(
     res.json(item);
   });
   app.patch("/api/stock-items/:id", requirePermission("estoque"), async (req, res) => {
-    const item = await storage.updateStockItem(req.params.id, getScopeId(req), stripUserId(req.body));
+    const item = await storage.updateStockItem(pStr(req.params.id), getScopeId(req), stripUserId(req.body));
     res.json(item);
   });
   app.delete("/api/stock-items/:id", requirePermission("estoque"), async (req, res) => {
-    await storage.deleteStockItem(req.params.id, getScopeId(req));
+    await storage.deleteStockItem(pStr(req.params.id), getScopeId(req));
     res.json({ ok: true });
   });
 
   // ---- STOCK MOVEMENTS ----
   app.get("/api/stock-movements/:stockItemId", requirePermission("estoque"), async (req, res) => {
     try {
-      const movements = await storage.getStockMovements(getScopeId(req), req.params.stockItemId);
+      const movements = await storage.getStockMovements(getScopeId(req), pStr(req.params.stockItemId));
       res.json(movements);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
@@ -1264,15 +1268,15 @@ export async function registerRoutes(
     }
   });
   app.patch("/api/employees/:id", requireAdmin, async (req, res) => {
-    const emp = await storage.updateEmployee(req.params.id, req.session.userId!, stripUserId(req.body));
+    const emp = await storage.updateEmployee(pStr(req.params.id), req.session.userId!, stripUserId(req.body));
     res.json(emp);
   });
   app.delete("/api/employees/:id", requireAdmin, async (req, res) => {
-    const emp = await storage.getEmployee(req.params.id, req.session.userId!);
+    const emp = await storage.getEmployee(pStr(req.params.id), req.session.userId!);
     if (emp?.linkedUserId) {
       await storage.deleteUser(emp.linkedUserId);
     }
-    await storage.deleteEmployee(req.params.id, req.session.userId!);
+    await storage.deleteEmployee(pStr(req.params.id), req.session.userId!);
     res.json({ ok: true });
   });
 
@@ -1451,7 +1455,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/cep/:cep", requireAuth as RequestHandler, async (req: Request, res: Response) => {
-    const cep = req.params.cep.replace(/\D/g, '');
+    const cep = pStr(req.params.cep).replace(/\D/g, '');
     if (cep.length !== 8) {
       return res.status(400).json({ error: "CEP inválido" });
     }
@@ -1479,7 +1483,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/cnpj/:cnpj", requireAuth as RequestHandler, async (req: Request, res: Response) => {
-    const cnpj = req.params.cnpj.replace(/\D/g, '');
+    const cnpj = pStr(req.params.cnpj).replace(/\D/g, '');
     if (cnpj.length !== 14) return res.status(400).json({ message: "CNPJ inválido." });
     try {
       const controller = new AbortController();
@@ -1569,7 +1573,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/order-financials/by-calc/:calcId", requirePermission("pedidos_financeiro"), async (req, res) => {
-    const data = await storage.getOrderFinancialByCalculationId(req.params.calcId, getScopeId(req));
+    const data = await storage.getOrderFinancialByCalculationId(pStr(req.params.calcId), getScopeId(req));
     res.json(data || null);
   });
 
@@ -1598,14 +1602,14 @@ export async function registerRoutes(
     const userId = getScopeId(req);
     const body = stripUserId(req.body);
     if ("dueDate" in body) body.dueDate = body.dueDate && body.dueDate.trim() ? body.dueDate.trim() : null;
-    const updated = await storage.updateOrderFinancial(req.params.id, userId, body);
+    const updated = await storage.updateOrderFinancial(pStr(req.params.id), userId, body);
     if (!updated) return res.status(404).json({ message: "Não encontrado" });
     res.json(updated);
   });
 
   // Order Payments
   app.get("/api/order-payments/:orderFinancialId", requirePermission("pedidos_financeiro"), async (req, res) => {
-    const data = await storage.getOrderPayments(getScopeId(req), req.params.orderFinancialId);
+    const data = await storage.getOrderPayments(getScopeId(req), pStr(req.params.orderFinancialId));
     res.json(data);
   });
 
@@ -1656,7 +1660,7 @@ export async function registerRoutes(
   app.delete("/api/order-payments/:id", requirePermission("pedidos_financeiro"), async (req, res) => {
     const userId = getScopeId(req);
     // Fetch payment first so we can cascade-delete related records
-    const payment = await storage.getOrderPaymentById(req.params.id);
+    const payment = await storage.getOrderPaymentById(pStr(req.params.id));
     if (payment) {
       // 1. Remove the matching cash_entry generated when this payment was created
       if (payment.calculationId) {
@@ -1676,7 +1680,7 @@ export async function registerRoutes(
       }
     }
     // 3. Delete the payment record itself
-    await storage.deleteOrderPayment(req.params.id, userId);
+    await storage.deleteOrderPayment(pStr(req.params.id), userId);
     res.json({ success: true });
   });
 
@@ -1825,7 +1829,7 @@ export async function registerRoutes(
       const userId = getScopeId(req);
       const body = stripUserId(req.body);
       if (body.type !== undefined) body.type = normalizeCashType(body.type);
-      const updated = await storage.updateCashEntry(req.params.id, userId, body);
+      const updated = await storage.updateCashEntry(pStr(req.params.id), userId, body);
       if (!updated) return res.status(404).json({ message: "Lançamento não encontrado" });
       res.json(updated);
     } catch (e: any) {
@@ -1834,7 +1838,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/cash-entries/:id", requirePermission("livro_caixa"), async (req, res) => {
-    await storage.deleteCashEntry(req.params.id, getScopeId(req));
+    await storage.deleteCashEntry(pStr(req.params.id), getScopeId(req));
     res.json({ success: true });
   });
 
@@ -1862,8 +1866,8 @@ export async function registerRoutes(
   // ---- USER PERMISSIONS ----
   app.get("/api/user-permissions/:userId", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const perms = await storage.getUserPermissions(req.params.userId);
-      res.json({ userId: req.params.userId, permissions: perms });
+      const perms = await storage.getUserPermissions(pStr(req.params.userId));
+      res.json({ userId: pStr(req.params.userId), permissions: perms });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
@@ -1875,7 +1879,7 @@ export async function registerRoutes(
       if (!Array.isArray(permissions)) return res.status(400).json({ message: "permissions deve ser um array" });
       const validModules = PERMISSION_MODULES.map(m => m.key);
       const filtered = permissions.filter((p: string) => validModules.includes(p as any));
-      await storage.setUserPermissions(req.params.userId, filtered);
+      await storage.setUserPermissions(pStr(req.params.userId), filtered);
       // Update session permissions if the target user is currently logged in (best-effort)
       res.json({ userId: req.params.userId, permissions: filtered });
     } catch (e: any) {
@@ -2082,7 +2086,7 @@ export async function registerRoutes(
   app.get("/api/backup/download/:filename", requireAuth, requireActiveAccount, async (req, res) => {
     try {
       if (!req.session.isAdmin) return res.status(403).json({ message: "Acesso negado." });
-      const { filename } = req.params;
+      const filename = pStr(req.params.filename);
       const isMaster = req.session.isMasterAdmin;
       const fileCompanyId = extractCompanyIdFromFilename(filename);
       if (!fileCompanyId) return res.status(400).json({ message: "Nome de arquivo inválido." });
