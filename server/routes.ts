@@ -2087,5 +2087,33 @@ export async function registerRoutes(
     }
   });
 
+  // ---- RESTAURAÇÃO POR EMPRESA (super_admin only) ----
+  app.post("/api/backup/restore-company", requireAuth, requireActiveAccount, async (req, res) => {
+    try {
+      if (!req.session.isMasterAdmin) return res.status(403).json({ message: "Acesso negado. Apenas o super_admin pode executar restaurações." });
+      const { fileBase64, companyId } = req.body ?? {};
+      if (!fileBase64) return res.status(400).json({ message: "Arquivo de backup é obrigatório." });
+      if (!companyId) return res.status(400).json({ message: "companyId é obrigatório." });
+
+      const gzipBuffer = Buffer.from(fileBase64, "base64");
+      const result = await restoreCompanyBackupFromBuffer(companyId as string, gzipBuffer, req.session.username!);
+
+      await storage.createAuditLog({
+        executedByUserId: req.session.userId!,
+        executedByUsername: req.session.username!,
+        action: "restore_company_backup",
+        targetUserId: companyId as string,
+        details: `Restauração de backup por arquivo para empresa companyId=${companyId}. Pré-backup gerado: ${result.preBackupFilename}`,
+      });
+
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      console.error("[RestoreCompany] Erro:", err);
+      return res
+        .status(err.message?.includes("outra empresa") || err.message?.includes("não pertence") || err.message?.includes("traversal") ? 400 : 500)
+        .json({ message: err.message || "Erro ao restaurar backup da empresa." });
+    }
+  });
+
   return httpServer;
 }

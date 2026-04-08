@@ -1,0 +1,80 @@
+Quero implementar RESTAURAÇÃO DE BACKUP POR EMPRESA, restrita ao SUPER ADMIN.
+
+IMPORTANTE:
+- NÃO alterar lógica global do sistema
+- NÃO alterar outras funcionalidades
+- NÃO refatorar estrutura existente
+- alteração deve ser isolada e segura
+- NÃO quebrar multiempresa
+
+--------------------------------------------------
+
+OBJETIVO:
+Permitir restaurar backup de forma isolada por empresa (companyId), sem afetar outras empresas.
+
+--------------------------------------------------
+
+PERMISSÃO:
+- APENAS super_admin pode executar a restauração
+- bloquear totalmente para:
+  - admin da empresa
+  - usuários comuns
+
+--------------------------------------------------
+
+COMPORTAMENTO DESEJADO:
+
+1) SELEÇÃO DO BACKUP
+- permitir upload de arquivo de backup
+- validar estrutura do arquivo antes de qualquer ação
+
+2) IDENTIFICAÇÃO DA EMPRESA
+- o backup deve conter o companyId
+- validar que o backup pertence a uma empresa específica
+
+3) RESTAURAÇÃO ISOLADA
+- restaurar SOMENTE dados da empresa do backup
+- NÃO alterar dados de outras empresas
+- NÃO afetar sistema global
+
+- sobrescrever dados da empresa atual:
+  ✔ pedidos  
+  ✔ clientes  
+  ✔ financeiro  
+  ✔ impressoras (se aplicável)  
+
+4) SEGURANÇA
+ANTES de executar:
+- exibir confirmação obrigatória:
+
+"ATENÇÃO: Esta ação irá substituir TODOS os dados da empresa selecionada. Esta ação não pode ser desfeita. Deseja continuar?"
+
+- exigir confirmação explícita (botão ou digitação)
+
+5) LOG
+- registrar:
+  ✔ quem executou (super_admin)
+  ✔ data/hora
+  ✔ companyId afetada
+
+--------------------------------------------------
+
+REGRAS CRÍTICAS:
+
+- garantir isolamento total por companyId
+- NUNCA misturar dados entre empresas
+- validar integridade antes de restaurar
+- se houver erro, NÃO executar restauração parcial
+
+--------------------------------------------------
+
+UX:
+
+- interface simples dentro da área de super admin
+- botão:
+  “Restaurar backup da empresa”
+
+--------------------------------------------------
+
+RESUMO:
+Quero restauração por empresa, segura, isolada por companyId, acessível somente ao super_admin, sem afetar o restante do sistema.

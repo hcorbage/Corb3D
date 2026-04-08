@@ -94,6 +94,53 @@ export default function Settings() {
   const [uploadRestoreLoading, setUploadRestoreLoading] = useState(false);
   const uploadRestoreRef = useRef<HTMLInputElement>(null);
 
+  const [restoreCompanyId, setRestoreCompanyId] = useState("");
+  const [restoreCompanyFile, setRestoreCompanyFile] = useState<File | null>(null);
+  const [restoreCompanyLoading, setRestoreCompanyLoading] = useState(false);
+  const [restoreCompanyConfirmOpen, setRestoreCompanyConfirmOpen] = useState(false);
+  const [restoreCompanyResult, setRestoreCompanyResult] = useState<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> } | null>(null);
+  const restoreCompanyFileRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreCompanyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".json.gz")) {
+      toast({ title: "Arquivo inválido", description: "Selecione um arquivo .json.gz de backup.", variant: "destructive" });
+      if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = "";
+      return;
+    }
+    setRestoreCompanyFile(file);
+    setRestoreCompanyResult(null);
+  };
+
+  const handleRestoreCompanyConfirm = async () => {
+    if (!restoreCompanyFile || !restoreCompanyId) return;
+    setRestoreCompanyLoading(true);
+    setRestoreCompanyConfirmOpen(false);
+    try {
+      const arrayBuffer = await restoreCompanyFile.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const base64 = btoa(binary);
+      const r = await fetch("/api/backup/restore-company", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64: base64, companyId: restoreCompanyId }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message);
+      setRestoreCompanyResult(data);
+      toast({ title: "Restauração concluída!", description: `Empresa restaurada com sucesso. Pré-backup: ${data.preBackupFilename}` });
+      setRestoreCompanyFile(null);
+      if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = "";
+    } catch (err: any) {
+      toast({ title: "Erro na restauração", description: err.message, variant: "destructive" });
+    } finally {
+      setRestoreCompanyLoading(false);
+    }
+  };
+
   const [showAddPrinterForm, setShowAddPrinterForm] = useState(false);
   const [newPrinterName, setNewPrinterName] = useState("");
   const [newPrinterBrand, setNewPrinterBrand] = useState("");
@@ -2900,6 +2947,83 @@ export default function Settings() {
                 </button>
               </div>
 
+              {/* Restaurar Backup por Empresa */}
+              <div className="p-4 border-t border-amber-100">
+                <h3 className="text-sm font-bold text-blue-800 mb-1 flex items-center gap-1.5">
+                  <UploadCloud className="w-4 h-4 text-blue-700" /> Restaurar Backup da Empresa
+                </h3>
+                <p className="text-xs text-blue-700 mb-3">
+                  Restaura os dados operacionais de uma empresa a partir de um arquivo de backup <span className="font-mono">.json.gz</span>. Um pré-backup automático é gerado antes da restauração. A ação é registrada no log de auditoria.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <select
+                      data-testid="select-restore-company-id"
+                      value={restoreCompanyId}
+                      onChange={e => { setRestoreCompanyId(e.target.value); setRestoreCompanyFile(null); setRestoreCompanyResult(null); if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = ""; }}
+                      className="flex-1 bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    >
+                      <option value="">Selecione a empresa...</option>
+                      {usersList.map(u => (
+                        <option key={u.id} value={u.id}>{u.username}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {restoreCompanyId && (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        ref={restoreCompanyFileRef}
+                        type="file"
+                        accept=".json.gz"
+                        className="hidden"
+                        onChange={handleRestoreCompanyFileChange}
+                        data-testid="input-restore-company-file"
+                      />
+                      <button
+                        data-testid="button-restore-company-select-file"
+                        onClick={() => restoreCompanyFileRef.current?.click()}
+                        disabled={restoreCompanyLoading}
+                        className="flex items-center gap-2 bg-white border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                      >
+                        <UploadCloud className="w-4 h-4" />
+                        {restoreCompanyFile ? restoreCompanyFile.name : "Selecionar arquivo .json.gz"}
+                      </button>
+                      {restoreCompanyFile && (
+                        <button
+                          data-testid="button-restore-company-execute"
+                          disabled={restoreCompanyLoading}
+                          onClick={() => setRestoreCompanyConfirmOpen(true)}
+                          className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          {restoreCompanyLoading ? (
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                          ) : null}
+                          {restoreCompanyLoading ? "Restaurando..." : "Restaurar"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {restoreCompanyResult && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs space-y-1">
+                      <p className="font-bold text-green-800">Restauração concluída com sucesso.</p>
+                      <p className="text-green-700">Pré-backup salvo: <span className="font-mono">{restoreCompanyResult.preBackupFilename}</span></p>
+                      <div className="mt-2 grid grid-cols-2 gap-1">
+                        {Object.entries(restoreCompanyResult.stats).map(([table, s]) => (
+                          <div key={table} className="text-green-700">
+                            <span className="font-mono">{table}</span>: {s.deleted} excluídos / {s.inserted} inseridos
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Excluir Empresa Definitivamente */}
               <div className="p-4 border-t-2 border-red-200 bg-red-50 rounded-xl mx-2 mb-2">
                 <h3 className="text-sm font-bold text-red-800 mb-1 flex items-center gap-1.5">
@@ -3031,6 +3155,55 @@ export default function Settings() {
                     </svg>
                   ) : <AlertTriangle className="w-4 h-4" />}
                   {resetLoading ? 'Executando...' : 'Confirmar Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL CONFIRMAÇÃO RESTAURAÇÃO DE EMPRESA ── */}
+        {restoreCompanyConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border-2 border-blue-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-blue-700" />
+                </div>
+                <h2 className="text-lg font-bold text-blue-900">Confirmar Restauração</h2>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-4 text-sm">
+                <p className="font-bold text-amber-900 mb-2">ATENÇÃO</p>
+                <p className="text-amber-800">
+                  Esta ação irá substituir <strong>TODOS</strong> os dados operacionais da empresa selecionada pelo conteúdo do arquivo de backup.
+                </p>
+                <ul className="mt-2 space-y-1 text-amber-700 text-xs list-disc list-inside">
+                  <li>Clientes, orçamentos, estoque, financeiro e funcionários serão substituídos</li>
+                  <li>Um pré-backup automático será gerado antes da restauração</li>
+                  <li>A operação será registrada no log de auditoria</li>
+                  <li><strong>Esta ação não pode ser desfeita</strong></li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600 space-y-1">
+                <div><span className="font-semibold">Empresa:</span> {usersList.find(u => u.id === restoreCompanyId)?.username ?? restoreCompanyId}</div>
+                <div><span className="font-semibold">Arquivo:</span> {restoreCompanyFile?.name}</div>
+                <div><span className="font-semibold">Tamanho:</span> {restoreCompanyFile ? `${(restoreCompanyFile.size / 1024).toFixed(1)} KB` : '-'}</div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRestoreCompanyConfirmOpen(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  data-testid="button-restore-company-confirm"
+                  onClick={handleRestoreCompanyConfirm}
+                  className="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
+                >
+                  Sim, restaurar backup
                 </button>
               </div>
             </div>
