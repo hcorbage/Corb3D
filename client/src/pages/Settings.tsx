@@ -1230,6 +1230,14 @@ export default function Settings() {
           </div>
         )}
 
+        {/* ── TÍTULO DE SEÇÃO: Usuários e Acesso ── */}
+        {isAdmin && (
+          <div className="mt-10 mb-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Usuários e Acesso</p>
+            <div className="border-t border-gray-200"></div>
+          </div>
+        )}
+
         {/* Employees / Funcionários Section */}
         {isAdmin && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -1750,6 +1758,12 @@ export default function Settings() {
           </DialogContent>
         </Dialog></>)}
 
+        {/* ── TÍTULO DE SEÇÃO: Comunicação ── */}
+        <div className="mt-10 mb-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Comunicação</p>
+          <div className="border-t border-gray-200"></div>
+        </div>
+
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
             WhatsApp do Administrador
@@ -1797,6 +1811,12 @@ export default function Settings() {
             )}
           </div>
         )}
+
+        {/* ── TÍTULO DE SEÇÃO: Backups ── */}
+        <div className="mt-10 mb-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Backups</p>
+          <div className="border-t border-gray-200"></div>
+        </div>
 
         {/* Backup Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
@@ -2018,6 +2038,12 @@ export default function Settings() {
         )}
 
         {isMasterAdmin ? (<>
+        {/* ── TÍTULO DE SEÇÃO: Usuários e Acesso (Painel Master) ── */}
+        <div className="mt-10 mb-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Usuários e Acesso</p>
+          <div className="border-t border-gray-200"></div>
+        </div>
+
         {/* ── CONTROLE DE ACESSO ── */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="mb-5">
@@ -2600,6 +2626,12 @@ export default function Settings() {
           </div>
         </div>
         )}
+
+        {/* ── TÍTULO DE SEÇÃO: Avançado ── */}
+        <div className="mt-10 mb-5">
+          <p className="text-xs font-semibold text-red-400 uppercase tracking-widest mb-3">Avançado — Operações Críticas</p>
+          <div className="border-t border-red-100"></div>
+        </div>
 
         {/* ── ZERAR FINANCEIRO (todos os usuários) ── */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-orange-100 mt-6">
