@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchCEP } from "@/lib/cep";
-import { Clock, Calendar as CalendarIcon, RotateCcw, Save, FileText, Phone, ChevronDown, Plus, Trash2, X, Download } from "lucide-react";
+import { Clock, Calendar as CalendarIcon, RotateCcw, Save, FileText, Phone, ChevronDown, Plus, Trash2, X, Download, Upload } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -134,6 +134,29 @@ export default function Calculator() {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
+
+  // Quote Image State
+  const [quoteImage, setQuoteImage] = useState<string | null>(null);
+  const quoteImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleQuoteImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 800;
+      const ratio = Math.min(1, MAX_W / img.width);
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const b64 = canvas.toDataURL('image/jpeg', 0.75);
+      setQuoteImage(b64);
+    };
+    img.src = URL.createObjectURL(file);
+    e.target.value = '';
+  };
 
   // Calculation Results
   const energyCostPerHour = (settings.printerPowerWatts / 1000) * settings.kwhCost;
@@ -912,6 +935,26 @@ export default function Calculator() {
         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">DETALHES DA IMPRESSÃO & PROJETO</h2>
         
         <div className="space-y-6">
+          {/* Image Upload */}
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">FOTO DO TRABALHO (opcional)</label>
+            <input ref={quoteImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleQuoteImageSelect} />
+            {quoteImage ? (
+              <div className="flex items-start gap-3">
+                <img src={quoteImage} alt="Preview" className="w-28 h-20 object-cover rounded-lg border border-border shadow-sm" />
+                <div className="flex flex-col gap-2 mt-1">
+                  <button type="button" onClick={() => quoteImageInputRef.current?.click()} className="text-xs text-primary hover:underline">Trocar imagem</button>
+                  <button type="button" onClick={() => setQuoteImage(null)} className="text-xs text-red-500 hover:underline">Remover</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => quoteImageInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2.5 bg-input border border-border border-dashed rounded-xl text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
+                <Upload className="w-4 h-4" />
+                Adicionar foto do trabalho
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">NOME DO PROJETO</label>
@@ -1283,31 +1326,67 @@ export default function Calculator() {
                   </div>
                 </div>
 
-                {/* Info Cards */}
-                <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Dados do Cliente</h3>
-                    <p className="font-bold text-gray-800 text-xs mb-0.5">{clientSearch || "Cliente Não Identificado"}</p>
-                    {clientDoc && <p className="text-[10px] text-gray-600">Doc: {clientDoc}</p>}
-                    {clientPhone && <p className="text-[10px] text-gray-600">WhatsApp: {clientPhone}</p>}
-                    {clientEmail && <p className="text-[10px] text-gray-600">E-mail: {clientEmail}</p>}
-                    {clientStreet && <p className="text-[10px] text-gray-600">Endereço: {clientStreet}{clientNumber ? `, ${clientNumber}` : ''}{clientComplement ? ` - ${clientComplement}` : ''}{clientNeighborhood ? ` - ${clientNeighborhood}` : ''}</p>}
-                    {clientCity && <p className="text-[10px] text-gray-600">Cidade: {clientCity}{clientUf ? `/${clientUf}` : ''}</p>}
+                {/* Info Cards — layout adapts when image is present */}
+                {quoteImage ? (
+                  <div className="flex gap-4 mb-6">
+                    {/* Image — left */}
+                    <div className="shrink-0" style={{ width: '38%' }}>
+                      <img
+                        src={quoteImage}
+                        alt="Foto do trabalho"
+                        style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb' }}
+                      />
+                    </div>
+                    {/* Info — right */}
+                    <div className="flex flex-col gap-3" style={{ width: '62%' }}>
+                      <div className="bg-gray-50 p-2.5 rounded-md border border-gray-200 flex-1">
+                        <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Dados do Cliente</h3>
+                        <p className="font-bold text-gray-800 text-xs mb-0.5">{clientSearch || "Cliente Não Identificado"}</p>
+                        {clientDoc && <p className="text-[10px] text-gray-600">Doc: {clientDoc}</p>}
+                        {clientPhone && <p className="text-[10px] text-gray-600">WhatsApp: {clientPhone}</p>}
+                        {clientEmail && <p className="text-[10px] text-gray-600">E-mail: {clientEmail}</p>}
+                        {clientStreet && <p className="text-[10px] text-gray-600">End: {clientStreet}{clientNumber ? `, ${clientNumber}` : ''}{clientNeighborhood ? ` - ${clientNeighborhood}` : ''}</p>}
+                        {clientCity && <p className="text-[10px] text-gray-600">Cidade: {clientCity}{clientUf ? `/${clientUf}` : ''}</p>}
+                      </div>
+                      <div className="bg-gray-50 p-2.5 rounded-md border border-gray-200 flex-1">
+                        <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Dados do Projeto</h3>
+                        <p className="font-bold text-gray-800 text-xs mb-0.5">{projectName || "Projeto sem nome"}</p>
+                        <p className="text-[10px] text-gray-600">Material: {
+                          (() => {
+                            const s = stockItems.find(st => st.id === materialId);
+                            const m = s ? inventory.find(i => i.id === s.materialId) : null;
+                            return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'Não especificado';
+                          })()
+                        }</p>
+                        <p className="text-[10px] text-gray-600">Prazo: {delivery || 'A combinar'}</p>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Dados do Projeto</h3>
-                    <p className="font-bold text-gray-800 text-xs mb-0.5">{projectName || "Projeto sem nome"}</p>
-                    <p className="text-[10px] text-gray-600">Material Base: {
-                      (() => {
-                        const s = stockItems.find(st => st.id === materialId);
-                        const m = s ? inventory.find(i => i.id === s.materialId) : null;
-                        return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'Não especificado';
-                      })()
-                    }</p>
-                    <p className="text-[10px] text-gray-600">Prazo Estimado: {delivery || 'A combinar'}</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-6 mb-8">
+                    <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                      <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Dados do Cliente</h3>
+                      <p className="font-bold text-gray-800 text-xs mb-0.5">{clientSearch || "Cliente Não Identificado"}</p>
+                      {clientDoc && <p className="text-[10px] text-gray-600">Doc: {clientDoc}</p>}
+                      {clientPhone && <p className="text-[10px] text-gray-600">WhatsApp: {clientPhone}</p>}
+                      {clientEmail && <p className="text-[10px] text-gray-600">E-mail: {clientEmail}</p>}
+                      {clientStreet && <p className="text-[10px] text-gray-600">Endereço: {clientStreet}{clientNumber ? `, ${clientNumber}` : ''}{clientComplement ? ` - ${clientComplement}` : ''}{clientNeighborhood ? ` - ${clientNeighborhood}` : ''}</p>}
+                      {clientCity && <p className="text-[10px] text-gray-600">Cidade: {clientCity}{clientUf ? `/${clientUf}` : ''}</p>}
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                      <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Dados do Projeto</h3>
+                      <p className="font-bold text-gray-800 text-xs mb-0.5">{projectName || "Projeto sem nome"}</p>
+                      <p className="text-[10px] text-gray-600">Material Base: {
+                        (() => {
+                          const s = stockItems.find(st => st.id === materialId);
+                          const m = s ? inventory.find(i => i.id === s.materialId) : null;
+                          return m ? `${m.name} - ${s?.brand} (${s?.color})` : 'Não especificado';
+                        })()
+                      }</p>
+                      <p className="text-[10px] text-gray-600">Prazo Estimado: {delivery || 'A combinar'}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Items Table */}
                 <div className="mb-6">
