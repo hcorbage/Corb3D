@@ -941,7 +941,7 @@ export default function Calculator() {
             <input ref={quoteImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleQuoteImageSelect} />
             {quoteImage ? (
               <div className="flex items-start gap-3">
-                <img src={quoteImage} alt="Preview" className="w-28 h-20 object-cover rounded-lg border border-border shadow-sm" />
+                <img src={quoteImage} alt="Preview" className="w-28 h-20 object-cover rounded-lg" style={{ border: '1px solid #e5e7eb', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }} />
                 <div className="flex flex-col gap-2 mt-1">
                   <button type="button" onClick={() => quoteImageInputRef.current?.click()} className="text-xs text-primary hover:underline">Trocar imagem</button>
                   <button type="button" onClick={() => setQuoteImage(null)} className="text-xs text-red-500 hover:underline">Remover</button>
@@ -1334,7 +1334,7 @@ export default function Calculator() {
                       <img
                         src={quoteImage}
                         alt="Foto do trabalho"
-                        style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb' }}
+                        style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
                       />
                     </div>
                     {/* Info — right */}
