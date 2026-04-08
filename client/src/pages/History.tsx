@@ -133,6 +133,21 @@ export default function History() {
 
   const [, setLocation] = useLocation();
 
+  const openViewPdf = (calc: Calculation) => {
+    if (calc.details) {
+      const draft = {
+        ...calc.details,
+        editingCalculationId: calc.id,
+        editingCalculationDate: calc.date,
+        autoOpenPdf: true
+      };
+      localStorage.setItem('calculator_draft', JSON.stringify(draft));
+      setLocation("/");
+    } else {
+      toast({ title: "Sem dados salvos", description: "Este orçamento não possui dados completos para visualização.", variant: "destructive" });
+    }
+  };
+
   const openEditModal = (calc: Calculation) => {
     if (calc.details) {
       // Create draft from the saved details to load back into calculator
@@ -341,9 +356,14 @@ export default function History() {
                                 
                                 <div className="w-px h-6 bg-border mx-1 self-center"></div>
                                 
-                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewModal(calc); }} className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-all border border-transparent hover:border-primary/20 cursor-pointer" title="Visualizar Orçamento Completo">
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewModal(calc); }} className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-all border border-transparent hover:border-primary/20 cursor-pointer" title="Resumo do Orçamento">
                                   <Eye className="w-4 h-4 pointer-events-none" />
                                 </button>
+                                {calc.details && (
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewPdf(calc); }} className="text-muted-foreground hover:text-[#50c878] hover:bg-[#50c878]/10 p-2 rounded-lg transition-all border border-transparent hover:border-[#50c878]/20 cursor-pointer" title="Ver Orçamento Completo / PDF" data-testid={`button-view-pdf-${calc.id}`}>
+                                    <FileText className="w-4 h-4 pointer-events-none" />
+                                  </button>
+                                )}
                                 <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(calc); }} className="text-muted-foreground hover:text-[#ffc107] hover:bg-[#ffc107]/10 p-2 rounded-lg transition-all border border-transparent hover:border-[#ffc107]/20 cursor-pointer" title="Editar Orçamento">
                                   <Edit2 className="w-4 h-4 pointer-events-none" />
                                 </button>

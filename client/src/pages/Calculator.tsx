@@ -66,6 +66,15 @@ export default function Calculator() {
   const [editingCalculationDate, setEditingCalculationDate] = useState<string | null>(null);
   const [overrideMargin, setOverrideMargin] = useState<number | null>(null);
 
+  // PDF Preview State
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  // Quote Image State
+  const [quoteImage, setQuoteImage] = useState<string | null>(null);
+  const quoteImageInputRef = useRef<HTMLInputElement>(null);
+
   // Load draft from local storage on mount
   useEffect(() => {
     const draft = localStorage.getItem('calculator_draft');
@@ -99,6 +108,14 @@ export default function Calculator() {
           const client = clients.find(c => c.id === parsed.selectedClientId);
           if (client) setSelectedClient(client);
         }
+        if (parsed.quoteImage) setQuoteImage(parsed.quoteImage);
+        if (parsed.autoOpenPdf) {
+          // Remove flag immediately so it doesn't re-trigger on re-renders
+          const cleaned = { ...parsed };
+          delete cleaned.autoOpenPdf;
+          localStorage.setItem('calculator_draft', JSON.stringify(cleaned));
+          setTimeout(() => setShowPdfPreview(true), 350);
+        }
       } catch (e) {
         console.error("Error loading draft", e);
       }
@@ -116,10 +133,11 @@ export default function Calculator() {
       selectedEmployeeId,
       editingCalculationId,
       editingCalculationDate,
-      profitMarginUsed: overrideMargin
+      profitMarginUsed: overrideMargin,
+      quoteImage: quoteImage || null
     };
     localStorage.setItem('calculator_draft', JSON.stringify(draft));
-  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, finishing, finishingValue, finishingEnabled, lossMargin, discount, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin]);
+  }, [clientSearch, clientPhone, clientDoc, clientEmail, clientCep, clientStreet, clientNumber, clientComplement, clientNeighborhood, clientCity, clientUf, projectName, projectItems, delivery, finishing, finishingValue, finishingEnabled, lossMargin, discount, selectedClient, selectedEmployeeId, editingCalculationId, editingCalculationDate, overrideMargin, quoteImage]);
 
   useEffect(() => {
     if (!isAdmin && employees.length > 0 && !selectedEmployeeId) {
@@ -129,15 +147,6 @@ export default function Calculator() {
       }
     }
   }, [isAdmin, employees, currentUserId, selectedEmployeeId]);
-
-  // PDF Preview State
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const pdfRef = useRef<HTMLDivElement>(null);
-
-  // Quote Image State
-  const [quoteImage, setQuoteImage] = useState<string | null>(null);
-  const quoteImageInputRef = useRef<HTMLInputElement>(null);
 
   const handleQuoteImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -344,7 +353,8 @@ export default function Calculator() {
         lossMargin, discount, discountAmount,
         selectedClientId: selectedClient?.id,
         selectedEmployeeId,
-        profitMarginUsed: effectiveMargin
+        profitMarginUsed: effectiveMargin,
+        quoteImage: quoteImage || null
       }
     };
 
