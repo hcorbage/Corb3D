@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fetchCEP } from "@/lib/cep";
 import { Clock, Calendar as CalendarIcon, RotateCcw, Save, FileText, Phone, ChevronDown, Plus, Trash2, X, Download } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
@@ -628,33 +629,27 @@ export default function Calculator() {
                     setClientCep(formatted);
                     const digits = e.target.value.replace(/\D/g, '');
                     if (digits.length === 8) {
-                      fetch(`/api/cep/${digits}`)
-                        .then(res => res.json())
-                        .then(data => {
-                          if (!data.erro && !data.error) {
-                            setClientStreet(data.logradouro || '');
-                            setClientNeighborhood(data.bairro || '');
-                            setClientCity(data.localidade || '');
-                            setClientUf(data.uf || '');
-                          }
-                        })
-                        .catch(err => console.error("Erro ao buscar CEP:", err));
+                      fetchCEP(digits).then(data => {
+                        if (data) {
+                          setClientStreet(data.logradouro);
+                          setClientNeighborhood(data.bairro);
+                          setClientCity(data.localidade);
+                          setClientUf(data.uf);
+                        }
+                      });
                     }
                   }}
                   onBlur={(e) => {
                     const digits = e.target.value.replace(/\D/g, '');
                     if (digits.length === 8) {
-                      fetch(`/api/cep/${digits}`)
-                        .then(res => res.json())
-                        .then(data => {
-                          if (!data.erro && !data.error) {
-                            setClientStreet(data.logradouro || '');
-                            setClientNeighborhood(data.bairro || '');
-                            setClientCity(data.localidade || '');
-                            setClientUf(data.uf || '');
-                          }
-                        })
-                        .catch(err => console.error("Erro ao buscar CEP:", err));
+                      fetchCEP(digits).then(data => {
+                        if (data) {
+                          setClientStreet(data.logradouro);
+                          setClientNeighborhood(data.bairro);
+                          setClientCity(data.localidade);
+                          setClientUf(data.uf);
+                        }
+                      });
                     }
                   }}
                   maxLength={9}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fetchCEP } from "@/lib/cep";
 import { useLocation } from "wouter";
 import { useAppState, Client } from "../context/AppState";
 import { UserPlus, Trash2, Edit2, Search, Save, Calculator, TrendingUp, AlertCircle, Clock, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
@@ -109,16 +110,13 @@ export default function Clients() {
   const handleCEPBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const cep = e.target.value.replace(/\D/g, '');
     if (cep.length === 8) {
-      try {
-        const response = await fetch(`/api/cep/${cep}`);
-        const data = await response.json();
-        if (!data.erro) {
-          setValue("street", data.logradouro);
-          setValue("neighborhood", data.bairro);
-          setValue("city", data.localidade);
-          setValue("uf", data.uf);
-        }
-      } catch { }
+      const data = await fetchCEP(cep);
+      if (data) {
+        setValue("street", data.logradouro);
+        setValue("neighborhood", data.bairro);
+        setValue("city", data.localidade);
+        setValue("uf", data.uf);
+      }
     }
   };
 

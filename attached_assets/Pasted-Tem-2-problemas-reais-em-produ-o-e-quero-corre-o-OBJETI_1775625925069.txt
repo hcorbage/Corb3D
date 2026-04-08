@@ -1,0 +1,71 @@
+Tem 2 problemas reais em produção e quero correção OBJETIVA, LOCALIZADA e sem expandir escopo.
+
+PROBLEMAS:
+1) O botão “Salvar Ajustes” continua falhando
+2) O botão “Contratar” também não está funcionando
+
+IMPORTANTE:
+- eu já atualizei o servidor e o erro continua
+- então NÃO quero limpeza geral de TypeScript
+- NÃO quero refatoração ampla
+- NÃO quero corrigir erros não relacionados
+- NÃO quero mexer em outras áreas do sistema
+- corrigir apenas o fluxo funcional desses 2 botões
+
+--------------------------------------------------
+1) BOTÃO “SALVAR AJUSTES”
+OBJETIVO:
+Fazer o botão salvar persistir os dados corretamente.
+
+O QUE INVESTIGAR:
+- onClick / onSubmit do botão
+- mutation / request enviada ao backend
+- payload exato enviado
+- validações que estejam bloqueando o save
+- resposta da rota PATCH/PUT de settings
+- campos novos adicionados recentemente que possam estar quebrando o salvamento
+- erro real retornado no frontend e no backend
+
+O QUE EU QUERO:
+- identificar a causa exata
+- corrigir de forma mínima e localizada
+- testar de ponta a ponta
+- confirmar qual campo ou lógica estava impedindo o save
+
+--------------------------------------------------
+2) BOTÃO “CONTRATAR”
+OBJETIVO:
+Fazer o botão “Contratar” voltar a funcionar corretamente.
+
+O QUE INVESTIGAR:
+- handler do botão
+- link, navegação ou action disparada
+- condição de bloqueio indevida
+- erro no frontend
+- erro no backend, se houver
+- permissões ou estado que possam estar impedindo a ação
+
+O QUE EU QUERO:
+- identificar a causa exata
+- corrigir de forma mínima e localizada
+- testar o clique de ponta a ponta
+- confirmar o que estava impedindo o funcionamento
+
+--------------------------------------------------
+REGRAS OBRIGATÓRIAS:
+- NÃO expandir escopo
+- NÃO sair corrigindo types globais
+- NÃO mexer em Employee, StockItem, routes ou outras áreas sem relação direta
+- NÃO alterar layout global
+- NÃO refatorar páginas inteiras
+- se precisar alterar backend, fazer apenas o necessário para esses 2 fluxos
+
+ENTREGA:
+Quero no final:
+1) causa exata do erro do botão Salvar Ajustes
+2) causa exata do erro do botão Contratar
+3) correção aplicada
+4) confirmação de teste funcional dos 2
+
+RESUMO:
+Corrigir SOMENTE os botões “Salvar Ajustes” e “Contratar”, com escopo mínimo e sem mexer no resto do sistema.

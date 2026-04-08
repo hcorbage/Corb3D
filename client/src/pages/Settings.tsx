@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { fetchCEP } from "@/lib/cep";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
 import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw, Lock, FileSpreadsheet, ClipboardList } from "lucide-react";
@@ -1768,11 +1769,8 @@ export default function Settings() {
                   <input data-testid="input-emp-cep" type="text" value={empForm.cep} onChange={e => setEmpForm({ ...empForm, cep: formatCEP(e.target.value) })} onBlur={async (e) => {
                     const cep = e.target.value.replace(/\D/g, '');
                     if (cep.length === 8) {
-                      try {
-                        const r = await fetch(`/api/cep/${cep}`);
-                        const d = await r.json();
-                        if (!d.erro) setEmpForm(prev => ({ ...prev, street: d.logradouro, neighborhood: d.bairro, city: d.localidade, uf: d.uf }));
-                      } catch {}
+                      const d = await fetchCEP(cep);
+                      if (d) setEmpForm(prev => ({ ...prev, street: d.logradouro, neighborhood: d.bairro, city: d.localidade, uf: d.uf }));
                     }
                   }} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="00000-000" maxLength={9} />
                 </div>
@@ -2743,11 +2741,8 @@ export default function Settings() {
                   <input data-testid="input-new-user-cep" type="text" value={userForm.cep} onChange={e => setUserForm({ ...userForm, cep: formatCEP(e.target.value) })} onBlur={async (e) => {
                     const cep = e.target.value.replace(/\D/g, '');
                     if (cep.length === 8) {
-                      try {
-                        const r = await fetch(`/api/cep/${cep}`);
-                        const d = await r.json();
-                        if (!d.erro) setUserForm(prev => ({ ...prev, street: d.logradouro, neighborhood: d.bairro, city: d.localidade, uf: d.uf }));
-                      } catch {}
+                      const d = await fetchCEP(cep);
+                      if (d) setUserForm(prev => ({ ...prev, street: d.logradouro, neighborhood: d.bairro, city: d.localidade, uf: d.uf }));
                     }
                   }} className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="00000-000" maxLength={9} />
                 </div>
