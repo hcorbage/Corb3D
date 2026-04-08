@@ -34,7 +34,7 @@ function generateLoginPreview(name: string, birthdate: string): string {
 }
 
 export default function Settings() {
-  const { settings, updateSettings, printers, clients, inventory, stockItems, history, employees, addEmployee, updateEmployee, deleteEmployee, loadBackup } = useAppState();
+  const { settings, updateSettings, printers, clients, inventory, stockItems, history, employees, addEmployee, updateEmployee, deleteEmployee, loadBackup, addCustomPrinter, deleteCustomPrinter } = useAppState();
   const { isMasterAdmin } = useAuth();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -93,6 +93,43 @@ export default function Settings() {
   const [showAllBackups, setShowAllBackups] = useState(false);
   const [uploadRestoreLoading, setUploadRestoreLoading] = useState(false);
   const uploadRestoreRef = useRef<HTMLInputElement>(null);
+
+  const [showAddPrinterForm, setShowAddPrinterForm] = useState(false);
+  const [newPrinterName, setNewPrinterName] = useState("");
+  const [newPrinterBrand, setNewPrinterBrand] = useState("");
+  const [newPrinterModel, setNewPrinterModel] = useState("");
+  const [newPrinterMarketValue, setNewPrinterMarketValue] = useState("");
+  const [newPrinterHourly, setNewPrinterHourly] = useState("");
+  const [newPrinterDeprec, setNewPrinterDeprec] = useState("");
+  const [addPrinterLoading, setAddPrinterLoading] = useState(false);
+
+  const handleAddCustomPrinter = async () => {
+    if (!newPrinterName.trim()) {
+      toast({ title: "Campo obrigatório", description: "Informe o nome da impressora.", variant: "destructive" });
+      return;
+    }
+    setAddPrinterLoading(true);
+    try {
+      const created = await addCustomPrinter({
+        name: newPrinterName.trim(),
+        brand: newPrinterBrand.trim() || undefined,
+        model: newPrinterModel.trim() || undefined,
+        marketValue: newPrinterMarketValue ? Number(newPrinterMarketValue) : undefined,
+        hourlyConsumption: newPrinterHourly ? Number(newPrinterHourly) : undefined,
+        depreciationPerHour: newPrinterDeprec ? Number(newPrinterDeprec) : undefined,
+      });
+      if (created) {
+        toast({ title: "Impressora adicionada!", description: `"${created.name}" foi cadastrada com sucesso.` });
+        setNewPrinterName(""); setNewPrinterBrand(""); setNewPrinterModel("");
+        setNewPrinterMarketValue(""); setNewPrinterHourly(""); setNewPrinterDeprec("");
+        setShowAddPrinterForm(false);
+      }
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setAddPrinterLoading(false);
+    }
+  };
 
   const openPermissionsModal = async (emp: any) => {
     if (!emp.linkedUserId) return;
@@ -1057,13 +1094,48 @@ export default function Settings() {
                   <select 
                     className="w-full bg-input border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     value={localSettings.selectedPrinterId || ''}
-                    onChange={(e) => setLocalSettings({ ...localSettings, selectedPrinterId: e.target.value })}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const p = printers.find(pr => pr.id === id);
+                      setLocalSettings({ ...localSettings, selectedPrinterId: id, printerMarketValue: p ? p.marketPrice : localSettings.printerMarketValue });
+                    }}
                   >
                     <option value="" disabled>Selecione uma impressora do banco...</option>
-                    {printers.map(printer => (
-                      <option key={printer.id} value={printer.id}>{printer.name}</option>
-                    ))}
+                    {printers.filter(p => !p.isCustom).length > 0 && (
+                      <optgroup label="Impressoras Padrão">
+                        {printers.filter(p => !p.isCustom).map(printer => (
+                          <option key={printer.id} value={printer.id}>{printer.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {printers.filter(p => p.isCustom).length > 0 && (
+                      <optgroup label="Minhas Impressoras">
+                        {printers.filter(p => p.isCustom).map(printer => (
+                          <option key={printer.id} value={printer.id}>{printer.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Valor de Mercado (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-2.5 text-gray-400">R$</span>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      className="w-full bg-input border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={localSettings.printerMarketValue ?? ''}
+                      onChange={(e) => setLocalSettings({ ...localSettings, printerMarketValue: e.target.value === '' ? null : Number(e.target.value) })}
+                      placeholder="Preenchido automaticamente ao selecionar"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                    <Info className="w-3 h-3" /> Valor médio de mercado da impressora (referência)
+                  </p>
                 </div>
 
                 <div>
@@ -1124,7 +1196,7 @@ export default function Settings() {
               {/* Selected Printer Info */}
               {selectedPrinter && (
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 h-full">
-                  <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Dados de Mercado (Base)</h3>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Resumo da Configuração</h3>
                   
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
@@ -1133,7 +1205,9 @@ export default function Settings() {
                     </div>
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                       <span className="text-gray-500">Valor de Mercado</span>
-                      <span className="font-semibold text-gray-800">R$ {selectedPrinter.marketPrice.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-800">
+                        {localSettings.printerMarketValue != null ? `R$ ${localSettings.printerMarketValue.toFixed(2)}` : `R$ ${selectedPrinter.marketPrice.toFixed(2)}`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                       <span className="text-gray-500">Consumo Sugerido</span>
@@ -1156,6 +1230,86 @@ export default function Settings() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Custom Printers Management */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 md:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Minhas Impressoras</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Cadastre impressoras que não estão na lista padrão</p>
+              </div>
+              <button
+                onClick={() => setShowAddPrinterForm(v => !v)}
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
+              >
+                {showAddPrinterForm ? 'Cancelar' : '+ Adicionar Impressora'}
+              </button>
+            </div>
+
+            {showAddPrinterForm && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-5 space-y-4">
+                <h3 className="text-sm font-bold text-gray-700">Nova Impressora</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Nome / Identificação <span className="text-red-500">*</span></label>
+                    <input type="text" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterName} onChange={e => setNewPrinterName(e.target.value)} placeholder="Ex: Minha Impressora X" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Marca</label>
+                    <input type="text" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterBrand} onChange={e => setNewPrinterBrand(e.target.value)} placeholder="Ex: Bambu Lab" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Modelo</label>
+                    <input type="text" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterModel} onChange={e => setNewPrinterModel(e.target.value)} placeholder="Ex: A1 Max" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Valor de Mercado (R$)</label>
+                    <input type="number" step="0.01" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterMarketValue} onChange={e => setNewPrinterMarketValue(e.target.value)} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Consumo Sugerido (kW/h)</label>
+                    <input type="number" step="0.01" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterHourly} onChange={e => setNewPrinterHourly(e.target.value)} placeholder="0.20" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Depreciação (R$/h)</label>
+                    <input type="number" step="0.01" className="w-full bg-white border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" value={newPrinterDeprec} onChange={e => setNewPrinterDeprec(e.target.value)} placeholder="0.50" />
+                  </div>
+                </div>
+                <button onClick={handleAddCustomPrinter} disabled={addPrinterLoading} className="mt-2 bg-green-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-all">
+                  {addPrinterLoading ? 'Salvando...' : 'Salvar Impressora'}
+                </button>
+              </div>
+            )}
+
+            {printers.filter(p => p.isCustom).length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                Nenhuma impressora personalizada cadastrada.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {printers.filter(p => p.isCustom).map(p => (
+                  <div key={p.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                    <div>
+                      <span className="font-semibold text-gray-800 text-sm">{p.name}</span>
+                      <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                        {p.marketPrice > 0 && <span>Mercado: R$ {p.marketPrice.toFixed(2)}</span>}
+                        {p.hourlyConsumption > 0 && <span>Consumo: {p.hourlyConsumption} kW/h</span>}
+                        {p.depreciationPerHour > 0 && <span>Deprec.: R$ {p.depreciationPerHour.toFixed(2)}/h</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remover a impressora "${p.name}"?`)) deleteCustomPrinter(p.id);
+                      }}
+                      className="text-red-500 hover:text-red-700 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
         </div>

@@ -57,6 +57,7 @@ export type Printer = {
   marketPrice: number;
   hourlyConsumption: number;
   depreciationPerHour: number;
+  isCustom?: boolean;
 };
 
 export type Brand = {
@@ -73,6 +74,7 @@ export type AppSettings = {
   printerPurchasePrice: number;
   printerLifespanHours: number;
   printerPowerWatts: number;
+  printerMarketValue: number | null;
   selectedPrinterId: string | null;
   adminWhatsapp: string | null;
   maxDiscount: number;
@@ -112,6 +114,8 @@ type AppStateContextType = {
   deleteCalculation: (id: string) => void;
   updateSettings: (newSettings: Partial<AppSettings>) => void;
   loadBackup: (data: { clients?: Client[], inventory?: Material[], stockItems?: StockItem[], history?: Calculation[], settings?: Partial<AppSettings> }) => void;
+  addCustomPrinter: (data: { name: string; brand?: string; model?: string; marketValue?: number; hourlyConsumption?: number; depreciationPerHour?: number }) => Promise<Printer | null>;
+  deleteCustomPrinter: (id: string) => void;
 };
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
@@ -124,6 +128,7 @@ const defaultSettings: AppSettings = {
   printerPurchasePrice: 1200,
   printerLifespanHours: 6000,
   printerPowerWatts: 150,
+  printerMarketValue: null,
   selectedPrinterId: 'c2',
   adminWhatsapp: null,
   maxDiscount: 10,
@@ -150,7 +155,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
 
-  const [printers] = useState<Printer[]>([
+  const presetPrinters: Printer[] = [
     { id: 'b1', name: 'Bambu Lab A1 Mini', marketPrice: 2000, hourlyConsumption: 0.15, depreciationPerHour: 0.33 },
     { id: 'b2', name: 'Bambu Lab A1', marketPrice: 3500, hourlyConsumption: 0.20, depreciationPerHour: 0.58 },
     { id: 'b3', name: 'Bambu Lab P1P', marketPrice: 5500, hourlyConsumption: 0.25, depreciationPerHour: 0.91 },
@@ -181,7 +186,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     { id: 'e7', name: 'Elegoo Mars 4', marketPrice: 2000, hourlyConsumption: 0.10, depreciationPerHour: 0.33 },
     { id: 'p1', name: 'Prusa i3 MK4', marketPrice: 8000, hourlyConsumption: 0.25, depreciationPerHour: 1.33 },
     { id: 'a1', name: 'Anycubic Kobra 2 Max', marketPrice: 3800, hourlyConsumption: 0.40, depreciationPerHour: 0.63 }
-  ]);
+  ];
+  const [customPrinterList, setCustomPrinterList] = useState<Printer[]>([]);
+  const printers = [...presetPrinters, ...customPrinterList];
 
   useEffect(() => {
     Promise.all([
@@ -192,13 +199,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       api('/api/calculations'),
       api('/api/settings'),
       api('/api/brands'),
-    ]).then(([c, m, s, emp, h, set, br]) => {
+      api('/api/printers'),
+    ]).then(([c, m, s, emp, h, set, br, cp]) => {
       setClients(c);
       setInventory(m);
       setStockItems(s);
       setEmployees(emp);
       setHistory(h);
       setBrands(br || []);
+      if (Array.isArray(cp)) {
+        setCustomPrinterList(cp.map((p: any) => ({
+          id: `custom_${p.id}`,
+          name: [p.brand, p.model, p.name].filter(Boolean).join(' ') || p.name,
+          marketPrice: p.marketValue ?? 0,
+          hourlyConsumption: p.hourlyConsumption ?? 0,
+          depreciationPerHour: p.depreciationPerHour ?? 0,
+          isCustom: true,
+        })));
+      }
       if (set) {
         setSettings({
           logoUrl: set.logoUrl || null,
@@ -208,6 +226,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerPurchasePrice: set.printerPurchasePrice ?? 1200,
           printerLifespanHours: set.printerLifespanHours ?? 6000,
           printerPowerWatts: set.printerPowerWatts ?? 150,
+          printerMarketValue: set.printerMarketValue ?? null,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
@@ -363,6 +382,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       printerPurchasePrice: updated.printerPurchasePrice ?? 1200,
       printerLifespanHours: updated.printerLifespanHours ?? 6000,
       printerPowerWatts: updated.printerPowerWatts ?? 150,
+      printerMarketValue: updated.printerMarketValue ?? null,
       selectedPrinterId: updated.selectedPrinterId || 'c2',
       adminWhatsapp: updated.adminWhatsapp || null,
       maxDiscount: updated.maxDiscount ?? 10,
@@ -372,6 +392,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       caixaAutoCloseTime: updated.caixaAutoCloseTime || "19:00",
       whatsappNumber: updated.whatsappNumber || null,
     });
+  }, []);
+
+  const addCustomPrinter = useCallback(async (data: { name: string; brand?: string; model?: string; marketValue?: number; hourlyConsumption?: number; depreciationPerHour?: number }): Promise<Printer | null> => {
+    try {
+      const created = await api('/api/printers', { method: 'POST', body: JSON.stringify(data) });
+      const printer: Printer = {
+        id: `custom_${created.id}`,
+        name: [created.brand, created.model, created.name].filter(Boolean).join(' ') || created.name,
+        marketPrice: created.marketValue ?? 0,
+        hourlyConsumption: created.hourlyConsumption ?? 0,
+        depreciationPerHour: created.depreciationPerHour ?? 0,
+        isCustom: true,
+      };
+      setCustomPrinterList(prev => [...prev, printer]);
+      return printer;
+    } catch (e) { console.error(e); return null; }
+  }, []);
+
+  const deleteCustomPrinter = useCallback(async (id: string) => {
+    try {
+      const numericId = id.replace('custom_', '');
+      await api(`/api/printers/${numericId}`, { method: 'DELETE' });
+      setCustomPrinterList(prev => prev.filter(p => p.id !== id));
+    } catch (e) { console.error(e); }
   }, []);
 
   const loadBackup = useCallback(async (data: { clients?: Client[], inventory?: Material[], stockItems?: StockItem[], history?: Calculation[], settings?: Partial<AppSettings> }) => {
@@ -397,6 +441,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerPurchasePrice: set.printerPurchasePrice ?? 1200,
           printerLifespanHours: set.printerLifespanHours ?? 6000,
           printerPowerWatts: set.printerPowerWatts ?? 150,
+          printerMarketValue: set.printerMarketValue ?? null,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
@@ -418,7 +463,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addStockItem, updateStockItem, deleteStockItem,
       addBrand, deleteBrand,
       addEmployee, updateEmployee, deleteEmployee,
-      addCalculation, updateCalculation, deleteCalculation, updateSettings, loadBackup
+      addCalculation, updateCalculation, deleteCalculation, updateSettings, loadBackup,
+      addCustomPrinter, deleteCustomPrinter
     }}>
       {children}
     </AppStateContext.Provider>

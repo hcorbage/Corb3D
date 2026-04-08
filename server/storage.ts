@@ -1,6 +1,6 @@
 import { 
   clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
-  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs, passwordResetTokens,
+  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs, passwordResetTokens, customPrinters,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -16,6 +16,7 @@ import {
   type OrderPayment, type InsertOrderPayment,
   type DailyCash, type InsertDailyCash,
   type AuditLog,
+  type CustomPrinter, type InsertCustomPrinter,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ne, inArray, sql } from "drizzle-orm";
@@ -144,6 +145,11 @@ export interface IStorage {
   // Audit
   createAuditLog(entry: { executedByUserId: string; executedByUsername: string; action: string; targetUserId?: string; targetUsername?: string; details?: string; ipAddress?: string; userAgent?: string }): Promise<AuditLog>;
   getAuditLogs(): Promise<AuditLog[]>;
+
+  // Custom Printers
+  getCustomPrinters(userId: string): Promise<CustomPrinter[]>;
+  createCustomPrinter(data: InsertCustomPrinter): Promise<CustomPrinter>;
+  deleteCustomPrinter(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -741,6 +747,19 @@ export class DatabaseStorage implements IStorage {
 
   async getAuditLogs(): Promise<AuditLog[]> {
     return db.select().from(auditLogs).orderBy(sql`created_at DESC`);
+  }
+
+  async getCustomPrinters(userId: string): Promise<CustomPrinter[]> {
+    return db.select().from(customPrinters).where(eq(customPrinters.userId, userId));
+  }
+
+  async createCustomPrinter(data: InsertCustomPrinter): Promise<CustomPrinter> {
+    const [row] = await db.insert(customPrinters).values(data).returning();
+    return row;
+  }
+
+  async deleteCustomPrinter(id: number, userId: string): Promise<void> {
+    await db.delete(customPrinters).where(and(eq(customPrinters.id, id), eq(customPrinters.userId, userId)));
   }
 }
 

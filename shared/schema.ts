@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, doublePrecision, jsonb, boolean, integer, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, doublePrecision, jsonb, boolean, integer, date, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -95,6 +95,7 @@ export const settings = pgTable("settings", {
   printerPurchasePrice: doublePrecision("printer_purchase_price").notNull().default(1200),
   printerLifespanHours: doublePrecision("printer_lifespan_hours").notNull().default(6000),
   printerPowerWatts: doublePrecision("printer_power_watts").notNull().default(150),
+  printerMarketValue: doublePrecision("printer_market_value"),
   selectedPrinterId: text("selected_printer_id"),
   adminWhatsapp: text("admin_whatsapp"),
   maxDiscount: doublePrecision("max_discount").notNull().default(10),
@@ -104,6 +105,21 @@ export const settings = pgTable("settings", {
   caixaAutoCloseTime: text("caixa_auto_close_time").default("19:00"),
   whatsappNumber: text("whatsapp_number"),
 });
+
+export const customPrinters = pgTable("custom_printers", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  brand: text("brand"),
+  model: text("model"),
+  marketValue: doublePrecision("market_value"),
+  hourlyConsumption: doublePrecision("hourly_consumption"),
+  depreciationPerHour: doublePrecision("depreciation_per_hour"),
+});
+
+export const insertCustomPrinterSchema = createInsertSchema(customPrinters).omit({ id: true });
+export type CustomPrinter = typeof customPrinters.$inferSelect;
+export type InsertCustomPrinter = z.infer<typeof insertCustomPrinterSchema>;
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

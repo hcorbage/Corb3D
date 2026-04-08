@@ -1279,6 +1279,29 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // ---- CUSTOM PRINTERS ----
+  app.use("/api/printers", requireAuth, requireActiveAccount);
+  app.get("/api/printers", async (req, res) => {
+    const userId = req.session.isAdmin ? req.session.userId! : (await storage.getEmployeeByLinkedUserId(req.session.userId!))?.userId ?? req.session.userId!;
+    res.json(await storage.getCustomPrinters(userId));
+  });
+  app.post("/api/printers", async (req, res) => {
+    try {
+      const userId = req.session.isAdmin ? req.session.userId! : (await storage.getEmployeeByLinkedUserId(req.session.userId!))?.userId ?? req.session.userId!;
+      const { name, brand, model, marketValue, hourlyConsumption, depreciationPerHour } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ message: "Nome é obrigatório." });
+      const printer = await storage.createCustomPrinter({ userId, name: name.trim(), brand: brand?.trim() || null, model: model?.trim() || null, marketValue: marketValue ? Number(marketValue) : null, hourlyConsumption: hourlyConsumption ? Number(hourlyConsumption) : null, depreciationPerHour: depreciationPerHour ? Number(depreciationPerHour) : null });
+      res.json(printer);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+  app.delete("/api/printers/:id", async (req, res) => {
+    const userId = req.session.isAdmin ? req.session.userId! : (await storage.getEmployeeByLinkedUserId(req.session.userId!))?.userId ?? req.session.userId!;
+    await storage.deleteCustomPrinter(Number(req.params.id), userId);
+    res.json({ ok: true });
+  });
+
   // ---- SETTINGS ----
   app.get("/api/settings", async (req, res) => {
     const data = await storage.getSettings(req.session.userId!);
