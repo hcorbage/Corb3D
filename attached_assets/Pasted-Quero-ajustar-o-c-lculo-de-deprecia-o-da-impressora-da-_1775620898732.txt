@@ -1,0 +1,65 @@
+Quero ajustar o cálculo de depreciação da impressora da forma correta.
+
+OBJETIVO:
+Deixar os parâmetros principais configuráveis manualmente e calcular automaticamente apenas a depreciação por hora e o custo de depreciação no orçamento/calculadora.
+
+REGRAS:
+
+1) CAMPOS NA CONFIGURAÇÃO DA IMPRESSORA
+
+Na configuração/cadastro da impressora, o usuário deve poder preencher e editar manualmente:
+- Valor de mercado
+- Vida útil em horas
+
+O campo:
+- Valor residual
+
+deve funcionar assim:
+- ao informar o valor de mercado pela primeira vez, preencher automaticamente o valor residual com 10% do valor de mercado
+- esse valor residual deve continuar editável manualmente pelo usuário
+- se o usuário quiser alterar, o sistema deve respeitar o valor manual informado
+- se o valor residual ainda não tiver sido ajustado manualmente, e o valor de mercado mudar, atualizar automaticamente os 10%
+- se o valor residual já tiver sido alterado manualmente pelo usuário, não sobrescrever automaticamente depois
+
+IMPORTANTE:
+- todos esses valores devem ficar salvos no banco
+- devem permanecer editáveis a qualquer momento
+
+2) CÁLCULO AUTOMÁTICO DA DEPRECIAÇÃO POR HORA
+
+O sistema deve calcular automaticamente:
+
+depreciacaoPorHora = (valorMercado - valorResidual) / vidaUtilHoras
+
+Esse valor deve ser:
+- recalculado automaticamente sempre que algum dos campos necessários for alterado
+- salvo ou usado dinamicamente no sistema, de forma compatível com a lógica atual
+
+3) USO NA CALCULADORA / ORÇAMENTO
+
+Na calculadora de custo/orçamento, incorporar automaticamente o custo de depreciação com base no tempo de impressão:
+
+custoDepreciacao = depreciacaoPorHora * tempoImpressaoHoras
+
+Esse custo deve entrar corretamente na composição do custo da impressão.
+
+4) VALIDAÇÕES
+
+- se vidaUtilHoras <= 0, não calcular e mostrar erro claro
+- se valorMercado <= valorResidual, não calcular e mostrar erro claro
+- impedir resultado inválido ou negativo
+
+5) ESCOPO
+
+- NÃO alterar mais nada fora do necessário
+- NÃO mudar layout global
+- NÃO quebrar cálculos já existentes
+- apenas incorporar corretamente a depreciação automática na calculadora/orçamento
+
+RESUMO:
+Quero que:
+- Valor de mercado e vida útil sejam manuais e editáveis
+- Valor residual seja preenchido automaticamente com 10% do valor de mercado, mas continue editável
+- a depreciação por hora seja calculada automaticamente
+- esse valor seja usado automaticamente na calculadora/orçamento
+- tudo fique salvo corretamente e compatível com o sistema atual

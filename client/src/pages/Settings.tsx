@@ -99,6 +99,8 @@ export default function Settings() {
   const [restoreCompanyResult, setRestoreCompanyResult] = useState<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> } | null>(null);
   const restoreCompanyFileRef = useRef<HTMLInputElement>(null);
 
+  const [residualValueTouched, setResidualValueTouched] = useState(false);
+
   // ---- AUDIT EXPORT ----
   const [auditFrom, setAuditFrom] = useState("");
   const [auditTo, setAuditTo] = useState("");
@@ -1135,7 +1137,10 @@ export default function Settings() {
                     onChange={(e) => {
                       const id = e.target.value;
                       const p = printers.find(pr => pr.id === id);
-                      setLocalSettings({ ...localSettings, selectedPrinterId: id, printerMarketValue: p ? p.marketPrice : localSettings.printerMarketValue });
+                      const newMktVal = p ? p.marketPrice : localSettings.printerMarketValue;
+                      const autoResidual = !residualValueTouched && newMktVal != null ? Math.round(newMktVal * 0.1 * 100) / 100 : localSettings.printerResidualValue;
+                      setResidualValueTouched(false);
+                      setLocalSettings({ ...localSettings, selectedPrinterId: id, printerMarketValue: newMktVal, printerResidualValue: autoResidual });
                     }}
                   >
                     <option value="" disabled>Selecione uma impressora do banco...</option>
@@ -1167,13 +1172,50 @@ export default function Settings() {
                       step="0.01"
                       className="w-full bg-input border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={localSettings.printerMarketValue ?? ''}
-                      onChange={(e) => setLocalSettings({ ...localSettings, printerMarketValue: e.target.value === '' ? null : Number(e.target.value) })}
+                      onChange={(e) => {
+                        const newMkt = e.target.value === '' ? null : Number(e.target.value);
+                        const newResidual = !residualValueTouched && newMkt != null ? Math.round(newMkt * 0.1 * 100) / 100 : localSettings.printerResidualValue;
+                        setLocalSettings({ ...localSettings, printerMarketValue: newMkt, printerResidualValue: newResidual });
+                      }}
                       placeholder="Preenchido automaticamente ao selecionar"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Valor médio de mercado da impressora (referência)
+                    <Info className="w-3 h-3" /> Valor médio de mercado da impressora
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Valor Residual (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-2.5 text-gray-400">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-input border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={localSettings.printerResidualValue ?? ''}
+                      onChange={(e) => {
+                        setResidualValueTouched(true);
+                        setLocalSettings({ ...localSettings, printerResidualValue: e.target.value === '' ? null : Number(e.target.value) });
+                      }}
+                      placeholder="Auto: 10% do valor de mercado"
+                    />
+                  </div>
+                  {(() => {
+                    const mkt = localSettings.printerMarketValue;
+                    const res = localSettings.printerResidualValue;
+                    const lifespan = localSettings.printerLifespanHours;
+                    if (res != null && mkt != null && res >= mkt) {
+                      return <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1"><Info className="w-3 h-3" /> Valor residual deve ser menor que o valor de mercado</p>;
+                    }
+                    if (lifespan != null && lifespan <= 0) {
+                      return <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1"><Info className="w-3 h-3" /> Vida útil deve ser maior que zero</p>;
+                    }
+                    return <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1"><Info className="w-3 h-3" /> Preenchido automaticamente com 10% do valor de mercado — editável</p>;
+                  })()}
                 </div>
 
                 <div>
@@ -1191,7 +1233,7 @@ export default function Settings() {
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Este valor será usado para cálculo real da depreciação
+                    <Info className="w-3 h-3" /> Usado como fallback se valor de mercado/residual não estiverem definidos
                   </p>
                 </div>
 
@@ -1255,15 +1297,33 @@ export default function Settings() {
                       <span className="text-gray-500">Consumo Calculado</span>
                       <span className="font-semibold text-gray-800">{(localSettings.printerPowerWatts / 1000).toFixed(2)} kW/h</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2">
-                      <span className="text-gray-500">Depreciação Calculada</span>
-                      <span className="font-semibold text-gray-800">R$ {(localSettings.printerPurchasePrice / (localSettings.printerLifespanHours || 6000)).toFixed(2)}/h</span>
-                    </div>
+                    {(() => {
+                      const mkt = localSettings.printerMarketValue;
+                      const res = localSettings.printerResidualValue;
+                      const ls = localSettings.printerLifespanHours || 6000;
+                      const valid = mkt != null && res != null && ls > 0 && mkt > res;
+                      const deprH = valid ? (mkt! - res!) / ls : localSettings.printerPurchasePrice / ls;
+                      return (
+                        <div className="flex justify-between items-center pb-2">
+                          <span className="text-gray-500">Depreciação por Hora</span>
+                          <span className={`font-semibold ${valid ? "text-gray-800" : "text-amber-600"}`}>
+                            R$ {deprH.toFixed(4)}/h
+                            {!valid && <span className="text-xs ml-1">(fallback)</span>}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    {localSettings.printerResidualValue != null && (
+                      <div className="flex justify-between items-center pb-2">
+                        <span className="text-gray-500">Valor Residual</span>
+                        <span className="font-semibold text-gray-800">R$ {localSettings.printerResidualValue.toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-lg text-xs font-medium border border-blue-100 flex gap-2">
                     <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
-                    <span>A depreciação e o consumo acima estão sendo calculados baseados nos valores efetivos preenchidos ao lado.</span>
+                    <span>Depreciação calculada por: <span className="font-mono">(Mercado − Residual) ÷ Vida Útil</span></span>
                   </div>
                 </div>
               )}

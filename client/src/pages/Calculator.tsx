@@ -136,7 +136,15 @@ export default function Calculator() {
 
   // Calculation Results
   const energyCostPerHour = (settings.printerPowerWatts / 1000) * settings.kwhCost;
-  const depreciationPerHour = settings.printerPurchasePrice / (settings.printerLifespanHours || 6000);
+  const marketVal = settings.printerMarketValue;
+  const residualVal = settings.printerResidualValue;
+  const lifespanH = settings.printerLifespanHours || 6000;
+  const depreciationPerHour = (
+    marketVal != null && residualVal != null &&
+    lifespanH > 0 && marketVal > residualVal
+  )
+    ? (marketVal - residualVal) / lifespanH
+    : settings.printerPurchasePrice / lifespanH;
   const effectiveMargin = editingCalculationId && overrideMargin != null ? overrideMargin : settings.profitMargin;
   const profitMargin = effectiveMargin / 100;
   

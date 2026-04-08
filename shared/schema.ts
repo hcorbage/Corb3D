@@ -96,6 +96,7 @@ export const settings = pgTable("settings", {
   printerLifespanHours: doublePrecision("printer_lifespan_hours").notNull().default(6000),
   printerPowerWatts: doublePrecision("printer_power_watts").notNull().default(150),
   printerMarketValue: doublePrecision("printer_market_value"),
+  printerResidualValue: doublePrecision("printer_residual_value"),
   selectedPrinterId: text("selected_printer_id"),
   adminWhatsapp: text("admin_whatsapp"),
   maxDiscount: doublePrecision("max_discount").notNull().default(10),

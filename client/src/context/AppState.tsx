@@ -75,6 +75,7 @@ export type AppSettings = {
   printerLifespanHours: number;
   printerPowerWatts: number;
   printerMarketValue: number | null;
+  printerResidualValue: number | null;
   selectedPrinterId: string | null;
   adminWhatsapp: string | null;
   maxDiscount: number;
@@ -129,6 +130,7 @@ const defaultSettings: AppSettings = {
   printerLifespanHours: 6000,
   printerPowerWatts: 150,
   printerMarketValue: null,
+  printerResidualValue: null,
   selectedPrinterId: 'c2',
   adminWhatsapp: null,
   maxDiscount: 10,
@@ -227,6 +229,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerLifespanHours: set.printerLifespanHours ?? 6000,
           printerPowerWatts: set.printerPowerWatts ?? 150,
           printerMarketValue: set.printerMarketValue ?? null,
+          printerResidualValue: set.printerResidualValue ?? null,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
@@ -383,6 +386,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       printerLifespanHours: updated.printerLifespanHours ?? 6000,
       printerPowerWatts: updated.printerPowerWatts ?? 150,
       printerMarketValue: updated.printerMarketValue ?? null,
+      printerResidualValue: updated.printerResidualValue ?? null,
       selectedPrinterId: updated.selectedPrinterId || 'c2',
       adminWhatsapp: updated.adminWhatsapp || null,
       maxDiscount: updated.maxDiscount ?? 10,
@@ -442,6 +446,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           printerLifespanHours: set.printerLifespanHours ?? 6000,
           printerPowerWatts: set.printerPowerWatts ?? 150,
           printerMarketValue: set.printerMarketValue ?? null,
+          printerResidualValue: set.printerResidualValue ?? null,
           selectedPrinterId: set.selectedPrinterId || 'c2',
           adminWhatsapp: set.adminWhatsapp || null,
           maxDiscount: set.maxDiscount ?? 10,
