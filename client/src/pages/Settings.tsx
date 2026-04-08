@@ -1304,13 +1304,17 @@ export default function Settings() {
                       const valid = mkt != null && res != null && ls > 0 && mkt > res;
                       const deprH = valid ? (mkt! - res!) / ls : localSettings.printerPurchasePrice / ls;
                       return (
-                        <div className="flex justify-between items-center pb-2">
-                          <span className="text-gray-500">Depreciação por Hora</span>
-                          <span className={`font-semibold ${valid ? "text-gray-800" : "text-amber-600"}`}>
-                            R$ {deprH.toFixed(4)}/h
-                            {!valid && <span className="text-xs ml-1">(fallback)</span>}
-                          </span>
-                        </div>
+                        <>
+                          <div className="flex justify-between items-center pb-2">
+                            <span className="text-gray-500">Depreciação por Hora</span>
+                            <span className="font-semibold text-gray-800">R$ {deprH.toFixed(4)}/h</span>
+                          </div>
+                          {!valid && (
+                            <div className="flex items-center gap-1.5 pb-2 -mt-1">
+                              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">⚠ Usando fallback na depreciação</span>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
                     {localSettings.printerResidualValue != null && (

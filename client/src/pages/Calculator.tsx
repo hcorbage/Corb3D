@@ -139,12 +139,13 @@ export default function Calculator() {
   const marketVal = settings.printerMarketValue;
   const residualVal = settings.printerResidualValue;
   const lifespanH = settings.printerLifespanHours || 6000;
-  const depreciationPerHour = (
+  const isDepreciationFallback = !(
     marketVal != null && residualVal != null &&
     lifespanH > 0 && marketVal > residualVal
-  )
-    ? (marketVal - residualVal) / lifespanH
-    : settings.printerPurchasePrice / lifespanH;
+  );
+  const depreciationPerHour = isDepreciationFallback
+    ? settings.printerPurchasePrice / lifespanH
+    : (marketVal! - residualVal!) / lifespanH;
   const effectiveMargin = editingCalculationId && overrideMargin != null ? overrideMargin : settings.profitMargin;
   const profitMargin = effectiveMargin / 100;
   
@@ -790,12 +791,20 @@ export default function Calculator() {
                     <span className="font-mono">{formatCurrency(energyCost)} ({(energyCost/totalCost * 100 || 0).toFixed(0)}%)</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                    <div className="flex items-center">
-                      <div className="w-1.5 h-4 bg-purple-500 rounded-full mr-2"></div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-4 bg-purple-500 rounded-full mr-0.5"></div>
                       <span className="text-muted-foreground">DEPRECIAÇÃO MÁQUINA</span>
+                      {isDepreciationFallback && (
+                        <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 leading-none">fallback</span>
+                      )}
                     </div>
                     <span className="font-mono">{formatCurrency(depreciationCost)} ({(depreciationCost/totalCost * 100 || 0).toFixed(0)}%)</span>
                   </div>
+                  {isDepreciationFallback && (
+                    <div className="flex items-center gap-1.5 pb-1 -mt-1">
+                      <span className="text-[11px] text-amber-600">⚠ Usando fallback na depreciação — configure Valor Residual em Ajustes</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center border-b border-border/50 pb-2">
                     <div className="flex items-center">
                       <div className="w-1.5 h-4 bg-green-500 rounded-full mr-2"></div>
