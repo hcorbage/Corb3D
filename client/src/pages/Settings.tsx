@@ -380,6 +380,8 @@ export default function Settings() {
     }
   };
 
+  const [usersAccordionOpen, setUsersAccordionOpen] = useState(true);
+
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [cropZoom, setCropZoom] = useState(1);
@@ -1230,16 +1232,24 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ── TÍTULO DE SEÇÃO: Usuários e Acesso ── */}
+        {/* ── TÍTULO DE SEÇÃO: Usuários e Acesso (accordion toggle) ── */}
         {isAdmin && (
-          <div className="mt-10 mb-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Usuários e Acesso</p>
+          <div
+            className="mt-10 mb-5 cursor-pointer select-none group"
+            onClick={() => setUsersAccordionOpen(v => !v)}
+            role="button"
+            aria-expanded={usersAccordionOpen}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest group-hover:text-gray-700 transition-colors">Usuários e Acesso</p>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-all duration-200 ${usersAccordionOpen ? "rotate-180" : ""}`} />
+            </div>
             <div className="border-t border-gray-200"></div>
           </div>
         )}
 
         {/* Employees / Funcionários Section */}
-        {isAdmin && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
+        {isAdmin && usersAccordionOpen && (<><div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -2038,12 +2048,7 @@ export default function Settings() {
         )}
 
         {isMasterAdmin ? (<>
-        {/* ── TÍTULO DE SEÇÃO: Usuários e Acesso (Painel Master) ── */}
-        <div className="mt-10 mb-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Usuários e Acesso</p>
-          <div className="border-t border-gray-200"></div>
-        </div>
-
+        {usersAccordionOpen && (<>
         {/* ── CONTROLE DE ACESSO ── */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <div className="mb-5">
@@ -2582,6 +2587,7 @@ export default function Settings() {
             </div>
           </DialogContent>
         </Dialog>
+        </>)}
         </>) : (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
           <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
