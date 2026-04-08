@@ -17,6 +17,7 @@ import {
   restoreCompanyBackupFromBuffer,
 } from "./backup";
 import { generateAdminBackupForCompany } from "./adminBackup";
+import * as XLSX from "xlsx";
 
 function validateDocumentBackend(raw: string): { valid: boolean; message: string } {
   const digits = raw.replace(/\D/g, "");
@@ -649,6 +650,73 @@ export async function registerRoutes(
     }
     next();
   };
+
+  // ---- AUDITORIA EXPORT (super_admin only) ----
+  app.get("/api/audit/export", requireAuth, requireMasterAdmin, async (req, res) => {
+    try {
+      const { from, to, companyId: filterCompanyId, action: filterAction } = req.query as Record<string, string | undefined>;
+
+      const allLogs = await storage.getAuditLogs();
+      const allUsers = await storage.getAllUsers();
+      const userMap = new Map(allUsers.map(u => [u.id, u.username]));
+
+      const fromDate = from ? new Date(from) : null;
+      const toDate = to ? new Date(to + "T23:59:59") : null;
+      const LIMIT = 10000;
+
+      const filtered = allLogs
+        .filter(log => {
+          if (fromDate && new Date(log.createdAt) < fromDate) return false;
+          if (toDate && new Date(log.createdAt) > toDate) return false;
+          if (filterCompanyId && log.targetUserId !== filterCompanyId) return false;
+          if (filterAction && log.action !== filterAction) return false;
+          return true;
+        })
+        .slice(0, LIMIT);
+
+      const rows = filtered.map(log => {
+        const dt = new Date(log.createdAt);
+        const dateStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")} ${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`;
+        return {
+          "Data/Hora": dateStr,
+          "Usuário": log.executedByUsername,
+          "Tipo de Usuário": log.executedByUsername === "hcorbage" ? "super_admin" : "company_admin",
+          "Ação": log.action,
+          "Empresa (companyId)": log.targetUserId ?? "",
+          "Nome da Empresa": log.targetUsername ?? (log.targetUserId ? (userMap.get(log.targetUserId) ?? "") : ""),
+          "Detalhes": log.details ?? "",
+          "IP / Origem": log.ipAddress ?? "",
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      // Cabeçalho em negrito
+      const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+        if (cell) cell.s = { font: { bold: true }, fill: { fgColor: { rgb: "D9E1F2" } } };
+      }
+
+      // Auto width
+      const cols = Object.keys(rows[0] ?? {}).map(key => ({
+        wch: Math.max(key.length, ...rows.map(r => String((r as any)[key] ?? "").length)) + 2,
+      }));
+      ws["!cols"] = cols;
+
+      XLSX.utils.book_append_sheet(wb, ws, "Auditoria");
+
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellStyles: true });
+      const ts = new Date().toISOString().slice(0, 10);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="auditoria_${ts}.xlsx"`);
+      res.send(buf);
+    } catch (err: any) {
+      console.error("[AuditExport]", err);
+      res.status(500).json({ message: err.message || "Erro ao exportar auditoria." });
+    }
+  });
 
   // ---- USER MANAGEMENT (admin only) ----
   app.get("/api/users", requireAuth, requireMasterAdmin, async (_req, res) => {

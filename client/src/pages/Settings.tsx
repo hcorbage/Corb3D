@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
-import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw, Lock } from "lucide-react";
+import { Save, Upload, Info, Download, UploadCloud, UserPlus, Trash2, Key, Edit2, BadgeDollarSign, Phone, X, ZoomIn, ZoomOut, Check, Sun, Moon, Monitor, Shield, Clock, ChevronDown, Ban, Infinity as InfinityIcon, FlaskConical, CalendarDays, AlertTriangle, Eye, EyeOff, HardDrive, RefreshCw, Lock, FileSpreadsheet, ClipboardList } from "lucide-react";
 import { PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF_CNPJ } from "@shared/validators";
 import { useCNPJLookup } from "@/hooks/useCNPJLookup";
@@ -100,6 +100,46 @@ export default function Settings() {
   const [restoreCompanyConfirmOpen, setRestoreCompanyConfirmOpen] = useState(false);
   const [restoreCompanyResult, setRestoreCompanyResult] = useState<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> } | null>(null);
   const restoreCompanyFileRef = useRef<HTMLInputElement>(null);
+
+  // ---- AUDIT EXPORT ----
+  const [auditFrom, setAuditFrom] = useState("");
+  const [auditTo, setAuditTo] = useState("");
+  const [auditFilterCompany, setAuditFilterCompany] = useState("");
+  const [auditFilterAction, setAuditFilterAction] = useState("");
+  const [auditExporting, setAuditExporting] = useState(false);
+
+  const handleAuditExport = async () => {
+    setAuditExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (auditFrom) params.set("from", auditFrom);
+      if (auditTo) params.set("to", auditTo);
+      if (auditFilterCompany) params.set("companyId", auditFilterCompany);
+      if (auditFilterAction) params.set("action", auditFilterAction);
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/audit/export${query}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Erro ao exportar." }));
+        toast({ title: "Erro na exportação", description: err.message, variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 10);
+      a.download = `auditoria_${ts}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Exportação concluída", description: "Arquivo .xlsx baixado com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro na exportação", description: e.message || "Erro desconhecido.", variant: "destructive" });
+    } finally {
+      setAuditExporting(false);
+    }
+  };
 
   const handleRestoreCompanyFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3084,6 +3124,104 @@ export default function Settings() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── AUDITORIA EXPORT ── */}
+        {isMasterAdmin && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100 mt-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-indigo-700 flex items-center gap-2">
+                <ClipboardList className="w-5 h-5" />
+                Auditoria — Exportar Logs
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Exporte os registros de auditoria em formato Excel (.xlsx). Apenas o super_admin pode realizar esta operação.
+              </p>
+            </div>
+
+            {/* Filtros */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Data inicial</label>
+                <input
+                  data-testid="input-audit-from"
+                  type="date"
+                  value={auditFrom}
+                  onChange={e => setAuditFrom(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Data final</label>
+                <input
+                  data-testid="input-audit-to"
+                  type="date"
+                  value={auditTo}
+                  onChange={e => setAuditTo(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Empresa</label>
+                <select
+                  data-testid="select-audit-company"
+                  value={auditFilterCompany}
+                  onChange={e => setAuditFilterCompany(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="">Todas as empresas</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>{u.username}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de ação</label>
+                <select
+                  data-testid="select-audit-action"
+                  value={auditFilterAction}
+                  onChange={e => setAuditFilterAction(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="">Todas as ações</option>
+                  <option value="reset_company">Reset de empresa</option>
+                  <option value="reset_system">Reset do sistema</option>
+                  <option value="restore_company_backup">Restauração de backup</option>
+                  <option value="delete_company">Exclusão de empresa</option>
+                  <option value="selective_reset_company">Reset seletivo — empresa</option>
+                  <option value="selective_reset_system">Reset seletivo — sistema</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Info + botão */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <p className="text-xs text-gray-400 flex-1">
+                Máximo de 10.000 registros por exportação • Ordenado por data mais recente primeiro
+              </p>
+              <button
+                data-testid="button-audit-export"
+                onClick={handleAuditExport}
+                disabled={auditExporting}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              >
+                {auditExporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Gerando Excel...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Exportar Auditoria (Excel)
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
