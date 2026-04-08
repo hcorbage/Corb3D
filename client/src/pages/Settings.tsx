@@ -101,13 +101,39 @@ export default function Settings() {
   const [restoreCompanyResult, setRestoreCompanyResult] = useState<{ preBackupFilename: string; stats: Record<string, { deleted: number; inserted: number }> } | null>(null);
   const restoreCompanyFileRef = useRef<HTMLInputElement>(null);
 
-  const handleRestoreCompanyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreCompanyFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.name.endsWith(".json.gz")) {
       toast({ title: "Arquivo inválido", description: "Selecione um arquivo .json.gz de backup.", variant: "destructive" });
       if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = "";
       return;
+    }
+    // Pré-validação frontend: lê o meta do arquivo para checar companyId
+    try {
+      const { default: pako } = await import("pako");
+      const arrayBuffer = await file.arrayBuffer();
+      const decompressed = pako.inflate(new Uint8Array(arrayBuffer), { to: "string" });
+      const payload = JSON.parse(decompressed);
+      const fileCompanyId: string | undefined = payload?.meta?.companyId;
+      if (!fileCompanyId) {
+        toast({ title: "Arquivo inválido", description: "O arquivo não contém identificação de empresa.", variant: "destructive" });
+        if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = "";
+        return;
+      }
+      if (restoreCompanyId && fileCompanyId !== restoreCompanyId) {
+        const fileCompanyName = usersList.find(u => u.id === fileCompanyId)?.username ?? fileCompanyId;
+        const selectedName = usersList.find(u => u.id === restoreCompanyId)?.username ?? restoreCompanyId;
+        toast({
+          title: "Empresa incompatível",
+          description: `Este backup pertence a "${fileCompanyName}", não a "${selectedName}". Selecione a empresa correta ou use um backup diferente.`,
+          variant: "destructive",
+        });
+        if (restoreCompanyFileRef.current) restoreCompanyFileRef.current.value = "";
+        return;
+      }
+    } catch {
+      // Se pako não estiver disponível ou falhar, deixa o backend validar
     }
     setRestoreCompanyFile(file);
     setRestoreCompanyResult(null);

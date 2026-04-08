@@ -2095,7 +2095,27 @@ export async function registerRoutes(
       if (!fileBase64) return res.status(400).json({ message: "Arquivo de backup é obrigatório." });
       if (!companyId) return res.status(400).json({ message: "companyId é obrigatório." });
 
+      // ── Validação estrita de companyId ANTES de qualquer alteração ──
       const gzipBuffer = Buffer.from(fileBase64, "base64");
+      let parsedMeta: any;
+      try {
+        const zlib = await import("zlib");
+        const jsonBuffer = zlib.gunzipSync(gzipBuffer);
+        const payload = JSON.parse(jsonBuffer.toString("utf-8"));
+        parsedMeta = payload?.meta;
+      } catch {
+        return res.status(400).json({ message: "Arquivo inválido: não foi possível ler o backup." });
+      }
+
+      const fileCompanyId: string | undefined = parsedMeta?.companyId;
+      if (!fileCompanyId) {
+        return res.status(400).json({ message: "O arquivo de backup não contém identificação de empresa (companyId ausente no meta)." });
+      }
+      if (fileCompanyId !== companyId) {
+        return res.status(400).json({ message: "Este backup pertence a outra empresa e não pode ser restaurado aqui." });
+      }
+      // ── Fim da validação ──
+
       const result = await restoreCompanyBackupFromBuffer(companyId as string, gzipBuffer, req.session.username!);
 
       await storage.createAuditLog({
