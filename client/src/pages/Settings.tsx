@@ -8,7 +8,6 @@ import { useCNPJLookup } from "@/hooks/useCNPJLookup";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
-import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +38,6 @@ export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const backupInputRef = useRef<HTMLInputElement>(null);
 
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -770,77 +768,6 @@ export default function Settings() {
     }
   };
 
-  const handleExportBackup = () => {
-    try {
-      const wb = XLSX.utils.book_new();
-      
-      const wsSettings = XLSX.utils.json_to_sheet([localSettings]);
-      XLSX.utils.book_append_sheet(wb, wsSettings, "Configuracoes");
-      
-      const wsClients = XLSX.utils.json_to_sheet(clients);
-      XLSX.utils.book_append_sheet(wb, wsClients, "Clientes");
-      
-      const wsInventory = XLSX.utils.json_to_sheet(inventory);
-      XLSX.utils.book_append_sheet(wb, wsInventory, "Inventario");
-      
-      const wsStock = XLSX.utils.json_to_sheet(stockItems);
-      XLSX.utils.book_append_sheet(wb, wsStock, "Estoque");
-      
-      const wsHistory = XLSX.utils.json_to_sheet(history);
-      XLSX.utils.book_append_sheet(wb, wsHistory, "Historico");
-
-      XLSX.writeFile(wb, `C3D_Backup_${format(new Date(), 'dd-MM-yyyy_HHmm')}.xlsx`);
-      
-      toast({ title: "Backup Exportado", description: "O arquivo Excel foi baixado com sucesso." });
-    } catch (error) {
-      console.error("Erro ao exportar", error);
-      toast({ title: "Erro", description: "Falha ao gerar o arquivo de backup.", variant: "destructive" });
-    }
-  };
-
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        
-        const backupData: any = {};
-        
-        if (workbook.SheetNames.includes("Configuracoes")) {
-          const settingsRows = XLSX.utils.sheet_to_json(workbook.Sheets["Configuracoes"]);
-          if (settingsRows.length > 0) backupData.settings = settingsRows[0];
-        }
-        if (workbook.SheetNames.includes("Clientes")) {
-          backupData.clients = XLSX.utils.sheet_to_json(workbook.Sheets["Clientes"]);
-        }
-        if (workbook.SheetNames.includes("Inventario")) {
-          backupData.inventory = XLSX.utils.sheet_to_json(workbook.Sheets["Inventario"]);
-        }
-        if (workbook.SheetNames.includes("Estoque")) {
-          backupData.stockItems = XLSX.utils.sheet_to_json(workbook.Sheets["Estoque"]);
-        }
-        if (workbook.SheetNames.includes("Historico")) {
-          backupData.history = XLSX.utils.sheet_to_json(workbook.Sheets["Historico"]);
-        }
-
-        loadBackup(backupData);
-        setLocalSettings(backupData.settings || settings);
-        
-        toast({ title: "Sucesso!", description: "Backup restaurado com sucesso." });
-      } catch (error) {
-        console.error("Erro ao importar", error);
-        toast({ title: "Erro de Importação", description: "O arquivo selecionado não é um backup válido.", variant: "destructive" });
-      }
-      
-      if (backupInputRef.current) backupInputRef.current.value = "";
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
   const handleGenerateBackup = async () => {
     setBackupGenerating(true);
     try {
@@ -988,28 +915,26 @@ export default function Settings() {
             Aparência
           </h2>
           <p className="text-xs text-gray-500 mb-4">Escolha o tema do sistema. A preferência é salva neste dispositivo.</p>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             {([
-              { value: "light" as ThemeMode, label: "Claro", icon: Sun, desc: "Sempre tema claro" },
-              { value: "dark"  as ThemeMode, label: "Escuro", icon: Moon, desc: "Sempre tema escuro" },
-              { value: "system" as ThemeMode, label: "Sistema", icon: Monitor, desc: "Segue o dispositivo" },
-            ] as { value: ThemeMode; label: string; icon: typeof Sun; desc: string }[]).map(({ value, label, icon: Icon, desc }) => {
+              { value: "light" as ThemeMode, label: "Claro", icon: Sun },
+              { value: "dark"  as ThemeMode, label: "Escuro", icon: Moon },
+              { value: "system" as ThemeMode, label: "Sistema", icon: Monitor },
+            ] as { value: ThemeMode; label: string; icon: typeof Sun }[]).map(({ value, label, icon: Icon }) => {
               const active = theme === value;
               return (
                 <button
                   key={value}
                   onClick={() => setTheme(value)}
                   data-testid={`button-theme-${value}`}
-                  className={`flex-1 flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all text-center ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
                     active
-                      ? "border-primary bg-primary/5 text-primary"
+                      ? "border-primary bg-primary/5 text-primary font-semibold"
                       : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${active ? "text-primary" : "text-gray-400"}`} />
-                  <span className={`text-xs font-semibold ${active ? "text-primary" : "text-gray-700"}`}>{label}</span>
-                  <span className="text-[10px] text-gray-400 leading-tight hidden sm:block">{desc}</span>
-                  {active && <span className="text-[9px] bg-primary text-white rounded-full px-2 py-0.5 font-bold">ATIVO</span>}
+                  <Icon className={`w-3.5 h-3.5 ${active ? "text-primary" : "text-gray-400"}`} />
+                  <span className="text-xs">{label}</span>
                 </button>
               );
             })}
@@ -2093,39 +2018,6 @@ export default function Settings() {
         <div className="mt-10 mb-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Backups</p>
           <div className="border-t border-gray-200"></div>
-        </div>
-
-        {/* Backup Section */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-            Backup do Sistema
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">Exporte ou importe todos os dados do sistema (clientes, estoque, orçamentos, etc) em formato Excel (.xlsx).</p>
-          
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={handleExportBackup}
-              className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors shadow-sm"
-            >
-              <Download className="w-5 h-5" />
-              Exportar Backup (Excel)
-            </button>
-            
-            <button
-              onClick={() => backupInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors shadow-sm"
-            >
-              <UploadCloud className="w-5 h-5" />
-              Importar Backup (Excel)
-            </button>
-            <input 
-              ref={backupInputRef}
-              type="file" 
-              accept=".xlsx, .xls"
-              className="hidden"
-              onChange={handleImportBackup}
-            />
-          </div>
         </div>
 
         {/* ── BACKUP & RESTAURAÇÃO (server-side) ── */}
