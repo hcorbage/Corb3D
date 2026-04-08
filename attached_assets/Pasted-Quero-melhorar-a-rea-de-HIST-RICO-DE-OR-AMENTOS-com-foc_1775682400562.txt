@@ -1,0 +1,133 @@
+Quero melhorar a área de HISTÓRICO DE ORÇAMENTOS com foco em filtros, busca e pequenas melhorias de usabilidade, SEM alterar o layout principal da tela e SEM refatorar a página inteira.
+
+OBJETIVO:
+Facilitar a localização de orçamentos no Histórico, mantendo o visual atual, a estrutura dos cards por cliente e a organização geral da tela.
+
+IMPORTANTE:
+- NÃO quero redesign da página
+- NÃO quero mudar a estrutura visual principal
+- NÃO quero alterar os cards de cliente
+- NÃO quero mexer em outras áreas do sistema
+- NÃO quero refatoração grande
+- Quero apenas melhorias localizadas de filtro, busca e usabilidade
+
+--------------------------------------------------
+1) BARRA DE FILTROS NO TOPO
+--------------------------------------------------
+
+Adicionar uma barra horizontal de filtros logo abaixo do título “Histórico de Orçamentos” e acima da lista de cards.
+
+Essa barra deve conter:
+
+A) FILTRO POR STATUS
+Criar um select com as opções:
+- Todos
+- Autorizado
+- Não autorizado
+
+B) FILTRO POR PERÍODO
+Criar um select com as opções:
+- Hoje
+- Últimos 7 dias
+- Últimos 30 dias
+- Últimos 90 dias
+- Todos
+
+C) CAMPO DE BUSCA
+Placeholder:
+“Buscar por cliente ou projeto”
+
+Buscar por:
+- nome do cliente
+- nome do projeto
+
+D) BOTÃO “BUSCAR”
+Aplicar filtros ao clicar no botão OU automaticamente ao alterar campos (usar a forma mais simples possível, sem criar lógica complexa)
+
+--------------------------------------------------
+2) MANTER O FILTRO ATUAL DE CLIENTES
+--------------------------------------------------
+
+- NÃO remover o select “Todos os clientes”
+- ele deve continuar funcionando normalmente
+- deve funcionar combinado com os novos filtros
+
+--------------------------------------------------
+3) TOOLTIP NO BOTÃO DE VISUALIZAR ORÇAMENTO
+--------------------------------------------------
+
+Adicionar tooltip no botão de visualização (ícone de olho ou PDF):
+
+Texto:
+“Ver orçamento completo”
+
+--------------------------------------------------
+4) FILTROS COMBINADOS
+--------------------------------------------------
+
+Todos os filtros devem funcionar juntos:
+- cliente
+- status
+- período
+- busca
+
+Sem reload da página
+
+--------------------------------------------------
+5) PERFORMANCE E COMPORTAMENTO
+--------------------------------------------------
+
+- NÃO fazer chamadas novas desnecessárias no backend
+- priorizar uso dos dados já carregados
+- NÃO alterar lógica de geração de PDF
+- NÃO alterar lógica de salvar orçamento
+- NÃO alterar estrutura de dados existente
+
+--------------------------------------------------
+6) VISUAL
+--------------------------------------------------
+
+- manter layout atual
+- manter cards por cliente
+- manter tabela atual
+- apenas adicionar a barra de filtros no topo
+- seguir o estilo visual atual do sistema
+
+--------------------------------------------------
+7) PROIBIÇÕES (CRÍTICO)
+--------------------------------------------------
+
+- NÃO alterar layout existente
+- NÃO mover componentes já existentes
+- NÃO criar novos containers principais
+- NÃO alterar CSS global
+- NÃO alterar estrutura dos cards
+- NÃO alterar backend
+- NÃO alterar banco de dados
+- NÃO refatorar a página
+- NÃO modificar outras telas
+
+--------------------------------------------------
+8) SEGURANÇA DE IMPLEMENTAÇÃO
+--------------------------------------------------
+
+- NÃO tomar decisões próprias de UX
+- NÃO implementar nada além do que foi pedido
+- se algo não for possível, parar e perguntar antes de continuar
+
+--------------------------------------------------
+9) ENTREGA ESPERADA
+--------------------------------------------------
+
+Quero no final:
+
+- filtro por status funcionando
+- filtro por período funcionando
+- busca por cliente e projeto funcionando
+- filtro de clientes atual funcionando junto
+- tooltip no botão de visualizar orçamento
+- tudo funcionando combinado
+- sem alteração visual estrutural
+
+RESUMO:
+Adicionar filtros e busca ao Histórico de Orçamentos, sem alterar layout, sem refatoração e sem impacto no restante do sistema.

@@ -39,6 +39,9 @@ export default function History() {
   });
   
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [searchText, setSearchText] = useState<string>("");
 
   const [paymentModal, setPaymentModal] = useState<{ calc: Calculation } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("pix");
@@ -190,13 +193,43 @@ export default function History() {
     }
   };
 
-  // Get unique clients for filter
+  // Get unique clients for filter (always from full history)
   const uniqueClients = Array.from(new Set(history.map(c => c.clientName || 'Cliente Não Identificado'))).sort();
 
-  // Filter history
-  const filteredHistory = selectedClientFilter === "all" 
-    ? history 
-    : history.filter(calc => (calc.clientName || 'Cliente Não Identificado') === selectedClientFilter);
+  // Combined filter: client + status + period + search
+  const filteredHistory = history.filter(calc => {
+    // Client filter
+    if (selectedClientFilter !== "all" && (calc.clientName || 'Cliente Não Identificado') !== selectedClientFilter) return false;
+
+    // Status filter
+    if (statusFilter !== "all") {
+      const s = calc.status || 'pending';
+      if (s !== statusFilter) return false;
+    }
+
+    // Period filter
+    if (periodFilter !== "all") {
+      const calcDate = new Date(calc.date);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const daysAgo = (d: number) => { const dt = new Date(today); dt.setDate(dt.getDate() - d); return dt; };
+      if (periodFilter === "today" && calcDate < today) return false;
+      if (periodFilter === "7d" && calcDate < daysAgo(7)) return false;
+      if (periodFilter === "30d" && calcDate < daysAgo(30)) return false;
+      if (periodFilter === "90d" && calcDate < daysAgo(90)) return false;
+    }
+
+    // Search filter
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      const matchClient = (calc.clientName || '').toLowerCase().includes(q);
+      const matchProject = (calc.projectName || '').toLowerCase().includes(q);
+      if (!matchClient && !matchProject) return false;
+    }
+
+    return true;
+  });
+
+  const hasActiveFilters = statusFilter !== "all" || periodFilter !== "all" || searchText.trim() !== "" || selectedClientFilter !== "all";
 
   // Agrupar por cliente
   const groupedHistory = filteredHistory.reduce((acc, calc) => {
@@ -237,10 +270,59 @@ export default function History() {
         )}
       </div>
 
+      {/* Barra de filtros */}
+      <div className="flex flex-wrap gap-3 bg-card p-4 rounded-xl border border-border shadow-sm">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="confirmed">Autorizado</SelectItem>
+            <SelectItem value="denied">Não autorizado</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={periodFilter} onValueChange={setPeriodFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-period-filter">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os períodos</SelectItem>
+            <SelectItem value="today">Hoje</SelectItem>
+            <SelectItem value="7d">Últimos 7 dias</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="90d">Últimos 90 dias</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex-1 relative min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Buscar por cliente ou projeto"
+            className="pl-9"
+            data-testid="input-search-history"
+          />
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={() => { setStatusFilter("all"); setPeriodFilter("all"); setSearchText(""); setSelectedClientFilter("all"); }}
+            className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:border-foreground/30 transition-colors whitespace-nowrap self-center"
+            data-testid="button-clear-filters"
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
       {Object.keys(groupedHistory).length === 0 ? (
         <div className="bg-card rounded-2xl border border-card-border shadow-sm overflow-hidden p-12 flex flex-col items-center justify-center text-muted-foreground">
           <FileText className="w-12 h-12 mb-3 opacity-20" />
-          <p>{history.length === 0 ? "Nenhum orçamento salvo no histórico." : "Nenhum orçamento encontrado para este cliente."}</p>
+          <p>{history.length === 0 ? "Nenhum orçamento salvo no histórico." : hasActiveFilters ? "Nenhum orçamento encontrado para os filtros selecionados." : "Nenhum orçamento encontrado para este cliente."}</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -360,7 +442,7 @@ export default function History() {
                                   <Eye className="w-4 h-4 pointer-events-none" />
                                 </button>
                                 {calc.details && (
-                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewPdf(calc); }} className="text-muted-foreground hover:text-[#50c878] hover:bg-[#50c878]/10 p-2 rounded-lg transition-all border border-transparent hover:border-[#50c878]/20 cursor-pointer" title="Ver Orçamento Completo / PDF" data-testid={`button-view-pdf-${calc.id}`}>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewPdf(calc); }} className="text-muted-foreground hover:text-[#50c878] hover:bg-[#50c878]/10 p-2 rounded-lg transition-all border border-transparent hover:border-[#50c878]/20 cursor-pointer" title="Ver orçamento completo" data-testid={`button-view-pdf-${calc.id}`}>
                                     <FileText className="w-4 h-4 pointer-events-none" />
                                   </button>
                                 )}
