@@ -1,0 +1,55 @@
+Quero uma avaliação técnica objetiva antes de implementar uma melhoria na área de orçamentos.
+
+OBJETIVO:
+Quero que os orçamentos fiquem acessíveis tanto em CLIENTES quanto em HISTÓRICO, sempre podendo ser reabertos no formato do orçamento final, preservando inclusive as fotos anexadas, com opção de visualizar, imprimir e baixar PDF.
+
+IMPORTANTE:
+A abordagem que eu quero priorizar é:
+- salvar os dados completos do orçamento
+- salvar a foto vinculada ao orçamento
+- e regenerar a visualização e o PDF quando necessário
+
+NÃO quero, em princípio, salvar apenas uma imagem fixa do orçamento como solução principal.
+
+CENÁRIO DESEJADO:
+- cada orçamento gerado deve poder ser reaberto depois
+- ao abrir, ele deve ser regenerado no formato final do orçamento/PDF
+- a foto do trabalho deve permanecer salva junto com o orçamento
+- em CLIENTES e em HISTÓRICO eu quero acessar esses orçamentos já existentes
+- quero opções como:
+  - Visualizar orçamento
+  - Imprimir
+  - Baixar PDF
+
+QUERO QUE VOCÊ ANALISE E ME RESPONDA OBJETIVAMENTE:
+
+1) O sistema atual comporta essa funcionalidade sem refatoração grande?
+2) A abordagem de salvar os dados do orçamento e regenerar o PDF depois é viável no sistema atual?
+3) O que já existe hoje no sistema que pode ser reaproveitado?
+4) O que precisaria ser alterado em:
+   - frontend
+   - backend
+   - banco de dados
+   - geração de PDF
+5) A foto do trabalho pode ser preservada junto do orçamento sem quebrar o fluxo atual?
+6) Qual a melhor forma de armazenar essa foto no meu cenário atual:
+   - base64 no details
+   - URL
+   - outro formato
+7) Essa implementação pode ser feita de forma localizada, sem ferrar o restante do sistema?
+8) Em CLIENTES e em HISTÓRICO, qual seria o fluxo técnico mais correto:
+   - botão “Ver orçamento”
+   - botão “Imprimir”
+   - botão “Baixar PDF”
+9) Há risco de peso no banco ou queda de performance?
+10) Qual seria o caminho mais profissional e seguro para implementar isso agora?
+
+IMPORTANTE:
+- NÃO implementar ainda
+- NÃO alterar código ainda
+- quero apenas análise técnica
+- quero saber o que já está pronto no sistema e o que precisaria ser criado
+- quero uma resposta pensando em segurança, desempenho, armazenamento e manutenção
+
+RESUMO:
+Quero uma análise técnica para permitir que orçamentos sejam salvos como dados persistentes e depois regenerados para visualização, impressão e PDF em CLIENTES e HISTÓRICO, com foto preservada, sem quebrar o sistema.
