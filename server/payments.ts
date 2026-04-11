@@ -71,9 +71,9 @@ export async function createPaymentPreference(
         email: user.email ?? undefined,
       },
       back_urls: {
-        success: `${callbackBase}/pagamento/sucesso`,
-        failure: `${callbackBase}/pagamento/falha`,
-        pending: `${callbackBase}/pagamento/pendente`,
+        success: `${callbackBase}/planos`,
+        failure: `${callbackBase}/planos`,
+        pending: `${callbackBase}/planos`,
       },
       ...(callbackBase.startsWith("https://") ? { auto_return: "approved" } : {}),
       external_reference: `user_${user.id}_plan_${planId}`,
