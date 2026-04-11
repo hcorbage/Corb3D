@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { validateCNPJ } from "@shared/validators";
+import { fetchCNPJ } from "@/lib/cnpj";
 
 export type CNPJData = {
   name: string;
@@ -45,14 +46,13 @@ export function useCNPJLookup() {
 
     setState(s => ({ ...s, loading: true, hint: "", filled: [] }));
     try {
-      const res = await fetch(`/api/cnpj/${digits}`);
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await fetchCNPJ(digits);
+      if (!data) {
         setState({ loading: false, hint: FRIENDLY_MSG, filled: [], data: null });
         return;
       }
-      const filledFields = onSuccess(data as CNPJData);
-      setState({ loading: false, hint: "", filled: filledFields, data: data as CNPJData });
+      const filledFields = onSuccess(data);
+      setState({ loading: false, hint: "", filled: filledFields, data });
     } catch {
       setState({ loading: false, hint: FRIENDLY_MSG, filled: [], data: null });
     }
