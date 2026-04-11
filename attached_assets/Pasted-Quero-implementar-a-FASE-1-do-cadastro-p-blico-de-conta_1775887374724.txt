@@ -1,0 +1,72 @@
+Quero implementar a FASE 1 do cadastro público de conta de teste no sistema.
+
+OBJETIVO:
+Permitir que uma pessoa acesse uma página pública, crie sua própria conta de teste e entre no sistema com trial ativo, sem quebrar o que já existe hoje.
+
+IMPORTANTE:
+As contas criadas pelo cadastro público devem entrar exatamente na mesma estrutura de usuários já existente no sistema.
+
+Quero que:
+- apareçam normalmente no painel do super_admin
+- possam ser gerenciadas normalmente
+- eu possa alterar status, trial, data de expiração e demais dados como já faço hoje
+- o cadastro público seja apenas um novo fluxo de criação, sem criar uma estrutura paralela
+
+ESCOPO DA FASE 1:
+Implementar cadastro público simples, sem token de verificação ainda.
+
+FLUXO DESEJADO:
+1. usuário acessa uma rota pública, por exemplo /cadastro
+2. preenche os dados básicos
+3. define a senha
+4. aceita os Termos de Uso e a Política de Privacidade
+5. a conta é criada já com trial ativo
+6. depois disso, ele pode fazer login normalmente no sistema
+
+DADOS DO FORMULÁRIO:
+- nome completo
+- CPF
+- data de nascimento
+- e-mail
+- telefone/celular
+- senha
+- confirmação de senha
+
+COMPORTAMENTO:
+- gerar o login automaticamente usando a mesma lógica já existente (iniciais + ano, com tratamento de colisão)
+- criar a conta na mesma tabela/estrutura já usada hoje
+- definir automaticamente:
+  - accessStatus = "trial"
+  - trial = true
+  - trialEndsAt = agora + período padrão de teste já adotado no sistema
+- registrar aceite dos Termos e da Política de Privacidade no momento do cadastro
+- depois do cadastro, redirecionar para login ou já autenticar, se isso for simples e seguro
+
+VALIDAÇÕES:
+- impedir CPF duplicado
+- impedir e-mail duplicado
+- impedir telefone duplicado, se isso já fizer sentido no sistema
+- validar senha e confirmação
+- validar campos obrigatórios
+- não criar conta se os termos não forem aceitos
+
+ROTA / PÁGINA:
+- criar página pública de cadastro
+- sem exigir usuário logado
+- sem interferir na tela de login atual
+
+IMPORTANTE:
+- NÃO implementar token de verificação ainda
+- NÃO alterar o fluxo atual do super_admin criando contas manualmente
+- NÃO refatorar autenticação inteira
+- NÃO criar estrutura paralela de usuários
+- usar ao máximo a lógica já existente no sistema
+
+ENTREGA:
+Quero no final:
+1. rota pública de cadastro funcionando
+2. criação da conta trial funcionando
+3. conta aparecendo normalmente no super_admin
+4. geração automática de login funcionando
+5. aceite de termos funcionando no cadastro
+6. sem impactar o fluxo atual do sistema

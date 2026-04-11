@@ -554,6 +554,79 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { name, cpf, birthdate, email, phone, password, confirmPassword, acceptedTerms } = req.body;
+      if (!name?.trim()) return res.status(400).json({ message: "Nome completo é obrigatório." });
+      if (!cpf) return res.status(400).json({ message: "CPF é obrigatório." });
+      if (!birthdate) return res.status(400).json({ message: "Data de nascimento é obrigatória." });
+      if (!email?.trim()) return res.status(400).json({ message: "E-mail é obrigatório." });
+      if (!password) return res.status(400).json({ message: "Senha é obrigatória." });
+      if (password.length < 6) return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres." });
+      if (password !== confirmPassword) return res.status(400).json({ message: "As senhas não conferem." });
+      if (!acceptedTerms) return res.status(400).json({ message: "Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar." });
+
+      const cpfDigits = cpf.replace(/\D/g, "");
+      const docCheck = validateDocumentBackend(cpfDigits);
+      if (!docCheck.valid) return res.status(400).json({ message: docCheck.message });
+
+      const existingCpf = await storage.getUserByCpf(cpfDigits);
+      if (existingCpf) return res.status(400).json({ message: "Já existe uma conta cadastrada com este CPF." });
+
+      const emailNorm = email.trim().toLowerCase();
+      const existingEmail = await storage.getUserByEmail(emailNorm);
+      if (existingEmail) return res.status(400).json({ message: "Já existe uma conta cadastrada com este e-mail." });
+
+      const nameParts = name.trim().split(/\s+/).filter((p: string) => p.length > 0);
+      const firstInitial = (nameParts[0] || 'u').charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+      const birthYear = new Date(birthdate).getFullYear();
+      const baseLogin = `${firstInitial}${lastInitial}${birthYear}`;
+      let generatedLogin = baseLogin;
+      let counter = 1;
+      while (await storage.getUserByUsername(generatedLogin)) {
+        generatedLogin = `${baseLogin}_${counter}`;
+        counter++;
+      }
+
+      const hashed = await bcrypt.hash(password, 10);
+      const now = new Date();
+      const trialEnds = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const ip = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+
+      const user = await storage.createUser({
+        username: generatedLogin,
+        password: hashed,
+        isAdmin: true,
+        mustChangePassword: false,
+        passwordHint: null,
+        cpf: cpfDigits,
+        birthdate,
+        email: emailNorm,
+        phone: phone ? phone.replace(/\D/g, "") : null,
+        role: "company_admin",
+        trial: true,
+        trialStartedAt: now.toISOString(),
+        trialEndsAt: trialEnds.toISOString(),
+        accessStatus: "trial",
+        acceptedTerms: true,
+        acceptedTermsAt: now.toISOString(),
+        acceptedTermsVersion: TERMS_VERSION,
+        acceptedPrivacy: true,
+        acceptedPrivacyAt: now.toISOString(),
+        acceptedIp: ip,
+      } as any);
+
+      await seedMaterialsForUser(user.id);
+      await seedBrandsForUser(user.id);
+
+      return res.json({ ok: true, generatedLogin, message: "Conta criada com sucesso! Faça login para acessar o sistema." });
+    } catch (e: any) {
+      console.error("[Register]", e);
+      return res.status(500).json({ message: "Erro ao criar conta. Tente novamente." });
+    }
+  });
+
   app.post("/api/auth/accept-terms", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;

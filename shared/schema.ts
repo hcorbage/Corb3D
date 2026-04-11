@@ -132,6 +132,7 @@ export const users = pgTable("users", {
   cpf: text("cpf"),
   birthdate: text("birthdate"),
   email: text("email"),
+  phone: text("phone"),
   role: text("role").notNull().default("company_admin"),
   companyId: text("company_id"),
   trial: boolean("trial").default(false),

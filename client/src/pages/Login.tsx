@@ -215,6 +215,20 @@ export default function Login({ onLogin }: LoginProps) {
               >
                 {loading ? "Aguarde..." : <><LogIn className="w-5 h-5" /> Entrar</>}
               </button>
+
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-xs text-gray-400">ou</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+
+              <a
+                data-testid="link-register"
+                href="/cadastro"
+                className="w-full flex items-center justify-center gap-2 border border-blue-200 text-blue-700 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-all text-sm"
+              >
+                Criar conta de teste grátis — 7 dias
+              </a>
             </form>
           </div>
         )}

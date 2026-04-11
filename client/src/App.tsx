@@ -28,6 +28,7 @@ import { setAuthToken, clearAuthToken } from "@/lib/auth";
 import { useLocation } from "wouter";
 import TermsOfUse, { TermsBodyContent, TERMS_VERSION } from "@/pages/TermsOfUse";
 import PrivacyPolicy, { PrivacyBodyContent, PRIVACY_VERSION } from "@/pages/PrivacyPolicy";
+import Register from "@/pages/Register";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdmin } = useAuth();
@@ -525,6 +526,9 @@ function App() {
       .catch(() => setChecking(false));
   }, []);
 
+  if (location === "/cadastro") {
+    return <ThemeProvider><Register /></ThemeProvider>;
+  }
   if (location === "/termos-de-uso") {
     return <PublicPageWrapper><TermsOfUse /></PublicPageWrapper>;
   }
