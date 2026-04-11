@@ -1,0 +1,55 @@
+Quero uma avaliação técnica objetiva antes de implementar cadastro público de conta de teste no sistema.
+
+OBJETIVO:
+Permitir que uma pessoa acesse um link público, crie a própria conta de teste e entre no sistema com prazo de trial controlado automaticamente.
+
+CENÁRIO DESEJADO:
+- página pública de criação de conta de teste
+- cadastro de dados básicos
+- cadastro de celular
+- envio de token/código para validar o cadastro
+- validação do token
+- definição de senha
+- criação da conta com prazo de teste
+- aceite de EULA e Política de Privacidade
+- depois do cadastro, acesso normal ao sistema como conta trial
+
+QUERO QUE VOCÊ ANALISE E ME RESPONDA OBJETIVAMENTE:
+
+1) O sistema atual comporta isso sem refatoração grande?
+2) O que precisaria ser alterado em:
+   - frontend
+   - backend
+   - banco de dados
+   - autenticação
+3) A melhor abordagem para validar o usuário seria:
+   - SMS
+   - WhatsApp
+   - e-mail
+   - ou combinação
+4) É viável usar o mesmo conceito de token da recuperação de senha?
+5) O token deve ser:
+   - numérico de 6 dígitos
+   - com tempo de expiração
+   - com limite de tentativas
+6) O sistema consegue vincular automaticamente:
+   - data de criação
+   - data de expiração do trial
+   - status trial/full/blocked
+7) Como evitar abuso:
+   - múltiplos cadastros
+   - spam
+   - bots
+8) O aceite de EULA e Política de Privacidade pode entrar nesse fluxo de primeiro acesso/cadastro?
+9) Qual seria o caminho mais profissional e seguro para implementar isso no meu sistema atual?
+10) Essa implementação pode ser feita por fases, sem ferrar o que já está funcionando?
+
+IMPORTANTE:
+- NÃO implementar ainda
+- NÃO alterar código ainda
+- quero apenas análise técnica
+- quero saber o que já existe no sistema que pode ser reaproveitado
+- quero uma resposta pensando em segurança, desempenho, manutenção e profissionalismo
+
+RESUMO:
+Quero uma análise técnica para criar cadastro público de conta trial com validação por token e prazo de teste automático, integrado ao sistema atual.
