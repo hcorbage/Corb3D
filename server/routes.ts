@@ -148,14 +148,14 @@ function computeAccessData(dbUser: { trial?: boolean | null; trialEndsAt?: strin
   let trialExpired = false;
   const blocked = status === "blocked";
 
-  if ((status === "trial" || dbUser.trial) && dbUser.trialEndsAt) {
+  if (status === "trial" && dbUser.trialEndsAt) {
     trial = true;
     trialEndsAt = dbUser.trialEndsAt;
     const now = new Date();
     const ends = new Date(dbUser.trialEndsAt);
     const diffDays = Math.ceil((ends.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     trialDaysRemaining = Math.max(0, diffDays);
-    trialExpired = status === "trial" && diffDays <= 0;
+    trialExpired = diffDays <= 0;
   }
   return { trial, trialEndsAt, trialDaysRemaining, trialExpired, accessStatus: status, blocked };
 }

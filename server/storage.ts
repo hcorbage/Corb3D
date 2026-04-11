@@ -446,6 +446,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void> {
     const updateData: any = { accessStatus };
+    if (accessStatus === "full" || accessStatus === "blocked") {
+      updateData.trial = false;
+    }
     if (trialEndsAt !== undefined) updateData.trialEndsAt = trialEndsAt;
     await db.update(users).set(updateData).where(eq(users.id, id));
   }
