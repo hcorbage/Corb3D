@@ -587,6 +587,19 @@ export async function registerRoutes(
         req.session.isAdmin = isAdmin;
       }
       const mustAcceptTerms = role === "company_admin" && (!dbUser || dbUser.acceptedTermsVersion !== TERMS_VERSION);
+      // Fetch whatsappNumber even for blocked users (not protected by requireActiveAccount)
+      let whatsappNumber: string | null = null;
+      try {
+        const userSettings = await storage.getSettings(req.session.userId);
+        whatsappNumber = userSettings?.whatsappNumber || null;
+        if (!whatsappNumber) {
+          const masterUser = await storage.getUserByUsername("hcorbage");
+          if (masterUser) {
+            const masterSettings = await storage.getSettings(masterUser.id);
+            whatsappNumber = masterSettings?.whatsappNumber || null;
+          }
+        }
+      } catch {}
       return res.json({
         id: req.session.userId,
         username: req.session.username,
@@ -597,6 +610,7 @@ export async function registerRoutes(
         permissions: req.session.permissions || [],
         ...access,
         mustAcceptTerms,
+        whatsappNumber,
       });
     }
     return res.status(401).json({ needsSetup: false });

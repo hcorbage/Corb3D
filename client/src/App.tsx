@@ -518,6 +518,7 @@ function App() {
         if (ok) {
           setUser(buildAuthUser(data));
           setNeedsTerms(data.mustAcceptTerms || false);
+          if (data.whatsappNumber) setSystemWhatsappNumber(data.whatsappNumber);
         }
         setChecking(false);
       })
