@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { FileText, ShieldCheck, Eye, EyeOff, CheckCircle2, ExternalLink, UserPlus, Loader2 } from "lucide-react";
-import { TERMS_VERSION } from "./TermsOfUse";
-import { PRIVACY_VERSION } from "./PrivacyPolicy";
+import { FileText, ShieldCheck, Eye, EyeOff, CheckCircle2, UserPlus, Loader2, ChevronsDown } from "lucide-react";
+import { TermsBodyContent, TERMS_VERSION } from "./TermsOfUse";
+import { PrivacyBodyContent, PRIVACY_VERSION } from "./PrivacyPolicy";
 
 function formatCPF(value: string): string {
   const d = value.replace(/\D/g, "").slice(0, 11);
@@ -44,6 +44,29 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<{ login: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"terms" | "privacy">("terms");
+  const [termsRead, setTermsRead] = useState(false);
+  const [privacyRead, setPrivacyRead] = useState(false);
+  const termsRef = useRef<HTMLDivElement>(null);
+  const privacyRef = useRef<HTMLDivElement>(null);
+
+  const bothRead = termsRead && privacyRead;
+
+  const handleTermsScroll = useCallback(() => {
+    const el = termsRef.current;
+    if (!el || termsRead) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 6) {
+      setTermsRead(true);
+    }
+  }, [termsRead]);
+
+  const handlePrivacyScroll = useCallback(() => {
+    const el = privacyRef.current;
+    if (!el || privacyRead) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 6) {
+      setPrivacyRead(true);
+    }
+  }, [privacyRead]);
 
   const set = (field: string, value: string) => {
     setForm(f => ({ ...f, [field]: value }));
@@ -252,46 +275,94 @@ export default function Register() {
 
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-600">Documentos obrigatórios</span>
+                <span className="text-xs font-semibold text-gray-600">Documentos obrigatórios — leia antes de aceitar</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href="/termos-de-uso"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors group"
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex border-b border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("terms")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors ${
+                      activeTab === "terms"
+                        ? "bg-blue-50 text-blue-700 border-b-2 border-blue-500"
+                        : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                    Termos de Uso
+                    {termsRead && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+                    <span className="text-[10px] opacity-60">v{TERMS_VERSION}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("privacy")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors ${
+                      activeTab === "privacy"
+                        ? "bg-purple-50 text-purple-700 border-b-2 border-purple-500"
+                        : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                    Política de Privacidade
+                    {privacyRead && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+                    <span className="text-[10px] opacity-60">v{PRIVACY_VERSION}</span>
+                  </button>
+                </div>
+
+                <div
+                  ref={termsRef}
+                  onScroll={handleTermsScroll}
+                  className="overflow-y-auto bg-white"
+                  style={{ height: 240, display: activeTab === "terms" ? "block" : "none" }}
                 >
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs font-semibold text-blue-900">Termos de Uso</p>
-                      <p className="text-xs text-blue-500">v{TERMS_VERSION}</p>
-                    </div>
+                  <div className="p-4 text-xs text-gray-700">
+                    <TermsBodyContent compact />
                   </div>
-                  <ExternalLink className="w-3 h-3 text-blue-400 group-hover:text-blue-600 flex-shrink-0" />
-                </a>
-                <a
-                  href="/politica-de-privacidade"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-2 p-3 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 transition-colors group"
+                </div>
+
+                <div
+                  ref={privacyRef}
+                  onScroll={handlePrivacyScroll}
+                  className="overflow-y-auto bg-white"
+                  style={{ height: 240, display: activeTab === "privacy" ? "block" : "none" }}
                 >
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs font-semibold text-purple-900">Privacidade</p>
-                      <p className="text-xs text-purple-500">v{PRIVACY_VERSION}</p>
-                    </div>
+                  <div className="p-4 text-xs text-gray-700">
+                    <PrivacyBodyContent compact />
                   </div>
-                  <ExternalLink className="w-3 h-3 text-purple-400 group-hover:text-purple-600 flex-shrink-0" />
-                </a>
+                </div>
+
+                {!bothRead && (
+                  <div className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 border-t border-amber-100 text-amber-700 text-xs">
+                    <ChevronsDown className="w-3.5 h-3.5 flex-shrink-0 animate-bounce" />
+                    {!termsRead && !privacyRead
+                      ? "Role até o final de cada documento para liberar o aceite"
+                      : !termsRead
+                      ? 'Ainda falta rolar até o final dos "Termos de Uso"'
+                      : 'Ainda falta rolar até o final da "Política de Privacidade"'}
+                  </div>
+                )}
+                {bothRead && (
+                  <div className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 border-t border-green-100 text-green-700 text-xs font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    Documentos lidos — você já pode aceitar abaixo
+                  </div>
+                )}
               </div>
-              <label className="flex items-start gap-3 p-3.5 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+
+              <label
+                className={`flex items-start gap-3 p-3.5 rounded-xl border transition-colors ${
+                  bothRead
+                    ? "bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100"
+                    : "bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed"
+                }`}
+              >
                 <input
                   data-testid="checkbox-register-terms"
                   type="checkbox"
                   checked={accepted}
-                  onChange={e => { setAccepted(e.target.checked); setError(""); }}
+                  disabled={!bothRead}
+                  onChange={e => { if (bothRead) { setAccepted(e.target.checked); setError(""); } }}
                   className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
                 />
                 <span className="text-xs text-gray-700 leading-relaxed">

@@ -1,0 +1,79 @@
+Quero ajustar o fluxo de leitura e aceite dos Termos no cadastro público.
+
+PROBLEMA:
+Atualmente os Termos abrem em nova aba e não é possível controlar a rolagem, além de não haver garantia de leitura antes do aceite.
+
+OBJETIVO:
+Garantir que o usuário só possa aceitar os termos após rolar até o final do conteúdo.
+
+--------------------------------------------------
+
+1) EXIBIÇÃO DOS TERMOS (OBRIGATÓRIO)
+
+- NÃO abrir mais os termos em nova aba
+- exibir os Termos de Uso e a Política de Privacidade dentro da própria tela de cadastro
+- pode ser:
+  - um modal
+  OU
+  - um container com scroll dentro da página
+
+- o conteúdo deve estar dentro de uma área com altura fixa e scroll vertical
+
+--------------------------------------------------
+
+2) DETECÇÃO DE ROLAGEM
+
+- detectar quando o usuário chegou ao final do conteúdo
+- usar lógica baseada em:
+  scrollTop + clientHeight >= scrollHeight
+
+--------------------------------------------------
+
+3) LIBERAÇÃO DO ACEITE
+
+- o checkbox de aceite deve iniciar DESABILITADO
+- só deve ser habilitado quando o usuário rolar até o final
+
+- opcional:
+  mostrar mensagem:
+  “Role até o final para liberar o aceite”
+
+--------------------------------------------------
+
+4) COMPORTAMENTO
+
+- após rolar até o final:
+  - habilitar checkbox
+  - permitir marcar
+- antes disso:
+  - impedir qualquer aceite
+
+--------------------------------------------------
+
+5) VISUAL
+
+- manter layout atual
+- não refatorar a página inteira
+- apenas ajustar:
+  - onde os termos são exibidos
+  - lógica de scroll
+  - habilitação do aceite
+
+--------------------------------------------------
+
+6) IMPORTANTE
+
+- NÃO alterar lógica de cadastro
+- NÃO mexer em backend
+- NÃO alterar outras telas
+- mudança deve ser localizada no formulário de cadastro
+
+--------------------------------------------------
+
+ENTREGA
+
+Quero:
+1) termos exibidos dentro da própria tela/modal
+2) rolagem funcionando
+3) checkbox liberado somente após rolagem completa
+4) fluxo de aceite funcionando corretamente
