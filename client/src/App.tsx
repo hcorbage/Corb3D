@@ -75,18 +75,21 @@ function AccessBlockedScreen({ variant, whatsappNumber }: { variant: "trialExpir
       icon: "text-red-500",
       title: "Período de teste encerrado",
       message: "Seu período de avaliação expirou. Entre em contato para continuar utilizando o sistema com acesso completo.",
+      whatsappMessage: "Olá, quero contratar um plano do sistema.",
     },
     blocked: {
       bg: "bg-orange-50",
       icon: "text-orange-500",
       title: "Acesso suspenso",
       message: "O acesso à sua conta foi suspenso. Entre em contato com o suporte para mais informações.",
+      whatsappMessage: "Olá, preciso de suporte para minha conta bloqueada.",
     },
     runtime: {
       bg: "bg-red-50",
       icon: "text-red-500",
       title: "Acesso indisponível",
       message: "Seu acesso está indisponível. Seu período de teste expirou ou sua conta foi bloqueada.",
+      whatsappMessage: "Olá, preciso de suporte para minha conta.",
     },
   }[variant];
 
@@ -98,23 +101,31 @@ function AccessBlockedScreen({ variant, whatsappNumber }: { variant: "trialExpir
         </div>
         <h2 className="text-xl font-bold text-gray-800 mb-3">{config.title}</h2>
         <p className="text-sm text-gray-600 mb-6">{config.message}</p>
-        {whatsappNumber ? (
+        <div className="flex flex-col items-center gap-3">
+          {whatsappNumber ? (
+            <a
+              href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(config.whatsappMessage)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm w-full justify-center"
+            >
+              <MessageCircle className="w-5 h-5" />
+              Falar no WhatsApp
+            </a>
+          ) : (
+            <span className="inline-flex items-center gap-2 bg-gray-200 text-gray-500 px-6 py-3 rounded-xl font-semibold cursor-not-allowed w-full justify-center">
+              <MessageCircle className="w-5 h-5" />
+              Falar no WhatsApp
+            </span>
+          )}
           <a
-            href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Olá, quero contratar um plano do sistema.")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm"
+            href="mailto:contato@corb3d.com.br"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors underline underline-offset-2"
           >
-            <MessageCircle className="w-5 h-5" />
-            Falar com suporte
+            contato@corb3d.com.br
           </a>
-        ) : (
-          <span className="inline-flex items-center gap-2 bg-gray-200 text-gray-500 px-6 py-3 rounded-xl font-semibold cursor-not-allowed">
-            <MessageCircle className="w-5 h-5" />
-            Falar com suporte
-          </span>
-        )}
-        <div className="mt-4">
+        </div>
+        <div className="mt-5">
           <button
             onClick={() => { clearAuthToken(); fetch("/api/auth/logout", { method: "POST" }).then(() => window.location.reload()); }}
             className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
