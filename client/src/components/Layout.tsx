@@ -5,7 +5,7 @@ import {
   Calculator, Package, Users, Users2, History, Settings, LogOut,
   Menu, X, Maximize, Minimize, BadgeDollarSign, BookOpen,
   BarChart2, DollarSign, Wallet, FileText, ChevronDown, ChevronRight,
-  LayoutDashboard, Sun, Moon, Monitor, Clock, MessageCircle,
+  LayoutDashboard, Sun, Moon, Monitor, Clock, MessageCircle, ExternalLink, CreditCard,
 } from "lucide-react";
 import { useAppState } from "../context/AppState";
 import { useAuth } from "../context/AuthContext";
@@ -66,6 +66,7 @@ const allNavEntries: NavEntry[] = [
       { href: "/cashbook", label: "Livro Caixa", icon: BookOpen, adminOnly: true, module: "livro_caixa" },
     ],
   },
+  { href: "/planos", label: "PLANOS", icon: CreditCard, adminOnly: true, module: "" },
   { href: "/settings", label: "AJUSTES", icon: Settings, adminOnly: false, module: "" },
 ];
 
@@ -391,22 +392,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         : `Período de teste: ${trialDaysRemaining} dias restantes`}
                   </span>
                 </div>
-                {settings.whatsappNumber ? (
-                  <a
-                    href={`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent("Olá, quero contratar um plano do sistema.")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 underline underline-offset-2 hover:opacity-80 transition-opacity flex-shrink-0"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Contratar plano
+                <Link href="/planos">
+                  <a className="flex items-center gap-1.5 underline underline-offset-2 hover:opacity-80 transition-opacity flex-shrink-0 font-semibold">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Ver planos
                   </a>
-                ) : (
-                  <span className="flex items-center gap-1.5 opacity-50 flex-shrink-0">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Contratar plano
-                  </span>
-                )}
+                </Link>
               </div>
             )}
             <CashStatusAlert />

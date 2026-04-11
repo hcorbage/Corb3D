@@ -29,6 +29,7 @@ import { useLocation } from "wouter";
 import TermsOfUse, { TermsBodyContent, TERMS_VERSION } from "@/pages/TermsOfUse";
 import PrivacyPolicy, { PrivacyBodyContent, PRIVACY_VERSION } from "@/pages/PrivacyPolicy";
 import Register from "@/pages/Register";
+import Plans from "@/pages/Plans";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdmin } = useAuth();
@@ -52,6 +53,7 @@ function Router() {
         <Route path="/relatorios">{() => <AdminRoute component={Relatorios} />}</Route>
         <Route path="/relatorio-clientes">{() => <AdminRoute component={RelatorioClientes} />}</Route>
         <Route path="/settings" component={Settings}/>
+        <Route path="/planos" component={Plans}/>
         <Route component={NotFound} />
       </Switch>
     </Layout>

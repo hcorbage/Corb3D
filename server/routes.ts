@@ -734,6 +734,9 @@ export async function registerRoutes(
         ...access,
         mustAcceptTerms,
         whatsappNumber,
+        plan: (dbUser as any)?.plan ?? "trial",
+        subscriptionStatus: (dbUser as any)?.subscriptionStatus ?? null,
+        subscriptionExpiresAt: (dbUser as any)?.subscriptionExpiresAt ?? null,
       });
     }
     return res.status(401).json({ needsSetup: false });
