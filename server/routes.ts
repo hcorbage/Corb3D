@@ -2372,8 +2372,11 @@ export async function registerRoutes(
 
     try {
       const result = await createPaymentPreference(user, plan as PlanId, callbackBase);
-      console.log(`[Payments] Preferência criada — user=${userId} plan=${plan} id=${result.preferenceId}`);
-      return res.json({ ...result, plan, planDetails: PLANS[plan as PlanId] });
+      const mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN ?? "";
+      const isSandbox = mpToken.startsWith("TEST-");
+      const checkoutUrl = isSandbox ? result.sandboxInitPoint : result.initPoint;
+      console.log(`[Payments] Preferência criada — user=${userId} plan=${plan} id=${result.preferenceId} env=${isSandbox ? "sandbox" : "produção"}`);
+      return res.json({ ...result, checkoutUrl, plan, planDetails: PLANS[plan as PlanId] });
     } catch (err: any) {
       console.error("[Payments] Erro ao criar preferência:", err?.message ?? err);
       return res.status(500).json({ message: err?.message ?? "Erro ao criar preferência de pagamento." });

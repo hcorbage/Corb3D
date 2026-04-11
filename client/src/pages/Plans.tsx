@@ -91,7 +91,7 @@ export default function Plans() {
         setError(data.message ?? "Erro ao criar preferência de pagamento.");
         return;
       }
-      const url = data.initPoint || data.sandboxInitPoint;
+      const url = data.checkoutUrl;
       if (!url) {
         setError("Link de pagamento não disponível. Tente novamente.");
         return;
