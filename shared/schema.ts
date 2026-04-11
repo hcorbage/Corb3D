@@ -145,6 +145,12 @@ export const users = pgTable("users", {
   acceptedPrivacy: boolean("accepted_privacy").default(false),
   acceptedPrivacyAt: text("accepted_privacy_at"),
   acceptedIp: text("accepted_ip"),
+  // Subscription / Payment
+  plan: text("plan").default("trial"),
+  subscriptionStatus: text("subscription_status"),
+  subscriptionExpiresAt: text("subscription_expires_at"),
+  paymentProvider: text("payment_provider"),
+  paymentId: text("payment_id"),
 });
 
 export const emailVerificationTokens = pgTable("email_verification_tokens", {

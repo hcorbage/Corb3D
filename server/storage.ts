@@ -102,6 +102,7 @@ export interface IStorage {
   promoteToAdmin(id: string): Promise<void>;
   getAdminUsers(): Promise<{ id: string; username: string; role: string; trial: boolean | null; trialStartedAt: string | null; trialEndsAt: string | null; accessStatus: string | null; mustChangePassword: boolean; email: string | null }[]>;
   updateUserAccessStatus(id: string, accessStatus: string, trialEndsAt?: string | null): Promise<void>;
+  updateUserSubscription(id: string, data: { plan: string; subscriptionStatus: string; subscriptionExpiresAt: string | null; paymentProvider: string; paymentId: string }): Promise<void>;
   acceptTerms(id: string, version: string, ip: string): Promise<void>;
 
   getCashEntries(userId: string): Promise<CashEntry[]>;
@@ -489,6 +490,18 @@ export class DatabaseStorage implements IStorage {
     }
     if (trialEndsAt !== undefined) updateData.trialEndsAt = trialEndsAt;
     await db.update(users).set(updateData).where(eq(users.id, id));
+  }
+
+  async updateUserSubscription(id: string, data: { plan: string; subscriptionStatus: string; subscriptionExpiresAt: string | null; paymentProvider: string; paymentId: string }): Promise<void> {
+    await db.update(users).set({
+      plan: data.plan,
+      subscriptionStatus: data.subscriptionStatus,
+      subscriptionExpiresAt: data.subscriptionExpiresAt,
+      paymentProvider: data.paymentProvider,
+      paymentId: data.paymentId,
+      accessStatus: "full",
+      trial: false,
+    }).where(eq(users.id, id));
   }
 
   async acceptTerms(id: string, version: string, ip: string): Promise<void> {

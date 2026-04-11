@@ -7,6 +7,7 @@ import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/module
 import { validateCPF, validateCNPJ } from "@shared/validators";
 import crypto from "crypto";
 import { sendPasswordResetEmail, sendEmailVerificationCode } from "./email";
+import { createPaymentPreference, fetchPaymentById, addDays, PLANS, type PlanId } from "./payments";
 import fs from "fs";
 import {
   generateCompanyBackup,
@@ -2340,6 +2341,102 @@ export async function registerRoutes(
       return res
         .status(err.message?.includes("outra empresa") || err.message?.includes("não pertence") || err.message?.includes("traversal") ? 400 : 500)
         .json({ message: err.message || "Erro ao restaurar backup da empresa." });
+    }
+  });
+
+  // ─── PAYMENTS ──────────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/payments/create
+   * Authenticated. Creates a Mercado Pago payment preference for the given plan.
+   * Body: { plan: "basic" | "pro" }
+   * Returns: { preferenceId, initPoint, sandboxInitPoint, plan }
+   */
+  app.post("/api/payments/create", requireAuth, async (req: Request, res: Response) => {
+    const { plan } = req.body as { plan?: string };
+
+    if (!plan || !(plan in PLANS)) {
+      return res.status(400).json({ message: `Plano inválido. Use: ${Object.keys(PLANS).join(", ")}` });
+    }
+
+    const userId = req.session.userId!;
+    const user = await storage.getUserById(userId);
+    if (!user) return res.status(404).json({ message: "Usuário não encontrado." });
+
+    const proto = req.headers["x-forwarded-proto"] ?? req.protocol;
+    const host = req.headers["x-forwarded-host"] ?? req.get("host");
+    const callbackBase = process.env.APP_URL ?? `${proto}://${host}`;
+
+    try {
+      const result = await createPaymentPreference(user, plan as PlanId, callbackBase);
+      console.log(`[Payments] Preferência criada — user=${userId} plan=${plan} id=${result.preferenceId}`);
+      return res.json({ ...result, plan, planDetails: PLANS[plan as PlanId] });
+    } catch (err: any) {
+      console.error("[Payments] Erro ao criar preferência:", err?.message ?? err);
+      return res.status(500).json({ message: err?.message ?? "Erro ao criar preferência de pagamento." });
+    }
+  });
+
+  /**
+   * GET /api/payments/plans
+   * Public. Returns available plan definitions.
+   */
+  app.get("/api/payments/plans", (_req: Request, res: Response) => {
+    return res.json(PLANS);
+  });
+
+  /**
+   * POST /api/payments/webhook
+   * Public (called by Mercado Pago). Processes payment notifications.
+   * Mercado Pago sends: { type: "payment", data: { id: "..." } }
+   */
+  app.post("/api/payments/webhook", async (req: Request, res: Response) => {
+    try {
+      const { type, data } = req.body as { type?: string; data?: { id?: string } };
+
+      if (type !== "payment" || !data?.id) {
+        return res.sendStatus(200);
+      }
+
+      const paymentId = String(data.id);
+      console.log(`[Payments/Webhook] Notificação recebida — type=${type} paymentId=${paymentId}`);
+
+      const payment = await fetchPaymentById(paymentId);
+      console.log(`[Payments/Webhook] Status do pagamento ${paymentId}: ${payment.status}`);
+
+      if (payment.status !== "approved") {
+        return res.sendStatus(200);
+      }
+
+      const userId =
+        payment.metadata?.userId ??
+        payment.externalReference?.match(/user_([^_]+)_plan_/)?.[1];
+
+      const planId =
+        (payment.metadata?.planId as PlanId | undefined) ??
+        (payment.externalReference?.match(/plan_(.+)$/)?.[1] as PlanId | undefined);
+
+      if (!userId || !planId || !(planId in PLANS)) {
+        console.warn("[Payments/Webhook] userId ou planId não identificados no pagamento", payment.externalReference);
+        return res.sendStatus(200);
+      }
+
+      const plan = PLANS[planId];
+      const expiresAt = addDays(plan.durationDays);
+
+      await storage.updateUserSubscription(userId, {
+        plan: planId,
+        subscriptionStatus: "active",
+        subscriptionExpiresAt: expiresAt,
+        paymentProvider: "mercadopago",
+        paymentId,
+      });
+
+      console.log(`[Payments/Webhook] Assinatura ativada — userId=${userId} plan=${planId} expira=${expiresAt}`);
+      return res.sendStatus(200);
+    } catch (err: any) {
+      console.error("[Payments/Webhook] Erro:", err?.message ?? err);
+      return res.sendStatus(500);
     }
   });
 
