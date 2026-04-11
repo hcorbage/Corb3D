@@ -75,7 +75,7 @@ export async function createPaymentPreference(
         failure: `${callbackBase}/pagamento/falha`,
         pending: `${callbackBase}/pagamento/pendente`,
       },
-      auto_return: "approved",
+      ...(callbackBase.startsWith("https://") ? { auto_return: "approved" } : {}),
       external_reference: `user_${user.id}_plan_${planId}`,
       metadata: {
         userId: user.id,
