@@ -283,10 +283,6 @@ export async function registerRoutes(
   }));
 
   // ---- AUTH ----
-  app.post("/api/auth/register", async (_req, res) => {
-    return res.status(403).json({ message: "Registro desabilitado. Solicite ao administrador master." });
-  });
-
   app.post("/api/create-admin", async (req, res) => {
     try {
       const { username, password } = req.body;
