@@ -1700,21 +1700,20 @@ export default function Settings() {
                           const digits = val.replace(/\D/g, "");
                           if (digits.length === 14) {
                             empCNPJ.lookup(val, (d) => {
+                              const prev = empForm;
+                              const next = { ...prev };
                               const filled: string[] = [];
-                              setEmpForm(prev => {
-                                const next = { ...prev };
-                                if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
-                                if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
-                                if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
-                                if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
-                                if (d.street) { next.street = d.street; filled.push("Rua"); }
-                                if (d.number) { next.number = d.number; filled.push("Número"); }
-                                if (d.complement) { next.complement = d.complement; }
-                                if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
-                                if (d.city) { next.city = d.city; filled.push("Cidade"); }
-                                if (d.uf) { next.uf = d.uf; filled.push("UF"); }
-                                return next;
-                              });
+                              if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
+                              if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
+                              if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
+                              if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
+                              if (d.street) { next.street = d.street; filled.push("Rua"); }
+                              if (d.number) { next.number = d.number; filled.push("Número"); }
+                              if (d.complement) { next.complement = d.complement; }
+                              if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
+                              if (d.city) { next.city = d.city; filled.push("Cidade"); }
+                              if (d.uf) { next.uf = d.uf; filled.push("UF"); }
+                              setEmpForm(next);
                               return filled;
                             });
                           }
@@ -2676,21 +2675,20 @@ export default function Settings() {
                           const digits = val.replace(/\D/g, "");
                           if (digits.length === 14) {
                             userCNPJ.lookup(val, (d) => {
+                              const prev = userForm;
+                              const next = { ...prev };
                               const filled: string[] = [];
-                              setUserForm(prev => {
-                                const next = { ...prev };
-                                if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
-                                if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
-                                if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
-                                if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
-                                if (d.street) { next.street = d.street; filled.push("Rua"); }
-                                if (d.number) { next.number = d.number; filled.push("Número"); }
-                                if (d.complement) { next.complement = d.complement; }
-                                if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
-                                if (d.city) { next.city = d.city; filled.push("Cidade"); }
-                                if (d.uf) { next.uf = d.uf; filled.push("UF"); }
-                                return next;
-                              });
+                              if (!prev.name && d.name) { next.name = d.tradeName || d.name; filled.push("Nome"); }
+                              if (!prev.email && d.email) { next.email = d.email; filled.push("E-mail"); }
+                              if (!prev.whatsapp && d.phone) { next.whatsapp = d.phone; filled.push("WhatsApp"); }
+                              if (d.cep) { next.cep = d.cep; filled.push("CEP"); }
+                              if (d.street) { next.street = d.street; filled.push("Rua"); }
+                              if (d.number) { next.number = d.number; filled.push("Número"); }
+                              if (d.complement) { next.complement = d.complement; }
+                              if (d.neighborhood) { next.neighborhood = d.neighborhood; filled.push("Bairro"); }
+                              if (d.city) { next.city = d.city; filled.push("Cidade"); }
+                              if (d.uf) { next.uf = d.uf; filled.push("UF"); }
+                              setUserForm(next);
                               return filled;
                             });
                           }

@@ -80,7 +80,7 @@ export default function Clients() {
       .catch(() => {});
   }, []);
 
-  const { register, handleSubmit, reset, setValue, trigger, formState: { errors } } = useForm<ClientFormValues>({
+  const { register, handleSubmit, reset, setValue, getValues, trigger, formState: { errors } } = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
     mode: "onBlur",
     defaultValues: {
@@ -330,14 +330,11 @@ export default function Clients() {
                       const digits = val.replace(/\D/g, "");
                       if (digits.length === 14 && validateCPF_CNPJ(val).valid) {
                         clientCNPJ.lookup(val, (d) => {
-                          const getVal = (field: keyof ClientFormValues) => {
-                            const el = document.querySelector<HTMLInputElement>(`[name="${field}"]`);
-                            return el?.value || "";
-                          };
+                          const cur = getValues();
                           const filled: string[] = [];
-                          if (!getVal("name") && d.name) { setValue("name", d.tradeName || d.name, { shouldDirty: true }); filled.push("Nome"); }
-                          if (!getVal("email") && d.email) { setValue("email", d.email, { shouldDirty: true }); filled.push("E-mail"); }
-                          if (!getVal("whatsapp") && d.phone) { setValue("whatsapp", d.phone, { shouldDirty: true }); filled.push("WhatsApp"); }
+                          if (!cur.name && d.name) { setValue("name", d.tradeName || d.name, { shouldDirty: true }); filled.push("Nome"); }
+                          if (!cur.email && d.email) { setValue("email", d.email, { shouldDirty: true }); filled.push("E-mail"); }
+                          if (!cur.whatsapp && d.phone) { setValue("whatsapp", d.phone, { shouldDirty: true }); filled.push("WhatsApp"); }
                           if (d.cep) { setValue("cep", d.cep, { shouldDirty: true }); filled.push("CEP"); }
                           if (d.street) { setValue("street", d.street, { shouldDirty: true }); filled.push("Rua"); }
                           if (d.number) { setValue("number", d.number, { shouldDirty: true }); filled.push("Número"); }
