@@ -26,8 +26,8 @@ import Login from "./pages/Login";
 import { Lock, Eye, EyeOff, KeyRound, Clock, MessageCircle, AlertTriangle, FileText, ShieldCheck, ExternalLink } from "lucide-react";
 import { setAuthToken, clearAuthToken } from "@/lib/auth";
 import { useLocation } from "wouter";
-import TermsOfUse from "@/pages/TermsOfUse";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfUse, { TermsBodyContent, TERMS_VERSION } from "@/pages/TermsOfUse";
+import PrivacyPolicy, { PrivacyBodyContent, PRIVACY_VERSION } from "@/pages/PrivacyPolicy";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdmin } = useAuth();
@@ -351,8 +351,6 @@ function buildAuthUser(data: any): AuthUser {
   };
 }
 
-const TERMS_VERSION = "1.0";
-
 function TermsAcceptanceModal({ onAccepted }: { onAccepted: () => void }) {
   const [checked, setChecked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -375,50 +373,62 @@ function TermsAcceptanceModal({ onAccepted }: { onAccepted: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg overflow-y-auto max-h-[92vh]">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-2xl overflow-y-auto max-h-[92vh]">
         <div className="p-6 pb-0">
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-50 rounded-2xl mb-4">
               <FileText className="w-7 h-7 text-blue-500" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800">Termos de Uso e Privacidade</h2>
+            <h2 className="text-xl font-bold text-gray-800">Termos de Uso e Política de Privacidade</h2>
             <p className="text-sm text-gray-500 mt-2">
-              Antes de começar a usar o C3D Manager®, leia e aceite os termos abaixo.
+              Antes de começar a usar o C3D Manager®, leia e aceite os documentos abaixo.
             </p>
           </div>
 
-          <div className="space-y-3 mb-5">
-            <a
-              href="/termos-de-uso"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-blue-900 text-sm">Termos de Uso</p>
-                  <p className="text-xs text-blue-600">Versão {TERMS_VERSION} — Clique para ler</p>
+          <div className="space-y-4 mb-5">
+            <div className="border border-blue-100 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-blue-50">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <span className="font-semibold text-blue-900 text-sm">Termos de Uso</span>
+                  <span className="text-xs text-blue-500">Versão {TERMS_VERSION}</span>
                 </div>
+                <a
+                  href="/termos-de-uso"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Abrir em nova aba
+                </a>
               </div>
-              <ExternalLink className="w-4 h-4 text-blue-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
-            </a>
+              <div className="max-h-64 overflow-y-auto p-4 bg-white">
+                <TermsBodyContent compact />
+              </div>
+            </div>
 
-            <a
-              href="/politica-de-privacidade"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between gap-3 p-4 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-purple-900 text-sm">Política de Privacidade</p>
-                  <p className="text-xs text-purple-600">Versão {TERMS_VERSION} — Clique para ler</p>
+            <div className="border border-purple-100 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-purple-50">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <span className="font-semibold text-purple-900 text-sm">Política de Privacidade</span>
+                  <span className="text-xs text-purple-500">Versão {PRIVACY_VERSION}</span>
                 </div>
+                <a
+                  href="/politica-de-privacidade"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Abrir em nova aba
+                </a>
               </div>
-              <ExternalLink className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
-            </a>
+              <div className="max-h-64 overflow-y-auto p-4 bg-white">
+                <PrivacyBodyContent compact />
+              </div>
+            </div>
           </div>
 
           <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors mb-5">

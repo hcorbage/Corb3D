@@ -1,0 +1,82 @@
+A tela de aceite já existe e já funciona. Preciso apenas complementar com os textos legais.
+
+OBJETIVO:
+Adicionar os textos de:
+1) Termos de Uso (EULA)
+2) Política de Privacidade / Proteção de Dados (LGPD)
+
+IMPORTANTE:
+- NÃO alterar a lógica de aceite já existente
+- NÃO refatorar a tela
+- NÃO mexer em autenticação
+- apenas inserir os textos corretamente na tela atual
+
+--------------------------------------------------
+
+1) TERMOS DE USO (EULA)
+
+Criar um texto inicial profissional, em português do Brasil, com linguagem clara, para um sistema SaaS de gestão de impressão 3D.
+
+Deve incluir:
+- descrição do serviço
+- uso da conta
+- responsabilidade do usuário
+- uso permitido e proibido
+- bloqueio/suspensão de acesso
+- limitação de responsabilidade
+- propriedade intelectual
+- atualizações dos termos
+- legislação brasileira
+
+--------------------------------------------------
+
+2) POLÍTICA DE PRIVACIDADE / LGPD
+
+Criar texto profissional com:
+
+- quais dados o sistema coleta
+- finalidade do uso
+- base legal (LGPD)
+- armazenamento
+- segurança
+- compartilhamento (se houver)
+- direitos do usuário
+- canal de contato:
+  contato@corb3d.com.br
+
+--------------------------------------------------
+
+3) EXIBIÇÃO NA TELA
+
+- mostrar os dois textos na mesma tela já existente
+- separar claramente:
+  - “Termos de Uso”
+  - “Política de Privacidade”
+- permitir rolagem
+- manter layout atual
+
+--------------------------------------------------
+
+4) CHECKBOX
+
+Se ainda não existir:
+- checkbox:
+  “Li e aceito os Termos de Uso e a Política de Privacidade”
+
+O botão de continuar deve depender disso (se já não estiver assim)
+
+--------------------------------------------------
+
+5) VERSIONAMENTO (SE JÁ EXISTIR, MANTER)
+
+- manter o sistema atual de versão dos termos
+- apenas associar os novos textos à versão atual
+
+--------------------------------------------------
+
+ENTREGA:
+Quero:
+- texto completo do EULA
+- texto completo da Política de Privacidade
+- textos exibidos corretamente na tela de aceite
+- sem alterar o funcionamento atual do sistema
