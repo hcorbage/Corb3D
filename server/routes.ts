@@ -6,7 +6,7 @@ import session from "express-session";
 import { DEFAULT_EMPLOYEE_PERMISSIONS, PERMISSION_MODULES } from "@shared/modules";
 import { validateCPF, validateCNPJ } from "@shared/validators";
 import crypto from "crypto";
-import { sendPasswordResetEmail } from "./email";
+import { sendPasswordResetEmail, sendEmailVerificationCode } from "./email";
 import fs from "fs";
 import {
   generateCompanyBackup,
@@ -550,7 +550,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register/send-code", async (req, res) => {
     try {
       const { name, cpf, birthdate, email, phone, password, confirmPassword, acceptedTerms } = req.body;
       if (!name?.trim()) return res.status(400).json({ message: "Nome completo é obrigatório." });
@@ -573,10 +573,62 @@ export async function registerRoutes(
       const existingEmail = await storage.getUserByEmail(emailNorm);
       if (existingEmail) return res.status(400).json({ message: "Já existe uma conta cadastrada com este e-mail." });
 
-      const nameParts = name.trim().split(/\s+/).filter((p: string) => p.length > 0);
+      await storage.deleteExpiredEmailVerifTokens();
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const tokenHash = crypto.createHash("sha256").update(code).digest("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      const formData = JSON.stringify({ name: name.trim(), cpf: cpfDigits, birthdate, email: emailNorm, phone: phone || null, password, acceptedTerms: true });
+      const token = await storage.createEmailVerifToken(emailNorm, tokenHash, expiresAt, formData);
+
+      console.log("[RegisterSendCode] Código gerado para:", emailNorm, "| expira:", expiresAt);
+      await sendEmailVerificationCode(emailNorm, code);
+
+      return res.json({ ok: true, pendingId: token.id, maskedEmail: emailNorm.replace(/(.{2}).+(@.+)/, "$1***$2") });
+    } catch (e: any) {
+      console.error("[RegisterSendCode]", e);
+      return res.status(500).json({ message: "Erro ao enviar código de verificação. Tente novamente." });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { pendingId, code } = req.body;
+      if (!pendingId || !code) return res.status(400).json({ message: "Dados de verificação inválidos." });
+
+      const token = await storage.getEmailVerifToken(pendingId);
+      if (!token) return res.status(400).json({ message: "Sessão de verificação expirada ou inválida. Recomece o cadastro." });
+
+      if (new Date(token.expiresAt) < new Date()) {
+        await storage.deleteEmailVerifToken(pendingId);
+        return res.status(400).json({ message: "O código expirou. Solicite um novo código.", expired: true });
+      }
+      if (token.attempts >= 5) {
+        await storage.deleteEmailVerifToken(pendingId);
+        return res.status(400).json({ message: "Número máximo de tentativas atingido. Recomece o cadastro.", blocked: true });
+      }
+
+      const normalizedCode = code.trim();
+      const inputHash = crypto.createHash("sha256").update(normalizedCode).digest("hex");
+      if (inputHash !== token.tokenHash) {
+        await storage.incrementEmailVerifAttempts(pendingId);
+        const remaining = 4 - token.attempts;
+        return res.status(400).json({ message: `Código incorreto. ${remaining > 0 ? `${remaining} tentativa(s) restante(s).` : "Última tentativa."}` });
+      }
+
+      const fd = JSON.parse(token.formData);
+      const ip = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+
+      const existingCpf = await storage.getUserByCpf(fd.cpf);
+      if (existingCpf) { await storage.deleteEmailVerifToken(pendingId); return res.status(400).json({ message: "Este CPF já está cadastrado." }); }
+      const existingEmail = await storage.getUserByEmail(fd.email);
+      if (existingEmail) { await storage.deleteEmailVerifToken(pendingId); return res.status(400).json({ message: "Este e-mail já está cadastrado." }); }
+
+      const nameParts = fd.name.trim().split(/\s+/).filter((p: string) => p.length > 0);
       const firstInitial = (nameParts[0] || 'u').charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
-      const birthYear = new Date(birthdate).getFullYear();
+      const birthYear = new Date(fd.birthdate).getFullYear();
       const baseLogin = `${firstInitial}${lastInitial}${birthYear}`;
       let generatedLogin = baseLogin;
       let counter = 1;
@@ -585,10 +637,9 @@ export async function registerRoutes(
         counter++;
       }
 
-      const hashed = await bcrypt.hash(password, 10);
+      const hashed = await bcrypt.hash(fd.password, 10);
       const now = new Date();
       const trialEnds = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const ip = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
 
       const user = await storage.createUser({
         username: generatedLogin,
@@ -596,10 +647,10 @@ export async function registerRoutes(
         isAdmin: true,
         mustChangePassword: false,
         passwordHint: null,
-        cpf: cpfDigits,
-        birthdate,
-        email: emailNorm,
-        phone: phone ? phone.replace(/\D/g, "") : null,
+        cpf: fd.cpf,
+        birthdate: fd.birthdate,
+        email: fd.email,
+        phone: fd.phone ? fd.phone.replace(/\D/g, "") : null,
         role: "company_admin",
         trial: true,
         trialStartedAt: now.toISOString(),
@@ -615,7 +666,9 @@ export async function registerRoutes(
 
       await seedMaterialsForUser(user.id);
       await seedBrandsForUser(user.id);
+      await storage.deleteEmailVerifToken(pendingId);
 
+      console.log("[Register] Conta criada com sucesso — login:", generatedLogin);
       return res.json({ ok: true, generatedLogin, message: "Conta criada com sucesso! Faça login para acessar o sistema." });
     } catch (e: any) {
       console.error("[Register]", e);

@@ -1,6 +1,6 @@
 import { 
   clients, materials, stockItems, stockMovements, calculations, settings, users, employees, brands, cashEntries, cashClosings,
-  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs, passwordResetTokens, customPrinters,
+  orderFinancials, orderPayments, dailyCash, userPermissions, auditLogs, passwordResetTokens, customPrinters, emailVerificationTokens,
   type Client, type InsertClient,
   type Material, type InsertMaterial,
   type StockItem, type InsertStockItem,
@@ -81,6 +81,11 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByCpf(cpf: string): Promise<User | undefined>;
   updateUserEmail(id: string, email: string): Promise<void>;
+  createEmailVerifToken(email: string, tokenHash: string, expiresAt: string, formData: string): Promise<{ id: string }>;
+  getEmailVerifToken(id: string): Promise<{ id: string; email: string; tokenHash: string; expiresAt: string; attempts: number; formData: string } | undefined>;
+  incrementEmailVerifAttempts(id: string): Promise<void>;
+  deleteEmailVerifToken(id: string): Promise<void>;
+  deleteExpiredEmailVerifTokens(): Promise<void>;
   createResetToken(userId: string, tokenHash: string, expiresAt: string): Promise<void>;
   getValidResetToken(tokenHash: string): Promise<{ id: string; userId: string; expiresAt: string } | undefined>;
   markResetTokenUsed(id: string): Promise<void>;
@@ -405,6 +410,34 @@ export class DatabaseStorage implements IStorage {
   async deleteExpiredResetTokens(): Promise<void> {
     await db.delete(passwordResetTokens)
       .where(sql`${passwordResetTokens.expiresAt} < ${new Date().toISOString()}`);
+  }
+  async createEmailVerifToken(email: string, tokenHash: string, expiresAt: string, formData: string): Promise<{ id: string }> {
+    await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.email, email));
+    const [row] = await db.insert(emailVerificationTokens).values({
+      email,
+      tokenHash,
+      expiresAt,
+      attempts: 0,
+      formData,
+      createdAt: new Date().toISOString(),
+    }).returning({ id: emailVerificationTokens.id });
+    return row;
+  }
+  async getEmailVerifToken(id: string): Promise<{ id: string; email: string; tokenHash: string; expiresAt: string; attempts: number; formData: string } | undefined> {
+    const [row] = await db.select().from(emailVerificationTokens).where(eq(emailVerificationTokens.id, id));
+    return row ? { id: row.id, email: row.email, tokenHash: row.tokenHash, expiresAt: row.expiresAt, attempts: row.attempts, formData: row.formData } : undefined;
+  }
+  async incrementEmailVerifAttempts(id: string): Promise<void> {
+    await db.update(emailVerificationTokens)
+      .set({ attempts: sql`${emailVerificationTokens.attempts} + 1` })
+      .where(eq(emailVerificationTokens.id, id));
+  }
+  async deleteEmailVerifToken(id: string): Promise<void> {
+    await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.id, id));
+  }
+  async deleteExpiredEmailVerifTokens(): Promise<void> {
+    await db.delete(emailVerificationTokens)
+      .where(sql`${emailVerificationTokens.expiresAt} < ${new Date().toISOString()}`);
   }
   async deleteUser(id: string): Promise<void> {
     const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id));

@@ -21,6 +21,48 @@ function createTransport() {
   });
 }
 
+export async function sendEmailVerificationCode(toEmail: string, code: string): Promise<void> {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@c3dmanager.com";
+  console.log("[EMAIL] sendEmailVerificationCode — para:", toEmail);
+
+  const transport = createTransport();
+
+  const subject = "Código de verificação — C3D Manager";
+  const body = `Olá,
+
+Recebemos sua solicitação de cadastro no C3D Manager.
+
+Seu código de verificação é:
+
+${code}
+
+Esse código expira em 15 minutos. Não compartilhe com ninguém.
+
+Se você não realizou esse cadastro, ignore este email.
+
+Atenciosamente,
+Equipe C3D Manager`;
+
+  if (!transport) {
+    console.log("╔══════════════════════════════════════════════════════╗");
+    console.log("║  [EMAIL] SMTP não configurado — CÓDIGO NO CONSOLE    ║");
+    console.log("╠══════════════════════════════════════════════════════╣");
+    console.log(`║  Para:    ${toEmail}`);
+    console.log(`║  Assunto: ${subject}`);
+    console.log(`║  CÓDIGO:  ${code}`);
+    console.log("╚══════════════════════════════════════════════════════╝");
+    return;
+  }
+
+  try {
+    const info = await transport.sendMail({ from, to: toEmail, subject, text: body });
+    console.log("[EMAIL] Verificação enviada. MessageId:", info.messageId);
+  } catch (e: any) {
+    console.error("[EMAIL] ERRO ao enviar código de verificação:", e?.message || e);
+    throw e;
+  }
+}
+
 export async function sendPasswordResetEmail(toEmail: string, code: string): Promise<void> {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@c3dmanager.com";
   console.log("[EMAIL] sendPasswordResetEmail chamado — para:", toEmail);

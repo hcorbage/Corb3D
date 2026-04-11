@@ -1,0 +1,127 @@
+Quero implementar a FASE 2 do cadastro público: verificação por e-mail com token antes da criação da conta.
+
+OBJETIVO:
+Validar o e-mail do usuário no cadastro público antes de criar a conta trial.
+
+IMPORTANTE:
+- manter a FASE 1 funcionando
+- o cadastro público continua existindo
+- mas a conta só deve ser criada após a validação do código enviado por e-mail
+- usar ao máximo a estrutura já existente no sistema
+- NÃO criar uma estrutura paralela de usuários
+
+REGRA PRINCIPAL:
+As contas criadas após a validação por e-mail devem entrar exatamente na mesma estrutura de usuários já existente no sistema.
+
+Quero que:
+- apareçam normalmente no painel do super_admin
+- possam ser gerenciadas normalmente
+- eu possa alterar status, trial, data de expiração e demais dados como já faço hoje
+- o cadastro público continue sendo apenas um novo fluxo de criação
+
+--------------------------------------------------
+FLUXO DESEJADO
+--------------------------------------------------
+
+1) Usuário acessa /cadastro
+2) Preenche:
+- nome completo
+- CPF
+- data de nascimento
+- e-mail
+- telefone/celular
+- senha
+- confirmação de senha
+- aceite dos Termos e Política de Privacidade
+
+3) Ao enviar:
+- NÃO criar a conta ainda
+- gerar um código numérico de 6 dígitos
+- enviar esse código por e-mail
+- mostrar a próxima etapa de verificação
+
+4) Etapa de verificação:
+- campo para digitar o código recebido por e-mail
+- botão para validar código
+
+5) Só após código válido:
+- criar a conta normalmente
+- gerar login automático (mesma lógica já existente: iniciais + ano)
+- criar usuário na estrutura atual
+- ativar trial padrão
+- registrar aceite dos termos
+- mostrar sucesso com login gerado
+
+--------------------------------------------------
+TOKEN / CÓDIGO
+--------------------------------------------------
+
+Quero um código:
+- numérico
+- 6 dígitos
+- expiração de 10 a 15 minutos
+- limite de tentativas
+- não armazenar em texto puro se já existir padrão melhor no sistema
+
+Se possível, reutilizar o padrão já existente de recuperação de senha:
+- hash do token
+- expiração
+- validação segura
+
+--------------------------------------------------
+REAPROVEITAR O QUE JÁ EXISTE
+--------------------------------------------------
+
+Quero reaproveitar ao máximo:
+- lógica atual de geração de login
+- lógica atual de criação de trial
+- lógica atual de aceite de termos
+- estrutura já existente de envio de e-mail / token, se houver
+
+--------------------------------------------------
+VALIDAÇÕES
+--------------------------------------------------
+
+Antes de enviar o código:
+- impedir CPF duplicado
+- impedir e-mail duplicado
+- validar campos obrigatórios
+- validar senha e confirmação
+- não prosseguir sem aceite dos termos
+
+Antes de criar a conta:
+- verificar se o código está correto
+- verificar se não expirou
+- limitar tentativas
+
+--------------------------------------------------
+REGRAS IMPORTANTES
+--------------------------------------------------
+
+- NÃO alterar o fluxo atual do super_admin criando contas manualmente
+- NÃO refatorar autenticação inteira
+- NÃO criar estrutura paralela de usuários
+- NÃO quebrar a FASE 1 já pronta
+- implementar de forma isolada, segura e localizada
+
+--------------------------------------------------
+UX
+--------------------------------------------------
+
+Quero fluxo simples e profissional:
+- etapa 1: formulário
+- etapa 2: código de verificação
+- opção de reenviar código
+- mensagem clara se o código estiver inválido ou expirado
+
+--------------------------------------------------
+ENTREGA
+--------------------------------------------------
+
+Quero no final:
+1. cadastro público com verificação por e-mail funcionando
+2. conta só criada depois da validação do código
+3. usuário entrando na estrutura atual do sistema
+4. trial ativado normalmente
+5. super_admin vendo o usuário normalmente no painel
+6. sem impactar o restante do sistema
