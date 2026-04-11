@@ -67,8 +67,8 @@ export async function createPaymentPreference(
         },
       ],
       payer: {
-        name: user.username,
-        email: user.email ?? undefined,
+        ...(user.email ? { email: user.email } : {}),
+        ...(user.cpf ? { identification: { type: "CPF", number: user.cpf } } : {}),
       },
       back_urls: {
         success: `${callbackBase}/planos`,
