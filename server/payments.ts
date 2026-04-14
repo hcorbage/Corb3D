@@ -70,10 +70,7 @@ export async function createPaymentPreference(
         },
       ],
       payer: isSandbox
-        ? {
-            email: "test_user_123456789@testuser.com",
-            identification: { type: "CPF", number: "12345678909" },
-          }
+        ? {}
         : {
             ...(user.email ? { email: user.email } : {}),
             ...(user.cpf ? { identification: { type: "CPF", number: user.cpf } } : {}),
