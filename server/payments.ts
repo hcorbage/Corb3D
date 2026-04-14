@@ -51,6 +51,9 @@ export async function createPaymentPreference(
   const plan = PLANS[planId];
   if (!plan) throw new Error(`Plano inválido: ${planId}`);
 
+  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN ?? "";
+  const isSandbox = token.startsWith("TEST-");
+
   const client = getMpClient();
   const prefApi = new Preference(client);
 
@@ -66,13 +69,15 @@ export async function createPaymentPreference(
           currency_id: plan.currency,
         },
       ],
-      payer: {
-        email: user.email || "test_user@test.com",
-        identification: {
-          type: "CPF",
-          number: user.cpf || "12345678909",
-        },
-      },
+      payer: isSandbox
+        ? {
+            email: "test_user_123456789@testuser.com",
+            identification: { type: "CPF", number: "12345678909" },
+          }
+        : {
+            ...(user.email ? { email: user.email } : {}),
+            ...(user.cpf ? { identification: { type: "CPF", number: user.cpf } } : {}),
+          },
       back_urls: {
         success: `${callbackBase}/planos`,
         failure: `${callbackBase}/planos`,
