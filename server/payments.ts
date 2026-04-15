@@ -83,6 +83,11 @@ export async function createPaymentPreference(
             ...(user.email ? { email: user.email } : {}),
             ...(user.cpf ? { identification: { type: "CPF", number: user.cpf } } : {}),
           },
+      payment_methods: {
+        excluded_payment_methods: [],
+        excluded_payment_types: [],
+        installments: 12,
+      },
       back_urls: {
         success: `${callbackBase}/planos`,
         failure: `${callbackBase}/planos`,
