@@ -14,6 +14,10 @@ interface PlanDefinition {
 type PlansMap = Record<string, PlanDefinition>;
 
 const FEATURES_BY_PLAN: Record<string, string[]> = {
+  teste: [
+    "Plano exclusivo para validação da integração",
+    "Duração: 1 dia",
+  ],
   trial: [
     "Calculadora de orçamentos",
     "Gestão de clientes",
@@ -40,6 +44,7 @@ const FEATURES_BY_PLAN: Record<string, string[]> = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
+  teste: "Teste",
   trial: "Trial",
   basic: "Basic",
   pro: "Pro",
@@ -47,6 +52,7 @@ const PLAN_LABELS: Record<string, string> = {
 
 function PlanBadge({ plan }: { plan: string }) {
   const labels: Record<string, { label: string; cls: string }> = {
+    teste: { label: "Teste ativo", cls: "bg-orange-100 text-orange-700 border-orange-200" },
     trial: { label: "Em teste", cls: "bg-gray-100 text-gray-600 border-gray-200" },
     basic: { label: "Basic ativo", cls: "bg-blue-100 text-blue-700 border-blue-200" },
     pro: { label: "Pro ativo", cls: "bg-violet-100 text-violet-700 border-violet-200" },
@@ -105,6 +111,19 @@ export default function Plans() {
   }
 
   const cardConfigs = [
+    {
+      id: "teste",
+      icon: Zap,
+      iconColor: "text-orange-500",
+      iconBg: "bg-orange-50",
+      badge: "Apenas R$1",
+      borderClass: "border-orange-300 border-dashed",
+      headerBg: "bg-orange-50",
+      priceColor: "text-orange-600",
+      buttonClass: "bg-orange-500 hover:bg-orange-600 text-white shadow-sm hover:shadow-md",
+      buttonLabel: "Testar integração",
+      buttonDisabled: false,
+    },
     {
       id: "trial",
       icon: Clock,
@@ -180,7 +199,7 @@ export default function Plans() {
       )}
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {cardConfigs.map((cfg) => {
           const planData = plans[cfg.id];
           const Icon = cfg.icon;

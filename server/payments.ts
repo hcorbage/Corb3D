@@ -1,7 +1,7 @@
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import type { User } from "@shared/schema";
 
-export type PlanId = "basic" | "pro";
+export type PlanId = "basic" | "pro" | "teste";
 
 export interface PlanDefinition {
   id: PlanId;
@@ -13,6 +13,14 @@ export interface PlanDefinition {
 }
 
 export const PLANS: Record<PlanId, PlanDefinition> = {
+  teste: {
+    id: "teste",
+    name: "Plano Teste — C3D Manager",
+    description: "Plano de R$1 para validação da integração de pagamento.",
+    price: 1.00,
+    currency: "BRL",
+    durationDays: 1,
+  },
   basic: {
     id: "basic",
     name: "Plano Basic — C3D Manager",
